@@ -1,0 +1,55 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Consultation Records · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Consultation Registry{% endblock %}
+{% block page_subtitle %}Professional electronic registry for clinic consultations{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <h3>Search and Filter</h3>
+  <p>Search by date, diagnosis, age group, or gender. Import and export options are available for administrative use.</p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+    <a class="btn" href="/upload">Import Excel</a>
+    <a class="btn secondary" href="/dashboard">Export Excel</a>
+    <a class="btn secondary" href="/dashboard">Add Record</a>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Consultation Records</h3>
+  <table class="table">
+    <thead>
+      <tr><th>Date</th><th>Age</th><th>Gender</th><th>Diagnosis</th><th>Physician</th><th>Department</th></tr>
+    </thead>
+    <tbody>
+      {% for record in records.items %}
+        <tr><td>{{ record.consultation_date }}</td><td>{{ record.age_group }}</td><td>{{ record.gender }}</td><td>{{ record.diagnosis }}</td><td>{{ record.physician }}</td><td>{{ record.department }}</td></tr>
+      {% else %}
+        <tr><td colspan="6">No consultation records available yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if records.pages > 1 %}
+  <div class="pagination" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    {% if records.has_prev %}
+      <a class="btn secondary" href="{{ url_for('records', page=records.prev_num) }}">Previous</a>
+    {% endif %}
+    {% for page_num in records.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+      {% if page_num %}
+        {% if page_num == records.page %}
+          <span class="btn" style="cursor:default;">{{ page_num }}</span>
+        {% else %}
+          <a class="btn secondary" href="{{ url_for('records', page=page_num) }}">{{ page_num }}</a>
+        {% endif %}
+      {% else %}
+        <span>…</span>
+      {% endif %}
+    {% endfor %}
+    {% if records.has_next %}
+      <a class="btn secondary" href="{{ url_for('records', page=records.next_num) }}">Next</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{% if staff_member %}Edit{% else %}New{% endif %} Staff Member · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}{% if staff_member %}Edit Staff Member{% else %}Add Staff Member{% endif %}{% endblock %}
+{% block page_subtitle %}Manage staff details while preserving history through soft delete{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <h3>{% if staff_member %}Edit Staff Member{% else %}Add Staff Member{% endif %}</h3>
+  <form method="post" class="form-grid">
+    <label>
+      Name
+      <input type="text" name="name" value="{{ staff_member.name if staff_member else '' }}" required>
+    </label>
+    <label>
+      Role
+      <input type="text" name="role" value="{{ staff_member.role if staff_member else '' }}" required>
+    </label>
+    <label>
+      Department
+      <input type="text" name="department" value="{{ staff_member.department if staff_member else '' }}" required>
+    </label>
+    <label>
+      Availability
+      <input type="text" name="availability" value="{{ staff_member.availability if staff_member else 'Available' }}">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn">Save</button>
+      <a href="{{ url_for('staff') }}" class="btn secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

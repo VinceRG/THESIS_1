@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accudetek Login</title>
+  <style>
+    :root {
+      --primary:#0f5b8a;
+      --primary-dark:#073b58;
+      --accent:#2ba7c5;
+      --bg:#f4fbfd;
+      --text:#12364b;
+      --muted:#5f7483;
+      --card:#ffffff;
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      font-family:Inter, Arial, sans-serif;
+      background:linear-gradient(135deg, var(--bg) 0%, #e8f6fa 100%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .page {
+      display:grid;
+      grid-template-columns:1.05fr 0.95fr;
+      width:min(1100px, 100%);
+      min-height:620px;
+      background:var(--card);
+      border-radius:24px;
+      overflow:hidden;
+      box-shadow:0 25px 60px rgba(7, 59, 88, 0.16);
+    }
+    .hero {
+      background:linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 55%, var(--accent) 100%);
+      color:white;
+      padding:42px 36px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:24px;
+    }
+    .hero-top h1 { margin:0 0 8px; font-size:30px; }
+    .hero-top p { margin:0; line-height:1.6; color:rgba(255,255,255,0.9); max-width:360px; }
+    .hero-panel {
+      background:rgba(255,255,255,0.16);
+      border:1px solid rgba(255,255,255,0.22);
+      border-radius:18px;
+      padding:18px;
+      backdrop-filter:blur(8px);
+    }
+    .hero-panel strong { display:block; margin-bottom:8px; font-size:15px; }
+    .hero-panel ul { margin:8px 0 0 16px; padding:0; line-height:1.6; color:rgba(255,255,255,0.92); }
+    .form-side { padding:40px 36px; display:flex; flex-direction:column; justify-content:center; }
+    .brand { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+    .brand img { width:54px; height:54px; border-radius:14px; object-fit:cover; background:white; padding:4px; }
+    .brand h2 { margin:0; font-size:22px; color:var(--primary-dark); }
+    .brand p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+    .photo-slot {
+      border:2px dashed #c8e6ef;
+      border-radius:16px;
+      min-height:140px;
+      display:grid;
+      place-items:center;
+      color:var(--muted);
+      background:linear-gradient(180deg, #f9fdff, #eef8fb);
+      margin-bottom:20px;
+      font-size:14px;
+      text-align:center;
+      padding:16px;
+    }
+    form { display:grid; gap:12px; }
+    label { display:grid; gap:6px; font-size:14px; color:var(--muted); }
+    input {
+      width:100%; padding:12px 14px; border:1px solid #d9e8ee; border-radius:12px; background:#f7fcfe; font-size:15px;
+    }
+    input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(43,167,197,0.18); }
+    button {
+      margin-top:6px; padding:12px 14px; border:none; border-radius:12px; background:linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%); color:white; font-weight:700; cursor:pointer;
+    }
+    button:hover { filter:brightness(1.04); }
+    .meta { margin-top:14px; font-size:13px; color:var(--muted); line-height:1.5; }
+    @media (max-width: 840px) { .page { grid-template-columns:1fr; } .hero { min-height:260px; } .form-side { padding:28px 24px 36px; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div class="hero-top">
+        <h1>Smart clinic operations, simplified.</h1>
+        <p>Access patient insights, consultation records, forecasting, and staff coordination from one secure workspace.</p>
+      </div>
+      <div class="hero-panel">
+        <strong>What you can do here</strong>
+        <ul>
+          <li>Review live clinic analytics</li>
+          <li>Manage consultation data and records</li>
+          <li>Plan staff and resource needs</li>
+        </ul>
+      </div>
+    </div>
+    <div class="form-side">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
+        <div>
+          <h2>Accudetek Health Diagnostics</h2>
+          <p>Secure portal access</p>
+        </div>
+      </div>
+
+      <div class="photo-slot">
+        <img src="{{ url_for('static', filename='') }}../img/Screenshot 2026-07-09 000115.png" alt="Clinic preview" style="width:100%; height:100%; object-fit:cover; border-radius:14px;">
+      </div>
+
+      <form method="post">
+        <label>
+          Username
+          <input name="username" placeholder="Enter your username" required>
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" placeholder="Enter your password" required>
+        </label>
+        <button type="submit">Sign In</button>
+      </form>
+      <div class="meta">For authorized personnel only. Use your clinic credentials to continue.</div>
+    </div>
+  </div>
+</body>
+</html>

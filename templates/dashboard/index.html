@@ -1,0 +1,227 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Dashboard · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Operations Dashboard{% endblock %}
+{% block page_subtitle %}Trusted overview of patient demand, staffing, and readiness{% endblock %}
+
+{% block content %}
+<div class="grid cards">
+  <div class="card">
+    <h3>Total Consultations</h3>
+    <div class="value">{{ summary.total_consultations }}</div>
+    <div class="trend">Based on uploaded records</div>
+  </div>
+  <div class="card">
+    <h3>Predicted Cases Next Month</h3>
+    <div class="value">{{ summary.predicted_cases_next_month }}</div>
+    <div class="trend">{{ summary.top_diagnosis }} is driving the trend</div>
+  </div>
+  <div class="card">
+    <h3>Available Staff</h3>
+    <div class="value">{{ summary.staff_count }}</div>
+    <div class="trend">Current staff roster</div>
+  </div>
+  <div class="card">
+    <h3>Resource Readiness</h3>
+    <div class="value">{{ summary.resource_readiness }}%</div>
+    <div class="trend">Derived from data volume</div>
+  </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Monthly Consultation Trend</h3>
+    <div class="chart-container">
+      <canvas id="monthlyTrendChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Consultation Distribution</h3>
+    <div class="chart-container donut-container">
+      <canvas id="distributionDonutChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Top Consultation Cases</h3>
+    <div class="chart-container donut-container">
+      <canvas id="topCasesDonutChart"></canvas>
+    </div>
+    <ul class="chart-legend small-legend">
+      {% for diagnosis, count in summary.top_cases %}
+        <li>{{ diagnosis }}: {{ count }} cases</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="chart-card">
+    <h3>Gender Distribution</h3>
+    <div class="chart-container donut-container">
+      <canvas id="genderDistributionDonutChart"></canvas>
+    </div>
+    <ul class="chart-legend small-legend">
+      {% for gender, count in summary.gender_distribution %}
+        <li>{{ gender }}: {{ count }} cases</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Prediction Summary</h3>
+    <table class="table">
+      <thead>
+        <tr><th>Disease</th><th>Reference Month</th><th>Predicted Month</th><th>Predicted Volume</th><th>Trend</th></tr>
+      </thead>
+      <tbody>
+        {% for item in summary.predictions %}
+          <tr>
+            <td>{{ item.diagnosis }}</td>
+            <td>{{ item.current_month }} cases</td>
+            <td>{{ item.predicted_month }}</td>
+            <td>{{ item.predicted_next_month }}</td>
+            <td>{{ item.trend }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="chart-card">
+    <h3>Resource Recommendation</h3>
+    <p>{{ summary.resource_recommendation }}</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const trendCtx = document.getElementById('monthlyTrendChart');
+  if (trendCtx) {
+    new Chart(trendCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for item in summary.monthly_trend %}'{{ item.month }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          type: 'bar',
+          label: 'Patient Volume',
+          data: [{% for item in summary.monthly_trend %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: 'rgba(37, 99, 235, 0.65)',
+          borderRadius: 12,
+          borderWidth: 0,
+        }, {
+          type: 'line',
+          label: 'Trend',
+          data: [{% for item in summary.monthly_trend %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          borderColor: '#1d4ed8',
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          tension: 0.35,
+          fill: false,
+          pointRadius: 4,
+          pointBackgroundColor: '#1d4ed8',
+        }]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top' },
+          tooltip: { enabled: true }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Month' }, grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Patient Volume' } }
+        },
+        maintainAspectRatio: false,
+      }
+    });
+  }
+
+  const distributionDonutCtx = document.getElementById('distributionDonutChart');
+  if (distributionDonutCtx) {
+    new Chart(distributionDonutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: [{% for diagnosis, count in summary.consultation_distribution %}'{{ diagnosis }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          data: [{% for diagnosis, count in summary.consultation_distribution %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.label + ': ' + context.parsed + ' cases';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  const topCasesDonutCtx = document.getElementById('topCasesDonutChart');
+  if (topCasesDonutCtx) {
+    new Chart(topCasesDonutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: [{% for diagnosis, count in summary.top_cases %}'{{ diagnosis }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          data: [{% for diagnosis, count in summary.top_cases %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: ['#1d4ed8', '#3b82f6', '#60a5fa', '#0ea5e9', '#38bdf8'],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.label + ': ' + context.parsed + ' cases';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  const genderDistributionDonutCtx = document.getElementById('genderDistributionDonutChart');
+  if (genderDistributionDonutCtx) {
+    new Chart(genderDistributionDonutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: [{% for gender, count in summary.gender_distribution %}'{{ gender }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          data: [{% for gender, count in summary.gender_distribution %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: ['#2563eb', '#ec4899'],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.label + ': ' + context.parsed + ' cases';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}

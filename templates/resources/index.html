@@ -1,0 +1,82 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Resource Planning · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Resource Planning{% endblock %}
+{% block page_subtitle %}Plan staff, equipment, and service capacity based on demand forecasts{% endblock %}
+
+{% block content %}
+<div class="resource-intro">
+  <p>This page summarizes the facility resource plan. It includes a high-level capacity status based on forecasted consultation volume, the intended staffing complement, the equipment inventory, and the current staff records loaded into the system.</p>
+  <p><strong>Note:</strong> The “Staff Inventory” section is a static expected complement, while “Current Staff by Role” reflects the actual records in the database. If the database is empty or missing staff entries, the page will appear less meaningful.</p>
+</div>
+
+<div class="grid resource-row" style="margin-bottom:20px;">
+  <div class="chart-card">
+    <h3>Resource Capacity Status</h3>
+    <div class="resource-summary">
+      <p><strong>Capacity status:</strong> {{ summary.capacity_status }}</p>
+      <p><strong>Forecast pressure:</strong> {{ summary.forecast_pressure }}%</p>
+      <p><strong>Estimated monthly capacity:</strong> {{ summary.estimated_monthly_capacity }} patient slots</p>
+      <p>{{ summary.resource_forecast_recommendation }}</p>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Actual Staff on Record</h3>
+    <table class="table resource-table">
+      <thead>
+        <tr><th>Role</th><th>Current Count</th></tr>
+      </thead>
+      <tbody>
+        {% if summary.actual_staff_by_role %}
+          {% for role, count in summary.actual_staff_by_role.items() %}
+            <tr><td>{{ role }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="2">No staff records available. Add staff entries under Staff Management.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid resource-row" style="margin-bottom:20px;">
+  <div class="chart-card">
+    <h3>Expected Staff Complement</h3>
+    <table class="table resource-table">
+      <thead>
+        <tr><th>Staff Role</th><th>Expected Count</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        {% for item in summary.facility_staff_complement %}
+          <tr>
+            <td>{{ item.role }}</td>
+            <td>{{ item.count }}</td>
+            <td>{{ item.notes }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="chart-card resource-card">
+    <h3>Services & Equipment</h3>
+    <div class="resource-grid">
+      <div>
+        <h4>Medical Services</h4>
+        <ul class="resource-list">
+          {% for service in summary.services %}
+            <li>{{ service }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div>
+        <h4>Diagnostic Equipment</h4>
+        <ul class="resource-list">
+          {% for item in summary.equipment %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Reports · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block page_subtitle %}Downloadable reports for operations, forecasting, and resource planning{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <h3>Available Reports</h3>
+  <ul>
+    <li>Monthly Consultation Report</li>
+    <li>Quarterly Report</li>
+    <li>Prediction Report</li>
+    <li>Resource Recommendation Report</li>
+  </ul>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+    <a class="btn" href="/dashboard">View</a>
+    <a class="btn secondary" href="/dashboard">Print</a>
+    <a class="btn secondary" href="/dashboard">Download PDF</a>
+    <a class="btn secondary" href="/dashboard">Download Excel</a>
+  </div>
+</div>
+{% endblock %}

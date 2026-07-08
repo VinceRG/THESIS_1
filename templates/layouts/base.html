@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Smart Healthcare Clinic Management{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo" class="brand-logo">
+        <div>
+          <h3>Accudetek</h3>
+          <p>Health Diagnostics</p>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="/dashboard" class="{% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/records" class="{% if request.path == '/records' %}active{% endif %}">Consultation Records</a>
+        <a href="/predict" class="{% if request.path == '/predict' %}active{% endif %}">Predictions</a>
+        <a href="/resources" class="{% if request.path == '/resources' %}active{% endif %}">Resource Planning</a>
+        <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">Reports</a>
+        <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}">Staff Management</a>
+        <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}">Settings</a>
+        <a href="/logout">Logout</a>
+      </nav>
+    </aside>
+    <main class="main-panel">
+      <header class="topbar">
+        <div>
+          <h1>{% block page_title %}Operations Dashboard{% endblock %}</h1>
+          <p>{% block page_subtitle %}Hospital operations and consultation forecasting{% endblock %}</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="topbar-pill">{{ current_date }}</span>
+          <span class="topbar-pill">{{ current_time }}</span>
+          <a href="/logout" class="topbar-link">Logout</a>
+        </div>
+      </header>
+      <section class="content">
+        {% block content %}{% endblock %}
+      </section>
+    </main>
+  </div>
+  <script>
+    function updateActiveLink(path) {
+      document.querySelectorAll('.nav-links a').forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === path);
+      });
+    }
+
+    async function runInlineScripts(container) {
+      const scripts = Array.from(container.querySelectorAll('script'));
+
+      for (const oldScript of scripts) {
+        if (oldScript.src) {
+          const src = oldScript.src;
+          const alreadyLoaded = Array.from(document.scripts).some(script => script.src === src);
+          if (!alreadyLoaded) {
+            await new Promise(resolve => {
+              const script = document.createElement('script');
+              script.src = src;
+              script.onload = () => resolve();
+              script.onerror = () => {
+                console.warn('Failed to load script:', src);
+                resolve();
+              };
+              document.body.appendChild(script);
+            });
+          }
+        }
+      }
+
+      for (const oldScript of scripts) {
+        if (!oldScript.src) {
+          const script = document.createElement('script');
+          script.textContent = `(function() {\n${oldScript.textContent}\n})();`;
+          document.body.appendChild(script).parentNode.removeChild(script);
+        }
+      }
+    }
+
+    function shouldFullReload(path) {
+      return path === '/dashboard';
+    }
+
+    async function fetchPage(path) {
+      const contentElement = document.querySelector('.content');
+      if (!contentElement) return;
+      contentElement.innerHTML = '<div class="loading-state">Loading page...</div>';
+      try {
+        const response = await fetch(path, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!response.ok) {
+          window.location.href = path;
+          return;
+        }
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newContent = doc.querySelector('.content');
+        const newPageTitle = doc.querySelector('title')?.innerText;
+        const newTopTitle = doc.querySelector('header.topbar h1')?.innerText;
+        const newTopSubtitle = doc.querySelector('header.topbar p')?.innerText;
+
+        if (newContent) {
+          contentElement.innerHTML = newContent.innerHTML;
+        } else {
+          contentElement.innerHTML = '<div class="loading-state">Unable to load page content.</div>';
+        }
+
+        if (newPageTitle) document.title = newPageTitle;
+        if (newTopTitle) document.querySelector('header.topbar h1').innerText = newTopTitle;
+        if (newTopSubtitle) document.querySelector('header.topbar p').innerText = newTopSubtitle;
+
+        updateActiveLink(path);
+        if (window.location.pathname !== path) {
+          window.history.pushState({}, '', path);
+        }
+
+        await runInlineScripts(contentElement);
+      } catch (error) {
+        console.error(error);
+        window.location.href = path;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.nav-links a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href || href === '/logout' || href.startsWith('http')) return;
+        link.addEventListener('click', event => {
+          event.preventDefault();
+          if (shouldFullReload(href)) {
+            window.location.href = href;
+            return;
+          }
+          fetchPage(href);
+        });
+      });
+
+      window.addEventListener('popstate', () => {
+        if (shouldFullReload(window.location.pathname)) {
+          window.location.href = window.location.pathname;
+          return;
+        }
+        fetchPage(window.location.pathname);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Predictions · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Prediction Center{% endblock %}
+{% block page_subtitle %}Random Forest insights for consultation trends and patient volume{% endblock %}
+
+{% block content %}
+<div class="grid cards">
+  <div class="card">
+    <h3>Algorithm</h3>
+    <div class="value">Random Forest</div>
+  </div>
+  <div class="card">
+    <h3>R2 Score</h3>
+    <div class="value">{{ metrics.r2_score }}</div>
+  </div>
+  <div class="card">
+    <h3>MAE</h3>
+    <div class="value">{{ metrics.mae }}</div>
+  </div>
+  <div class="card">
+    <h3>RMSE</h3>
+    <div class="value">{{ metrics.rmse }}</div>
+  </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Prediction Results</h3>
+    <p>MSE: {{ metrics.mse }}</p>
+    <p>Top predicted cases:</p>
+    <ul>
+      {% for case in top_cases %}
+        <li>{{ case }}</li>
+      {% else %}
+        <li>No predictions available yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="chart-card">
+    <h3>Model Notes</h3>
+    <p>The model retrains automatically after each uploaded Excel/CSV file and writes a readable report to the uploads folder.</p>
+    <form method="post" action="/retrain" style="margin-top:12px;">
+      <button class="btn" type="submit">Retrain from existing data</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

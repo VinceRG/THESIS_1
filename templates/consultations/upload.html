@@ -1,0 +1,16 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Upload Data · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Data Upload{% endblock %}
+{% block page_subtitle %}Import consultation datasets for training and forecasting{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <h3>Upload Consultation Dataset</h3>
+  <p>Supported formats: Excel and CSV. The system validates and cleans data before it is used for prediction.</p>
+  <form method="post" enctype="multipart/form-data" style="margin-top:16px;">
+    <input type="file" name="file" required style="display:block; margin-bottom:12px;">
+    <button class="btn" type="submit">Upload and Process</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Staff Management · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Staff Management{% endblock %}
+{% block page_subtitle %}Coordinate availability, workload, and department coverage{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('create_staff') }}" class="btn">Add New Staff</a>
+</div>
+
+<div class="chart-card">
+  <h3>Active Staff</h3>
+  <table class="table">
+    <thead>
+      <tr><th>Name</th><th>Position</th><th>Department</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for person in active_staff %}
+        <tr>
+          <td>{{ person.name }}</td>
+          <td>{{ person.role }}</td>
+          <td>{{ person.department }}</td>
+          <td>{{ person.availability }}</td>
+          <td>
+            <a class="btn secondary" href="{{ url_for('edit_staff', staff_id=person.id) }}">Edit</a>
+            <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;">
+              <button type="submit" class="btn secondary">Remove</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">No active staff members available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Former Staff</h3>
+  <table class="table">
+    <thead>
+      <tr><th>Name</th><th>Position</th><th>Department</th><th>Deleted At</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for person in inactive_staff %}
+        <tr>
+          <td>{{ person.name }}</td>
+          <td>{{ person.role }}</td>
+          <td>{{ person.department }}</td>
+          <td>{{ person.deleted_at }}</td>
+          <td>
+            <form method="post" action="{{ url_for('restore_staff', staff_id=person.id) }}">
+              <button type="submit" class="btn">Restore</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">No removed staff members.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
