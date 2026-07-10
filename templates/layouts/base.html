@@ -47,7 +47,128 @@
       </section>
     </main>
   </div>
+  <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-hidden="true">
+    <div class="loading-panel">
+      <div class="loading-heading" id="loadingTitle">Processing request</div>
+      <div class="loading-copy" id="loadingMessage">Please wait while the system prepares your data.</div>
+      <div class="loading-track">
+        <div class="loading-bar" id="loadingBar"></div>
+      </div>
+      <div class="loading-percent" id="loadingPercent">0%</div>
+    </div>
+  </div>
+  <div class="confirm-overlay" id="confirmOverlay" aria-hidden="true">
+    <div class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle">Confirm action</h3>
+      <p id="confirmMessage">Are you sure you want to continue?</p>
+      <div class="confirm-actions">
+        <button type="button" class="btn secondary" id="confirmCancel">Cancel</button>
+        <button type="button" class="btn" id="confirmProceed">Continue</button>
+      </div>
+    </div>
+  </div>
   <script>
+    let loadingTimer = null;
+    let loadingProgress = 0;
+    let pendingConfirmForm = null;
+
+    function setLoadingProgress(value) {
+      loadingProgress = Math.max(0, Math.min(100, Math.round(value)));
+      const bar = document.getElementById('loadingBar');
+      const percent = document.getElementById('loadingPercent');
+      if (bar) bar.style.width = loadingProgress + '%';
+      if (percent) percent.textContent = loadingProgress + '%';
+    }
+
+    function startLoading(title = 'Processing request', message = 'Please wait while the system prepares your data.') {
+      const overlay = document.getElementById('loadingOverlay');
+      const titleElement = document.getElementById('loadingTitle');
+      const messageElement = document.getElementById('loadingMessage');
+      if (!overlay) return;
+
+      if (titleElement) titleElement.textContent = title;
+      if (messageElement) messageElement.textContent = message;
+      overlay.classList.add('active');
+      overlay.setAttribute('aria-hidden', 'false');
+      setLoadingProgress(0);
+
+      if (loadingTimer) window.clearInterval(loadingTimer);
+      loadingTimer = window.setInterval(() => {
+        const increment = loadingProgress < 45 ? 7 : loadingProgress < 75 ? 4 : loadingProgress < 92 ? 2 : 0;
+        if (increment > 0) setLoadingProgress(loadingProgress + increment);
+      }, 260);
+    }
+
+    function finishLoading() {
+      if (loadingTimer) window.clearInterval(loadingTimer);
+      setLoadingProgress(100);
+      window.setTimeout(() => {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+          overlay.classList.remove('active');
+          overlay.setAttribute('aria-hidden', 'true');
+        }
+      }, 280);
+    }
+
+    function filenameFromDisposition(disposition, fallback) {
+      const match = disposition?.match(/filename="?([^"]+)"?/i);
+      return match ? match[1] : fallback;
+    }
+
+    async function downloadWithLoading(url) {
+      startLoading('Preparing download', 'Generating the report file and formatting the contents for download.');
+      try {
+        const response = await fetch(url, { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('Download failed');
+        setLoadingProgress(92);
+
+        const blob = await response.blob();
+        const downloadUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = downloadUrl;
+        anchor.download = filenameFromDisposition(
+          response.headers.get('Content-Disposition'),
+          'report.pdf'
+        );
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        finishLoading();
+      } catch (error) {
+        console.error(error);
+        const titleElement = document.getElementById('loadingTitle');
+        const messageElement = document.getElementById('loadingMessage');
+        if (titleElement) titleElement.textContent = 'Download failed';
+        if (messageElement) messageElement.textContent = 'The file could not be prepared. Please try again.';
+        if (loadingTimer) window.clearInterval(loadingTimer);
+        window.setTimeout(finishLoading, 1200);
+      }
+    }
+
+    function openConfirmModal(form, message, title = 'Confirm action') {
+      pendingConfirmForm = form;
+      const overlay = document.getElementById('confirmOverlay');
+      const titleElement = document.getElementById('confirmTitle');
+      const messageElement = document.getElementById('confirmMessage');
+      if (titleElement) titleElement.textContent = title;
+      if (messageElement) messageElement.textContent = message;
+      if (overlay) {
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function closeConfirmModal() {
+      const overlay = document.getElementById('confirmOverlay');
+      if (overlay) {
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+      pendingConfirmForm = null;
+    }
+
     function updateActiveLink(path) {
       document.querySelectorAll('.nav-links a').forEach(link => {
         link.classList.toggle('active', link.getAttribute('href') === path);
@@ -92,6 +213,7 @@
     async function fetchPage(path) {
       const contentElement = document.querySelector('.content');
       if (!contentElement) return;
+      startLoading('Loading page', 'Fetching the requested page and preparing the interface.');
       contentElement.innerHTML = '<div class="loading-state">Loading page...</div>';
       try {
         const response = await fetch(path, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
@@ -123,6 +245,7 @@
         }
 
         await runInlineScripts(contentElement);
+        finishLoading();
       } catch (error) {
         console.error(error);
         window.location.href = path;
@@ -136,11 +259,31 @@
         link.addEventListener('click', event => {
           event.preventDefault();
           if (shouldFullReload(href)) {
+            startLoading('Loading dashboard', 'Refreshing dashboard summaries and charts.');
             window.location.href = href;
             return;
           }
           fetchPage(href);
         });
+      });
+
+      document.addEventListener('click', event => {
+        const link = event.target.closest('a');
+        if (!link) return;
+        const href = link.getAttribute('href') || '';
+        const label = link.textContent.trim().toLowerCase();
+
+        if (href.includes('/pdf') || label.includes('download')) {
+          event.preventDefault();
+          downloadWithLoading(href);
+          return;
+        }
+
+        if (link.dataset.loadingLink === 'report-view') {
+          event.preventDefault();
+          startLoading('Loading report', 'Preparing report metrics, charts, and recommendations.');
+          fetchPage(href);
+        }
       });
 
       window.addEventListener('popstate', () => {
@@ -149,6 +292,46 @@
           return;
         }
         fetchPage(window.location.pathname);
+      });
+
+      document.addEventListener('submit', event => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        if (form.dataset.confirm && form.dataset.confirmed !== 'true') {
+          event.preventDefault();
+          openConfirmModal(form, form.dataset.confirm, form.dataset.confirmTitle || 'Confirm action');
+          return;
+        }
+        if (form.dataset.confirmed === 'true') {
+          delete form.dataset.confirmed;
+        }
+        const submitter = event.submitter;
+        const buttonText = submitter?.textContent?.trim() || '';
+        const enctype = form.getAttribute('enctype') || '';
+
+        if (enctype.includes('multipart/form-data')) {
+          startLoading('Uploading and processing data', 'Reading the file, saving records, retraining the model, and updating reports.');
+          return;
+        }
+
+        if (form.getAttribute('action') === '/retrain' || buttonText.toLowerCase().includes('retrain')) {
+          startLoading('Retraining model', 'Building the training frame, validating the Random Forest model, and writing the report.');
+          return;
+        }
+
+        startLoading('Processing request', 'Saving your changes and refreshing the page.');
+      });
+
+      document.getElementById('confirmCancel')?.addEventListener('click', closeConfirmModal);
+      document.getElementById('confirmOverlay')?.addEventListener('click', event => {
+        if (event.target.id === 'confirmOverlay') closeConfirmModal();
+      });
+      document.getElementById('confirmProceed')?.addEventListener('click', () => {
+        if (!pendingConfirmForm) return;
+        const form = pendingConfirmForm;
+        form.dataset.confirmed = 'true';
+        closeConfirmModal();
+        form.requestSubmit();
       });
     });
   </script>

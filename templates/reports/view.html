@@ -1,0 +1,165 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ report.title }} - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}{{ report.title }}{% endblock %}
+{% block page_subtitle %}Generated {{ report.generated_at }}{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a class="btn secondary" href="{{ url_for('reports') }}">Back to Reports</a>
+  <a class="btn secondary" href="{{ url_for('report_print', report_key=report.key) }}">Print</a>
+  <a class="btn" href="{{ url_for('report_pdf', report_key=report.key) }}">Download PDF</a>
+</div>
+
+<div class="chart-card">
+  <h3>{{ report.description }}</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for section in report.sections %}
+      <tr>
+        <th>{{ section.metric }}</th>
+        <td>
+          {% if section.metric == 'Capacity Status' %}
+            <span class="status-pill status-{{ section.value|lower }}">{{ section.value }}</span>
+          {% else %}
+            {{ section.value }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>{{ report.details_title }}</h3>
+  <p style="margin:0 0 14px; color:#64748b; line-height:1.5;">{{ report.details_note }}</p>
+  {% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows %}
+    <div class="chart-container">
+      <canvas id="reportLineChart"></canvas>
+    </div>
+  {% elif report.rows %}
+    <table class="table">
+      <thead>
+        <tr>
+          {% for key in report.rows[0].keys() %}
+          <th>{{ key|replace('_', ' ')|title }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report.rows %}
+        <tr>
+          {% for value in row.values() %}
+          <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="margin:0; color:#64748b;">No detail rows available.</p>
+  {% endif %}
+</div>
+
+{% if print_mode %}
+<script>
+  window.addEventListener('load', () => window.print());
+</script>
+{% endif %}
+
+{% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const reportLineCtx = document.getElementById('reportLineChart');
+  if (reportLineCtx) {
+    const reportKey = {{ report.key|tojson }};
+    const chartPayload = {{ report.chart_rows | tojson }};
+    const isQuarterly = reportKey === 'quarterly';
+    const allValues = chartPayload.datasets.flatMap(item => item.data);
+    const minValue = Math.min(...allValues);
+    const maxValue = Math.max(...allValues);
+    const axisPadding = Math.max(5, Math.ceil((maxValue - minValue) * 0.25));
+    const valueLabelPlugin = {
+      id: 'valueLabelPlugin',
+      afterDatasetsDraw(chart) {
+        if (!isQuarterly) return;
+        const { ctx } = chart;
+        ctx.save();
+        ctx.font = '600 11px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+          const meta = chart.getDatasetMeta(datasetIndex);
+          ctx.fillStyle = dataset.borderColor;
+          meta.data.forEach((point, index) => {
+            ctx.fillText(dataset.data[index], point.x, point.y - 9);
+          });
+        });
+        ctx.restore();
+      }
+    };
+    new Chart(reportLineCtx, {
+      type: 'line',
+      data: {
+        labels: chartPayload.labels,
+        datasets: chartPayload.datasets.map((item, index) => {
+          const colors = ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706', '#7c3aed', '#dc2626'];
+          const color = colors[index % colors.length];
+          return {
+            label: String(item.year),
+            data: item.data,
+            borderColor: color,
+            backgroundColor: color + '22',
+            tension: isQuarterly ? 0 : 0.35,
+            fill: false,
+            borderWidth: isQuarterly ? 3 : 2,
+            pointRadius: isQuarterly ? 7 : 4,
+            pointHoverRadius: isQuarterly ? 9 : 6,
+            pointBackgroundColor: color,
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: isQuarterly ? 3 : 2
+          };
+        })
+      },
+      plugins: [valueLabelPlugin],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y + ' consultations';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: {{ report.chart_rows.x_title|default('Month of Year')|tojson }} },
+            offset: isQuarterly,
+            grid: { display: false }
+          },
+          y: {
+            beginAtZero: !isQuarterly,
+            suggestedMin: isQuarterly ? Math.max(0, minValue - axisPadding) : undefined,
+            suggestedMax: isQuarterly ? maxValue + axisPadding : undefined,
+            title: { display: true, text: 'Consultations' },
+            ticks: { precision: 0 }
+          }
+        }
+      }
+    });
+  }
+</script>
+{% endif %}
+{% endblock %}

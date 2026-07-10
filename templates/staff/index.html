@@ -2,7 +2,7 @@
 
 {% block title %}Staff Management · Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Staff Management{% endblock %}
-{% block page_subtitle %}Coordinate availability, workload, and department coverage{% endblock %}
+{% block page_subtitle %}Coordinate staff roles, availability, and clinic coverage{% endblock %}
 
 {% block content %}
 <div class="page-actions">
@@ -13,52 +13,83 @@
   <h3>Active Staff</h3>
   <table class="table">
     <thead>
-      <tr><th>Name</th><th>Position</th><th>Department</th><th>Status</th><th>Actions</th></tr>
+      <tr><th>Name</th><th>Position</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody>
       {% for person in active_staff %}
         <tr>
           <td>{{ person.name }}</td>
           <td>{{ person.role }}</td>
-          <td>{{ person.department }}</td>
-          <td>{{ person.availability }}</td>
+          <td>
+            <span class="staff-status status-{{ person.availability|lower|replace(' ', '-') }}">
+              {{ person.availability }}
+            </span>
+          </td>
           <td>
             <a class="btn secondary" href="{{ url_for('edit_staff', staff_id=person.id) }}">Edit</a>
-            <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;">
+            <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
+                  data-confirm-title="Remove staff member?"
+                  data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
               <button type="submit" class="btn secondary">Remove</button>
             </form>
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="5">No active staff members available.</td></tr>
+        <tr><td colspan="4">No active staff members available.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
 <div class="chart-card" style="margin-top:20px;">
-  <h3>Former Staff</h3>
-  <table class="table">
-    <thead>
-      <tr><th>Name</th><th>Position</th><th>Department</th><th>Deleted At</th><th>Actions</th></tr>
-    </thead>
-    <tbody>
-      {% for person in inactive_staff %}
-        <tr>
-          <td>{{ person.name }}</td>
-          <td>{{ person.role }}</td>
-          <td>{{ person.department }}</td>
-          <td>{{ person.deleted_at }}</td>
-          <td>
-            <form method="post" action="{{ url_for('restore_staff', staff_id=person.id) }}">
-              <button type="submit" class="btn">Restore</button>
-            </form>
-          </td>
-        </tr>
-      {% else %}
-        <tr><td colspan="5">No removed staff members.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <div>
+      <h3 style="margin-bottom:4px;">Former Staff</h3>
+      <p style="margin:0; color:#64748b;">Former staff are permanently deleted after 30 days unless restored.</p>
+    </div>
+    <button class="btn secondary" type="button" id="toggleFormerStaff">Show Former Staff</button>
+  </div>
+  <div id="formerStaffPanel" style="display:none; margin-top:16px;">
+    <table class="table">
+      <thead>
+        <tr><th>Name</th><th>Position</th><th>Deleted At</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for person in inactive_staff %}
+          <tr>
+            <td>{{ person.name }}</td>
+            <td>{{ person.role }}</td>
+            <td>{{ person.deleted_at }}</td>
+            <td>
+              <form method="post" action="{{ url_for('restore_staff', staff_id=person.id) }}" style="display:inline-block;"
+                    data-confirm-title="Restore staff member?"
+                    data-confirm="This will restore {{ person.name }} to the active staff roster. Continue?">
+                <button type="submit" class="btn">Restore</button>
+              </form>
+              <form method="post" action="{{ url_for('permanent_delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
+                    data-confirm-title="Permanently delete staff member?"
+                    data-confirm="This will permanently delete {{ person.name }} and cannot be undone. Continue?">
+                <button type="submit" class="btn danger">Delete Permanently</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No removed staff members.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
+
+<script>
+  const toggleFormerStaff = document.getElementById('toggleFormerStaff');
+  const formerStaffPanel = document.getElementById('formerStaffPanel');
+  if (toggleFormerStaff && formerStaffPanel) {
+    toggleFormerStaff.addEventListener('click', () => {
+      const isHidden = formerStaffPanel.style.display === 'none';
+      formerStaffPanel.style.display = isHidden ? 'block' : 'none';
+      toggleFormerStaff.textContent = isHidden ? 'Hide Former Staff' : 'Show Former Staff';
+    });
+  }
+</script>
 {% endblock %}

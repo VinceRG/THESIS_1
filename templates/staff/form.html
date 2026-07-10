@@ -7,22 +7,37 @@
 {% block content %}
 <div class="chart-card">
   <h3>{% if staff_member %}Edit Staff Member{% else %}Add Staff Member{% endif %}</h3>
-  <form method="post" class="form-grid">
+  <form method="post" class="form-grid"
+        data-confirm-title="{% if staff_member %}Save staff changes?{% else %}Add staff member?{% endif %}"
+        data-confirm="{% if staff_member %}This will update the staff member details. Continue?{% else %}This will add the new staff member to the active roster. Continue?{% endif %}">
     <label>
       Name
       <input type="text" name="name" value="{{ staff_member.name if staff_member else '' }}" required>
     </label>
     <label>
       Role
-      <input type="text" name="role" value="{{ staff_member.role if staff_member else '' }}" required>
-    </label>
-    <label>
-      Department
-      <input type="text" name="department" value="{{ staff_member.department if staff_member else '' }}" required>
+      {% set selected_role = staff_member.role if staff_member else '' %}
+      <select name="role" required>
+        <option value="" disabled {% if not selected_role %}selected{% endif %}>Select role</option>
+        {% for role in role_options %}
+          <option value="{{ role }}" {% if selected_role == role %}selected{% endif %}>{{ role }}</option>
+        {% endfor %}
+        {% if selected_role and selected_role not in role_options %}
+          <option value="{{ selected_role }}" selected>{{ selected_role }}</option>
+        {% endif %}
+      </select>
     </label>
     <label>
       Availability
-      <input type="text" name="availability" value="{{ staff_member.availability if staff_member else 'Available' }}">
+      {% set selected_availability = staff_member.availability if staff_member else 'Available' %}
+      <select name="availability" required>
+        {% for option in availability_options %}
+          <option value="{{ option }}" {% if selected_availability == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+        {% if selected_availability and selected_availability not in availability_options %}
+          <option value="{{ selected_availability }}" selected>{{ selected_availability }}</option>
+        {% endif %}
+      </select>
     </label>
     <div class="form-actions">
       <button type="submit" class="btn">Save</button>

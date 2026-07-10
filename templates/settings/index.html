@@ -1,19 +1,33 @@
 {% extends 'layouts/base.html' %}
 
-{% block title %}Settings · Smart Healthcare Clinic Management{% endblock %}
+{% block title %}Settings - Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}System Settings{% endblock %}
-{% block page_subtitle %}Configure clinic information, users, and predictive parameters{% endblock %}
+{% block page_subtitle %}Configure clinic information and resource planning assumptions{% endblock %}
 
 {% block content %}
-<div class="grid section-grid">
+<div class="grid">
   <div class="chart-card">
     <h3>Clinic Information</h3>
     <p>Accudetek Health Diagnostics</p>
-    <p>Address: 123 Medical Avenue, Metro City</p>
+    <p>JL Building, 12 M.H. del Pilar St, San Nicolas, Pasig, 1600 Metro Manila</p>
   </div>
+
   <div class="chart-card">
-    <h3>Prediction Settings</h3>
-    <p>Model configuration and forecasting parameters can be adjusted here.</p>
+    <h3>Staff Capacity Setting</h3>
+    <p style="margin-top:0; color:#64748b; line-height:1.5;">
+      This controls how many consultations one staff member can support per month in Resource Planning.
+    </p>
+    <form method="post" class="form-grid"
+          data-confirm-title="Update staff capacity?"
+          data-confirm="This will update Resource Planning capacity calculations. Continue?">
+      <label>
+        Consultations per staff per month
+        <input type="number" name="staff_capacity_per_month" min="1" step="1" value="{{ settings.staff_capacity_per_month }}" required>
+      </label>
+      <div class="form-actions">
+        <button class="btn" type="submit">Save Capacity Setting</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

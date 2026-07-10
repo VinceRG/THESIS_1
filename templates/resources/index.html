@@ -1,27 +1,85 @@
 {% extends 'layouts/base.html' %}
 
-{% block title %}Resource Planning · Smart Healthcare Clinic Management{% endblock %}
+{% block title %}Resource Planning - Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Resource Planning{% endblock %}
-{% block page_subtitle %}Plan staff, equipment, and service capacity based on demand forecasts{% endblock %}
+{% block page_subtitle %}Plan clinic staffing, equipment, and service readiness from forecasted demand{% endblock %}
 
 {% block content %}
-<div class="resource-intro">
-  <p>This page summarizes the facility resource plan. It includes a high-level capacity status based on forecasted consultation volume, the intended staffing complement, the equipment inventory, and the current staff records loaded into the system.</p>
-  <p><strong>Note:</strong> The “Staff Inventory” section is a static expected complement, while “Current Staff by Role” reflects the actual records in the database. If the database is empty or missing staff entries, the page will appear less meaningful.</p>
+<div class="grid cards">
+  <div class="card">
+    <h3>Forecast Month</h3>
+    <div class="value">{{ summary.predicted_month_label }}</div>
+    <div class="trend">Next planning period</div>
+  </div>
+  <div class="card">
+    <h3>Forecasted Cases</h3>
+    <div class="value">{{ summary.predicted_cases_next_month }}</div>
+    <div class="trend">{{ summary.top_diagnosis }} is the top diagnosis</div>
+  </div>
+  <div class="card">
+    <h3>Capacity Status</h3>
+    <div class="value" style="font-size:24px;">
+      <span class="status-pill status-{{ summary.capacity_status|lower }}">{{ summary.capacity_status }}</span>
+    </div>
+    <div class="trend">{{ summary.forecast_pressure_raw }}% demand pressure</div>
+  </div>
+  <div class="card">
+    <h3>Staff Gap</h3>
+    <div class="value">{{ summary.staff_gap }}</div>
+    <div class="trend">Recommended: {{ summary.recommended_staff_count }} | Clinic: {{ summary.facility_staff_count }}</div>
+  </div>
 </div>
 
-<div class="grid resource-row" style="margin-bottom:20px;">
-  <div class="chart-card">
-    <h3>Resource Capacity Status</h3>
-    <div class="resource-summary">
-      <p><strong>Capacity status:</strong> {{ summary.capacity_status }}</p>
-      <p><strong>Forecast pressure:</strong> {{ summary.forecast_pressure }}%</p>
-      <p><strong>Estimated monthly capacity:</strong> {{ summary.estimated_monthly_capacity }} patient slots</p>
-      <p>{{ summary.resource_forecast_recommendation }}</p>
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card" style="grid-column:1 / -1;">
+    <h3>Staff Capacity Plan</h3>
+    <div class="planning-metric">
+      <div>
+        <strong>{{ summary.facility_staff_count }}</strong> clinic staff complement
+        <span>{{ summary.staff_capacity_per_month }} slots/staff/month = {{ summary.estimated_monthly_capacity }} monthly slots</span>
+      </div>
+      <div>
+        <strong>{{ summary.recommended_staff_count }}</strong> recommended staff
+        <span>{{ summary.staff_gap }} additional staff needed</span>
+      </div>
     </div>
+    <div class="resource-progress">
+      <div class="resource-progress-label">
+        <span>Forecast pressure</span>
+        <strong>{{ summary.forecast_pressure_raw }}%</strong>
+      </div>
+      <div class="resource-progress-track">
+        <div class="resource-progress-bar status-{{ summary.capacity_status|lower }}" style="width:{{ summary.forecast_pressure }}%;"></div>
+      </div>
+    </div>
+    <p class="resource-note">{{ summary.resource_forecast_recommendation }}</p>
   </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
   <div class="chart-card">
-    <h3>Actual Staff on Record</h3>
+    <h3>Forecasted Demand by Diagnosis</h3>
+    <table class="table resource-table">
+      <thead>
+        <tr><th>Diagnosis</th><th>Reference Count</th><th>Forecast</th><th>Trend</th></tr>
+      </thead>
+      <tbody>
+        {% for item in summary.predictions %}
+          <tr>
+            <td>{{ item.diagnosis }}</td>
+            <td>{{ item.current_month }}</td>
+            <td><strong>{{ item.predicted_next_month }}</strong></td>
+            <td>{{ item.trend }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No forecast available yet. Upload consultation data first.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="chart-card">
+    <h3>Current Staff by Role</h3>
     <table class="table resource-table">
       <thead>
         <tr><th>Role</th><th>Current Count</th></tr>
@@ -29,7 +87,7 @@
       <tbody>
         {% if summary.actual_staff_by_role %}
           {% for role, count in summary.actual_staff_by_role.items() %}
-            <tr><td>{{ role }}</td><td>{{ count }}</td></tr>
+            <tr><td>{{ role }}</td><td><strong>{{ count }}</strong></td></tr>
           {% endfor %}
         {% else %}
           <tr><td colspan="2">No staff records available. Add staff entries under Staff Management.</td></tr>
@@ -39,9 +97,9 @@
   </div>
 </div>
 
-<div class="grid resource-row" style="margin-bottom:20px;">
+<div class="grid section-grid" style="margin-top:20px;">
   <div class="chart-card">
-    <h3>Expected Staff Complement</h3>
+    <h3>Expected Facility Complement</h3>
     <table class="table resource-table">
       <thead>
         <tr><th>Staff Role</th><th>Expected Count</th><th>Notes</th></tr>
@@ -51,18 +109,19 @@
           <tr>
             <td>{{ item.role }}</td>
             <td>{{ item.count }}</td>
-            <td>{{ item.notes }}</td>
+            <td>{{ item.notes or 'Standard coverage' }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
   <div class="chart-card resource-card">
     <h3>Services & Equipment</h3>
     <div class="resource-grid">
       <div>
         <h4>Medical Services</h4>
-        <ul class="resource-list">
+        <ul class="resource-list compact-list">
           {% for service in summary.services %}
             <li>{{ service }}</li>
           {% endfor %}
@@ -70,7 +129,7 @@
       </div>
       <div>
         <h4>Diagnostic Equipment</h4>
-        <ul class="resource-list">
+        <ul class="resource-list compact-list">
           {% for item in summary.equipment %}
             <li>{{ item }}</li>
           {% endfor %}
