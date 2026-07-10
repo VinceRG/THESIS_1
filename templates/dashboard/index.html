@@ -69,20 +69,32 @@
 </div>
 
 <div class="grid section-grid" style="margin-top:20px;">
-  <div class="chart-card">
+  <div class="chart-card full-width">
     <h3>Prediction Summary</h3>
+    <p style="margin-bottom:12px; font-size:1.1rem;">
+      <strong>Reference Month (Last Year):</strong> {{ summary.reference_month }} &nbsp;|&nbsp;
+      <strong>Predicted Month (Current):</strong> {{ summary.predicted_month_label }}
+    </p>
     <table class="table">
       <thead>
-        <tr><th>Disease</th><th>Reference Month</th><th>Predicted Month</th><th>Predicted Volume</th><th>Trend</th></tr>
+        <tr>
+          <th>Disease</th>
+          <th>Reference Month Count</th>
+          <th>Predicted Volume</th>
+          <th>Trend</th>
+        </tr>
       </thead>
       <tbody>
         {% for item in summary.predictions %}
           <tr>
             <td>{{ item.diagnosis }}</td>
-            <td>{{ item.current_month }} cases</td>
-            <td>{{ item.predicted_month }}</td>
+            <td>{{ item.current_month }}</td>
             <td>{{ item.predicted_next_month }}</td>
             <td>{{ item.trend }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="4">No predictions available yet. Upload data and retrain the model.</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -91,6 +103,10 @@
   <div class="chart-card">
     <h3>Resource Recommendation</h3>
     <p>{{ summary.resource_recommendation }}</p>
+    <p><strong>Staff Capacity:</strong> {{ summary.estimated_monthly_capacity }} consultations/month</p>
+    <p><strong>Forecast Pressure:</strong> {{ summary.forecast_pressure }}%</p>
+    <p><strong>Room Utilisation:</strong> {{ summary.room_utilization }}%</p>
+    <p><em>{{ summary.resource_forecast_recommendation }}</em></p>
   </div>
 </div>
 
