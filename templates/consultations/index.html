@@ -12,6 +12,11 @@
     <a class="btn" href="/upload">Import Excel</a>
     <a class="btn secondary" href="/dashboard">Export Excel</a>
     <a class="btn secondary" href="/dashboard">Add Record</a>
+    <form action="{{ url_for('clear_records') }}" method="post"
+          data-confirm-title="Clear all consultation records?"
+          data-confirm="This will permanently remove every consultation record from the database. Continue?">
+      <button type="submit" class="btn secondary">Clear All Records</button>
+    </form>
   </div>
 </div>
 

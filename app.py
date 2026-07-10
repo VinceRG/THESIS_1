@@ -53,6 +53,31 @@ FACILITY_STAFF_COMPLEMENT = [
     {'role': 'Radiologists', 'count': 3, 'notes': ''},
 ]
 
+FACILITY_STAFF_ROSTER = [
+    {'name': 'Dr. Maria Santos', 'role': 'Pathologists'},
+    {'name': 'Dr. Roberto Cruz', 'role': 'Pathologists'},
+    {'name': 'Angela Reyes, RMT', 'role': 'Registered Medical Technologists'},
+    {'name': 'Mark Villanueva, RMT', 'role': 'Registered Medical Technologists'},
+    {'name': 'Patricia Mendoza, RMT', 'role': 'Registered Medical Technologists'},
+    {'name': 'Carlo Navarro, RMT', 'role': 'Registered Medical Technologists'},
+    {'name': 'Joanna Lim, RMT', 'role': 'Registered Medical Technologists'},
+    {'name': 'Rafael Torres, RMT', 'role': 'Registered Medical Technologists'},
+    {'name': 'Grace Aquino, RRT', 'role': 'Registered Radiologic Technologists'},
+    {'name': 'Nico Garcia, RRT', 'role': 'Registered Radiologic Technologists'},
+    {'name': 'Liza Ramos', 'role': 'Laboratory Technicians'},
+    {'name': 'Benjie Castillo', 'role': 'Laboratory Technicians'},
+    {'name': 'Mariel Dizon', 'role': 'Laboratory Technicians'},
+    {'name': 'Dr. Elena Bautista', 'role': 'Internal Medicine Physicians'},
+    {'name': 'Dr. Victor Manuel', 'role': 'Internal Medicine Physicians'},
+    {'name': 'Dr. Ana Lopez', 'role': 'General Physicians'},
+    {'name': 'Dr. Paolo Rivera', 'role': 'General Physicians'},
+    {'name': 'Dr. Camille Tan', 'role': 'General Physicians'},
+    {'name': 'Dr. Miguel Fernandez', 'role': 'General Physicians'},
+    {'name': 'Dr. Andrea Sy', 'role': 'Radiologists'},
+    {'name': 'Dr. Henry Ong', 'role': 'Radiologists'},
+    {'name': 'Dr. Sofia Mercado', 'role': 'Radiologists'},
+]
+
 # Resource planning constants
 ROOM_COUNT = 5
 AVG_CONSULTATION_MINUTES = 20
@@ -85,10 +110,19 @@ class StaffMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(60), nullable=False)
-    department = db.Column(db.String(100), nullable=False)
     availability = db.Column(db.String(20), default='Available')
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
+
+def build_facility_staff_roster():
+    return [
+        {
+            'name': person['name'],
+            'role': person['role'],
+            'availability': 'Available',
+        }
+        for person in FACILITY_STAFF_ROSTER
+    ]
 
 # -------------------------------------------------------------
 # Enhanced Data processing functions
@@ -908,6 +942,7 @@ def create_app():
     db.init_app(app)
     cache_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'dashboard_summary.json')
     settings_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'app_settings.json')
+    dashboard_cache_version = 3
 
     def load_app_settings():
         defaults = {'staff_capacity_per_month': STAFF_CAPACITY_PER_MONTH}
@@ -932,12 +967,16 @@ def create_app():
             return None
         try:
             with open(cache_file_path, 'r', encoding='utf-8') as handle:
-                return json.load(handle)
+                summary = json.load(handle)
+            if summary.get('cache_version') != dashboard_cache_version:
+                return None
+            return summary
         except Exception:
             return None
 
     def cache_dashboard_summary(summary):
         try:
+            summary['cache_version'] = dashboard_cache_version
             with open(cache_file_path, 'w', encoding='utf-8') as handle:
                 json.dump(summary, handle, indent=2)
         except Exception:
@@ -1056,9 +1095,9 @@ def create_app():
         facility_staff_count = sum(item['count'] for item in FACILITY_STAFF_COMPLEMENT)
         app_settings = load_app_settings()
         staff_capacity_per_month = app_settings['staff_capacity_per_month']
-        resource_readiness = min(100, max(0, round((facility_staff_count * 60) / max(1, predicted_cases_next_month) * 100)))
 
         estimated_monthly_capacity = facility_staff_count * staff_capacity_per_month
+        resource_readiness = min(100, max(0, round(estimated_monthly_capacity / max(1, predicted_cases_next_month) * 100)))
         pressure_ratio = predicted_cases_next_month / max(1, estimated_monthly_capacity)
         forecast_pressure_raw = int(pressure_ratio * 100)
         forecast_pressure = min(100, int(pressure_ratio * 100))
@@ -1073,16 +1112,6 @@ def create_app():
         else:
             capacity_status = 'Healthy'
             resource_forecast_recommendation = 'Current staffing and equipment capacity appears sufficient for forecasted demand.'
-
-        available_room_minutes = ROOM_COUNT * WORKING_HOURS_PER_DAY * 60 * DAYS_PER_MONTH
-        required_room_minutes = predicted_cases_next_month * AVG_CONSULTATION_MINUTES
-        room_utilization = min(100, int((required_room_minutes / max(1, available_room_minutes)) * 100))
-        if room_utilization > 90:
-            room_recommendation = 'Consider extending hours or adding consultation rooms.'
-        elif room_utilization > 70:
-            room_recommendation = 'Room utilisation is high; monitor scheduling closely.'
-        else:
-            room_recommendation = 'Room capacity appears adequate.'
 
         actual_staff_by_role = Counter(member.role for member in staff_members)
 
@@ -1113,8 +1142,6 @@ def create_app():
             'staff_gap': staff_gap,
             'capacity_status': capacity_status,
             'resource_forecast_recommendation': resource_forecast_recommendation,
-            'room_utilization': room_utilization,
-            'room_recommendation': room_recommendation,
             'rf_metrics': rf_metrics,
         }
 
@@ -1194,6 +1221,14 @@ def create_app():
             current_time=datetime.now().strftime('%H:%M'),
         )
 
+    @app.route('/records/clear', methods=['POST'])
+    def clear_records():
+        deleted_count = ConsultationRecord.query.delete()
+        db.session.commit()
+        get_dashboard_summary(force_refresh=True)
+        flash(f'Cleared {deleted_count} consultation records.', 'success')
+        return redirect(url_for('records'))
+
     @app.route('/upload', methods=['GET', 'POST'])
     def upload():
         if request.method == 'POST':
@@ -1221,18 +1256,55 @@ def create_app():
                 flash(f'Missing required columns: {", ".join(sorted(missing_columns))}', 'error')
                 return redirect(url_for('upload'))
 
-            ConsultationRecord.query.delete()
+            df.columns = df.columns.str.lower()
+            upload_columns = [
+                'consultation_date', 'age_group', 'gender', 'diagnosis',
+                'department', 'physician', 'consultation_type'
+            ]
+
+            def normalize_record_value(column, value):
+                if column == 'consultation_date':
+                    parsed = pd.to_datetime(value, errors='coerce')
+                    if pd.notna(parsed):
+                        return parsed.strftime('%Y-%m-%d')
+                return str(value).strip()
+
+            def record_key(values):
+                return tuple(normalize_record_value(column, values.get(column, '')) for column in upload_columns)
+
+            existing_keys = {
+                record_key({
+                    'consultation_date': record.consultation_date,
+                    'age_group': record.age_group,
+                    'gender': record.gender,
+                    'diagnosis': record.diagnosis,
+                    'department': record.department,
+                    'physician': record.physician,
+                    'consultation_type': record.consultation_type,
+                })
+                for record in ConsultationRecord.query.all()
+            }
+
+            added_count = 0
+            skipped_count = 0
             for _, row in df.iterrows():
+                values = {column: normalize_record_value(column, row.get(column, '')) for column in upload_columns}
+                key = tuple(values[column] for column in upload_columns)
+                if key in existing_keys:
+                    skipped_count += 1
+                    continue
+                existing_keys.add(key)
                 record = ConsultationRecord(
-                    consultation_date=str(row.get('consultation_date', '')),
-                    age_group=str(row.get('age_group', '')),
-                    gender=str(row.get('gender', '')),
-                    diagnosis=str(row.get('diagnosis', '')),
-                    department=str(row.get('department', '')),
-                    physician=str(row.get('physician', '')),
-                    consultation_type=str(row.get('consultation_type', '')),
+                    consultation_date=values['consultation_date'],
+                    age_group=values['age_group'],
+                    gender=values['gender'],
+                    diagnosis=values['diagnosis'],
+                    department=values['department'],
+                    physician=values['physician'],
+                    consultation_type=values['consultation_type'],
                 )
                 db.session.add(record)
+                added_count += 1
             db.session.commit()
 
             records = ConsultationRecord.query.all()
@@ -1268,7 +1340,7 @@ def create_app():
                 flash('No records to train model.', 'warning')
 
             get_dashboard_summary(force_refresh=True)
-            flash('Data uploaded and model retrained successfully', 'success')
+            flash(f'Data uploaded and model retrained successfully. Added {added_count} new records; skipped {skipped_count} duplicates.', 'success')
             return redirect(url_for('predict'))
 
         return render_template('consultations/upload.html')
@@ -1378,13 +1450,28 @@ def create_app():
     staff_role_options = [item['role'] for item in FACILITY_STAFF_COMPLEMENT]
     staff_availability_options = ['Available', 'Busy', 'On Leave', 'Unavailable']
 
+    @app.route('/staff/load-facility-complement', methods=['POST'])
+    def load_facility_complement():
+        StaffMember.query.filter_by(is_active=True).delete()
+        for person in build_facility_staff_roster():
+            db.session.add(StaffMember(
+                name=person['name'],
+                role=person['role'],
+                availability=person['availability'],
+                is_active=True,
+                deleted_at=None,
+            ))
+        db.session.commit()
+        get_dashboard_summary(force_refresh=True)
+        flash('Loaded the official 22-person clinic staff complement.', 'success')
+        return redirect(url_for('staff'))
+
     @app.route('/staff/new', methods=['GET', 'POST'])
     def create_staff():
         if request.method == 'POST':
             new_staff = StaffMember(
                 name=request.form.get('name', '').strip(),
                 role=request.form.get('role', '').strip(),
-                department='Clinic',
                 availability=request.form.get('availability', 'Available').strip(),
                 is_active=True,
                 deleted_at=None,
@@ -1407,7 +1494,6 @@ def create_app():
         if request.method == 'POST':
             staff_member.name = request.form.get('name', staff_member.name).strip()
             staff_member.role = request.form.get('role', staff_member.role).strip()
-            staff_member.department = 'Clinic'
             staff_member.availability = request.form.get('availability', staff_member.availability).strip()
             db.session.commit()
             get_dashboard_summary(force_refresh=True)
@@ -1678,19 +1764,9 @@ def create_app():
                     'explanation': 'Simple status label summarizing whether forecasted demand is healthy, moderate, or high.'
                 },
                 {
-                    'metric': 'Room Utilization',
-                    'value': f"{summary.get('room_utilization', 0)}%",
-                    'explanation': 'Estimated use of consultation-room time based on predicted cases and average consultation length.'
-                },
-                {
                     'metric': 'Resource Recommendation',
                     'value': summary.get('resource_forecast_recommendation', 'N/A'),
                     'explanation': 'Recommended staffing/resource action based on forecast pressure.'
-                },
-                {
-                    'metric': 'Room Recommendation',
-                    'value': summary.get('room_recommendation', 'N/A'),
-                    'explanation': 'Recommended room scheduling action based on estimated room utilization.'
                 },
             ]
             rows = [
@@ -1808,14 +1884,32 @@ def create_app():
 # -------------------------------------------------------------
 def migrate_staff_member_schema(app):
     with app.app_context():
-        with db.engine.connect() as conn:
+        with db.engine.begin() as conn:
             result = conn.execute(text("PRAGMA table_info(staff_member)"))
             columns = {row[1] for row in result.fetchall()}
             if 'is_active' not in columns:
                 conn.execute(text("ALTER TABLE staff_member ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"))
             if 'deleted_at' not in columns:
                 conn.execute(text("ALTER TABLE staff_member ADD COLUMN deleted_at DATETIME"))
-            conn.commit()
+            if 'department' in columns:
+                conn.execute(text("DROP TABLE IF EXISTS staff_member_new"))
+                conn.execute(text("""
+                    CREATE TABLE staff_member_new (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        role VARCHAR(60) NOT NULL,
+                        availability VARCHAR(20),
+                        is_active BOOLEAN NOT NULL DEFAULT 1,
+                        deleted_at DATETIME
+                    )
+                """))
+                conn.execute(text("""
+                    INSERT INTO staff_member_new (id, name, role, availability, is_active, deleted_at)
+                    SELECT id, name, role, availability, is_active, deleted_at
+                    FROM staff_member
+                """))
+                conn.execute(text("DROP TABLE staff_member"))
+                conn.execute(text("ALTER TABLE staff_member_new RENAME TO staff_member"))
 
 def init_db(app=None):
     app = app or flask_app
@@ -1827,8 +1921,14 @@ def init_db(app=None):
         if not User.query.filter_by(username='staff').first():
             db.session.add(User(username='staff', password='staff123', role='staff'))
         if not StaffMember.query.first():
-            db.session.add(StaffMember(name='Dr. Ada', role='Physician', department='General Medicine',
-                                       availability='Available', is_active=True, deleted_at=None))
+            for person in build_facility_staff_roster():
+                db.session.add(StaffMember(
+                    name=person['name'],
+                    role=person['role'],
+                    availability=person['availability'],
+                    is_active=True,
+                    deleted_at=None,
+                ))
         db.session.commit()
 
 flask_app = create_app()

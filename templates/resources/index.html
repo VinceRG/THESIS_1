@@ -12,9 +12,9 @@
     <div class="trend">Next planning period</div>
   </div>
   <div class="card">
-    <h3>Forecasted Cases</h3>
+    <h3>Forecasted Total Patients</h3>
     <div class="value">{{ summary.predicted_cases_next_month }}</div>
-    <div class="trend">{{ summary.top_diagnosis }} is the top diagnosis</div>
+    <div class="trend">Total expected cases for {{ summary.predicted_month_label }}</div>
   </div>
   <div class="card">
     <h3>Capacity Status</h3>
@@ -61,7 +61,7 @@
     <h3>Forecasted Demand by Diagnosis</h3>
     <table class="table resource-table">
       <thead>
-        <tr><th>Diagnosis</th><th>Reference Count</th><th>Forecast</th><th>Trend</th></tr>
+        <tr><th>Diagnosis</th><th>{{ summary.reference_month }}</th><th>{{ summary.predicted_month_label }} Forecast</th><th>Trend</th></tr>
       </thead>
       <tbody>
         {% for item in summary.predictions %}
