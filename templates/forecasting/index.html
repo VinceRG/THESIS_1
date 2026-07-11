@@ -11,7 +11,7 @@
     <div class="value">Random Forest</div>
   </div>
   <div class="card">
-    <h3>R2 Score</h3>
+    <h3>Validation R2</h3>
     <div class="value">{{ metrics.r2_score }}</div>
   </div>
   <div class="card">
@@ -24,25 +24,158 @@
   </div>
 </div>
 
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
+  <p style="margin:0; color:#64748b; line-height:1.5;">
+    The forecast charts and demographic segment rankings below all refer to {{ summary.predicted_month_full_label }}.
+  </p>
+</div>
+
 <div class="grid section-grid" style="margin-top:20px;">
   <div class="chart-card">
-    <h3>Prediction Results</h3>
-    <p>MSE: {{ metrics.mse }}</p>
-    <p>Top predicted cases:</p>
-    <ul>
-      {% for case in top_cases %}
-        <li>{{ case }}</li>
-      {% else %}
-        <li>No predictions available yet.</li>
-      {% endfor %}
-    </ul>
+    <h3>Forecasted Cases by Diagnosis</h3>
+    <table class="table">
+      <thead>
+        <tr><th>Diagnosis</th><th>Reference Month</th><th>Forecasted Cases</th><th>Trend</th></tr>
+      </thead>
+      <tbody>
+        {% for item in summary.predictions %}
+          <tr>
+            <td>{{ item.diagnosis }}</td>
+            <td>{{ item.current_month }}</td>
+            <td><strong>{{ item.predicted_next_month }}</strong></td>
+            <td>{{ item.trend }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No forecast available yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
   <div class="chart-card">
-    <h3>Model Notes</h3>
-    <p>The model retrains automatically after each uploaded Excel/CSV file and writes a readable report to the uploads folder.</p>
-    <form method="post" action="/retrain" style="margin-top:12px;">
-      <button class="btn" type="submit">Retrain from existing data</button>
-    </form>
+    <h3>Model Validation Results</h3>
+    <table class="table">
+      <tbody>
+        <tr><th title="Shows how well the model explains unseen validation data; higher is better.">Validation R2</th><td>{{ metrics.r2_score }}</td></tr>
+        <tr><th title="Shows the average prediction error in cases; lower is better.">MAE</th><td>{{ metrics.mae }} cases</td></tr>
+        <tr><th title="Shows larger prediction errors more strongly than MAE; lower is better.">RMSE</th><td>{{ metrics.rmse }} cases</td></tr>
+        <tr><th title="Shows the squared average prediction error used for model evaluation; lower is better.">MSE</th><td>{{ metrics.mse }}</td></tr>
+        <tr><th title="Shows how much Random Forest reduced error compared with using last month as the forecast.">Improvement vs Baseline</th><td>{{ metrics.improvement_vs_baseline_pct|default('N/A') }}%</td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Forecast by Age Group</h3>
+    <div class="chart-container">
+      <canvas id="predictionAgeForecastChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Forecast by Gender</h3>
+    <div class="chart-container">
+      <canvas id="predictionGenderForecastChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Top Diagnosis-Demographic Segments</h3>
+  <div class="grid demographic-comparison">
+    <div>
+      <h4 style="margin:0 0 10px;">Male</h4>
+      <table class="table">
+        <thead>
+          <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
+        </thead>
+        <tbody>
+          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'male' %}
+            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+          {% else %}
+            <tr><td colspan="3">No male segment forecast available yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4 style="margin:0 0 10px;">Female</h4>
+      <table class="table">
+        <thead>
+          <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
+        </thead>
+        <tbody>
+          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'female' %}
+            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+          {% else %}
+            <tr><td colspan="3">No female segment forecast available yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Model Notes</h3>
+  <p style="margin:0; color:#64748b; line-height:1.5;">
+    The Random Forest model uses monthly lag features, rolling averages, seasonality, diagnosis, age group, and gender. Retraining updates the validation metrics and forecast outputs using the current consultation records.
+  </p>
+  <form method="post" action="/retrain" style="margin-top:12px;">
+    <button class="btn" type="submit">Retrain from existing data</button>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const predictionAgeCtx = document.getElementById('predictionAgeForecastChart');
+  if (predictionAgeCtx) {
+    new Chart(predictionAgeCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for item in summary.demographic_forecast.age_group %}'{{ item.age_group }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          data: [{% for item in summary.demographic_forecast.age_group %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706'],
+          borderRadius: 8
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, title: { display: true, text: 'Forecasted Cases' }, ticks: { precision: 0 } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  const predictionGenderCtx = document.getElementById('predictionGenderForecastChart');
+  if (predictionGenderCtx) {
+    new Chart(predictionGenderCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for item in summary.demographic_forecast.gender %}'{{ item.gender }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          data: [{% for item in summary.demographic_forecast.gender %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: ['#0f5b8a', '#c026d3', '#2ba7c5'],
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Forecasted Cases' }, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+</script>
 {% endblock %}

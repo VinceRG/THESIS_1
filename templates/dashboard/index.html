@@ -68,6 +68,13 @@
   </div>
 </div>
 
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
+  <p style="margin:0; color:#64748b; line-height:1.5;">
+    The prediction summary, resource recommendation, age-group forecast, gender forecast, and demographic segment forecast below all refer to {{ summary.predicted_month_full_label }}.
+  </p>
+</div>
+
 <div class="grid section-grid" style="margin-top:20px;">
   <div class="chart-card full-width">
     <h3>Prediction Summary</h3>
@@ -106,6 +113,57 @@
     <p><strong>Staff Capacity:</strong> {{ summary.estimated_monthly_capacity }} consultations/month</p>
     <p><strong>Forecast Pressure:</strong> {{ summary.forecast_pressure }}%</p>
     <p><em>{{ summary.resource_forecast_recommendation }}</em></p>
+  </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Forecast by Age Group</h3>
+    <div class="chart-container">
+      <canvas id="ageForecastChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Forecast by Gender</h3>
+    <div class="chart-container">
+      <canvas id="genderForecastChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Top Diagnosis-Demographic Forecast Segments</h3>
+  <div class="grid demographic-comparison">
+    <div>
+      <h4 style="margin:0 0 10px;">Male</h4>
+      <table class="table">
+        <thead>
+          <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
+        </thead>
+        <tbody>
+          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'male' %}
+            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+          {% else %}
+            <tr><td colspan="3">No male segment forecast available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4 style="margin:0 0 10px;">Female</h4>
+      <table class="table">
+        <thead>
+          <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
+        </thead>
+        <tbody>
+          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'female' %}
+            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+          {% else %}
+            <tr><td colspan="3">No female segment forecast available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -234,6 +292,73 @@
               }
             }
           }
+        }
+      }
+    });
+  }
+
+  const ageForecastCtx = document.getElementById('ageForecastChart');
+  if (ageForecastCtx) {
+    new Chart(ageForecastCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for item in summary.demographic_forecast.age_group %}'{{ item.age_group }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          label: '{{ summary.predicted_month_label }} forecast',
+          data: [{% for item in summary.demographic_forecast.age_group %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706'],
+          borderRadius: 8,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => context.parsed.x + ' forecasted cases'
+            }
+          }
+        },
+        scales: {
+          x: { beginAtZero: true, title: { display: true, text: 'Forecasted Cases' }, ticks: { precision: 0 } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  const genderForecastCtx = document.getElementById('genderForecastChart');
+  if (genderForecastCtx) {
+    new Chart(genderForecastCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for item in summary.demographic_forecast.gender %}'{{ item.gender }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+          label: '{{ summary.predicted_month_label }} forecast',
+          data: [{% for item in summary.demographic_forecast.gender %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          backgroundColor: ['#0f5b8a', '#c026d3', '#2ba7c5'],
+          borderRadius: 8,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => context.parsed.y + ' forecasted cases'
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Forecasted Cases' }, ticks: { precision: 0 } }
         }
       }
     });

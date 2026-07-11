@@ -43,6 +43,15 @@
         </div>
       </header>
       <section class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-stack">
+              {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
         {% block content %}{% endblock %}
       </section>
     </main>
@@ -71,6 +80,7 @@
     let loadingTimer = null;
     let loadingProgress = 0;
     let pendingConfirmForm = null;
+    let chartJsPromise = null;
 
     function setLoadingProgress(value) {
       loadingProgress = Math.max(0, Math.min(100, Math.round(value)));
@@ -147,6 +157,26 @@
       }
     }
 
+    function loadChartJs() {
+      if (window.Chart) return Promise.resolve(window.Chart);
+      if (chartJsPromise) return chartJsPromise;
+      chartJsPromise = new Promise(resolve => {
+        const existing = Array.from(document.scripts).find(script => script.src.includes('cdn.jsdelivr.net/npm/chart.js'));
+        if (existing) {
+          existing.addEventListener('load', () => resolve(window.Chart));
+          existing.addEventListener('error', () => resolve(null));
+          window.setTimeout(() => resolve(window.Chart || null), 1500);
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = () => resolve(window.Chart);
+        script.onerror = () => resolve(null);
+        document.body.appendChild(script);
+      });
+      return chartJsPromise;
+    }
+
     function openConfirmModal(form, message, title = 'Confirm action') {
       pendingConfirmForm = form;
       const overlay = document.getElementById('confirmOverlay');
@@ -182,6 +212,10 @@
         if (oldScript.src) {
           const src = oldScript.src;
           const alreadyLoaded = Array.from(document.scripts).some(script => script.src === src);
+          if (src.includes('cdn.jsdelivr.net/npm/chart.js')) {
+            await loadChartJs();
+            continue;
+          }
           if (!alreadyLoaded) {
             await new Promise(resolve => {
               const script = document.createElement('script');

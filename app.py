@@ -432,44 +432,57 @@ def generate_forecast_for_specific_month(df, target_month, target_year):
         return None, None, None
 
 def build_forecasting_training_frame(df):
-    """Build one diagnosis-month row per observed month, with honest lag features."""
+    """Build one diagnosis-age-gender-month row per observed month, with honest lag features."""
     raw = df.copy()
-    for col in ['consultation_date', 'diagnosis']:
+    for col in ['consultation_date', 'diagnosis', 'age_group', 'gender']:
         if col in raw.columns:
             raw[col] = raw[col].astype(str).str.strip()
     raw = raw.dropna(subset=['consultation_date', 'diagnosis'])
     raw['consultation_date'] = pd.to_datetime(raw['consultation_date'], errors='coerce')
     raw = raw.dropna(subset=['consultation_date'])
     raw = raw[raw['diagnosis'] != '']
+    if 'age_group' not in raw.columns:
+        raw['age_group'] = 'Unknown'
+    if 'gender' not in raw.columns:
+        raw['gender'] = 'Unknown'
+    raw['age_group'] = raw['age_group'].replace(['', 'nan', 'None', 'NaT'], 'Unknown').fillna('Unknown')
+    raw['gender'] = raw['gender'].replace(['', 'nan', 'None', 'NaT'], 'Unknown').fillna('Unknown')
     if raw.empty:
         return pd.DataFrame()
 
     raw['period'] = raw['consultation_date'].dt.to_period('M')
     diagnoses = sorted(raw['diagnosis'].unique())
+    age_groups = sorted(raw['age_group'].unique())
+    genders = sorted(raw['gender'].unique())
     periods = pd.period_range(raw['period'].min(), raw['period'].max(), freq='M')
-    full_index = pd.MultiIndex.from_product([diagnoses, periods], names=['diagnosis', 'period'])
+    full_index = pd.MultiIndex.from_product(
+        [diagnoses, age_groups, genders, periods],
+        names=['diagnosis', 'age_group', 'gender', 'period']
+    )
 
-    grouped = raw.groupby(['diagnosis', 'period']).size().rename('case_count')
+    grouped = raw.groupby(['diagnosis', 'age_group', 'gender', 'period']).size().rename('case_count')
     merged = grouped.reindex(full_index, fill_value=0).reset_index()
     merged['period_start'] = merged['period'].dt.to_timestamp()
     merged['year'] = merged['period_start'].dt.year
     merged['month'] = merged['period_start'].dt.month
     merged['season'] = (merged['month'] - 1) // 3 + 1
     merged['time_index'] = (merged['year'] - merged['year'].min()) * 12 + merged['month']
-    merged = merged.sort_values(['diagnosis', 'period']).reset_index(drop=True)
+    segment_columns = ['diagnosis', 'age_group', 'gender']
+    merged = merged.sort_values(segment_columns + ['period']).reset_index(drop=True)
 
-    merged['lag_1'] = merged.groupby('diagnosis')['case_count'].shift(1)
-    merged['lag_2'] = merged.groupby('diagnosis')['case_count'].shift(2)
-    merged['lag_3'] = merged.groupby('diagnosis')['case_count'].shift(3)
-    merged['lag_6'] = merged.groupby('diagnosis')['case_count'].shift(6)
-    merged['lag_12'] = merged.groupby('diagnosis')['case_count'].shift(12)
-    merged['rolling_mean_3'] = merged.groupby('diagnosis')['case_count'].transform(
+    segment_group = merged.groupby(segment_columns)['case_count']
+    merged['lag_1'] = segment_group.shift(1)
+    merged['lag_2'] = segment_group.shift(2)
+    merged['lag_3'] = segment_group.shift(3)
+    merged['lag_6'] = segment_group.shift(6)
+    merged['lag_12'] = segment_group.shift(12)
+    merged['rolling_mean_3'] = merged.groupby(segment_columns)['case_count'].transform(
         lambda x: x.rolling(3, min_periods=1).mean().shift(1)
     )
-    merged['rolling_mean_6'] = merged.groupby('diagnosis')['case_count'].transform(
+    merged['rolling_mean_6'] = merged.groupby(segment_columns)['case_count'].transform(
         lambda x: x.rolling(6, min_periods=1).mean().shift(1)
     )
-    merged['rolling_std_3'] = merged.groupby('diagnosis')['case_count'].transform(
+    merged['rolling_std_3'] = merged.groupby(segment_columns)['case_count'].transform(
         lambda x: x.rolling(3, min_periods=2).std().shift(1)
     )
     merged['trend_1'] = merged['lag_1'] - merged['lag_2']
@@ -483,7 +496,9 @@ def build_forecasting_training_frame(df):
     le = LabelEncoder()
     merged['diagnosis_code'] = le.fit_transform(merged['diagnosis'])
     diagnosis_dummies = pd.get_dummies(merged['diagnosis'], prefix='diagnosis', dtype=int)
-    merged = pd.concat([merged, diagnosis_dummies], axis=1)
+    age_dummies = pd.get_dummies(merged['age_group'], prefix='age_group', dtype=int)
+    gender_dummies = pd.get_dummies(merged['gender'], prefix='gender', dtype=int)
+    merged = pd.concat([merged, diagnosis_dummies, age_dummies, gender_dummies], axis=1)
     merged.attrs['diagnosis_encoder'] = le
     return merged
 
@@ -522,13 +537,17 @@ def train_and_evaluate_model(df):
         col for col in training_df.columns
         if col.startswith('diagnosis_') and col != 'diagnosis_code'
     ])
+    demographic_feature_columns = sorted([
+        col for col in training_df.columns
+        if col.startswith('age_group_') or col.startswith('gender_')
+    ])
     feature_columns = [
         'month', 'season', 'time_index',
         'lag_1', 'lag_2', 'lag_3', 'lag_6', 'lag_12',
         'rolling_mean_3', 'rolling_mean_6', 'rolling_std_3', 'trend_1',
-    ] + diagnosis_feature_columns
+    ] + diagnosis_feature_columns + demographic_feature_columns
 
-    training_df = training_df.sort_values(['period_start', 'diagnosis']).reset_index(drop=True)
+    training_df = training_df.sort_values(['period_start', 'diagnosis', 'age_group', 'gender']).reset_index(drop=True)
     unique_periods = sorted(training_df['period'].unique())
     if len(unique_periods) < 8:
         raise ValueError('At least 8 months of consultation data are needed for reliable validation')
@@ -550,7 +569,8 @@ def train_and_evaluate_model(df):
         'min_samples_leaf': [1, 2, 4],
         'max_features': ['sqrt', 'log2', 0.5]
     }
-    cv_splits = min(3, max(2, len(train_df) // max(1, len(diagnosis_encoder.classes_) * 3)))
+    segment_count = max(1, training_df[['diagnosis', 'age_group', 'gender']].drop_duplicates().shape[0])
+    cv_splits = min(3, max(2, len(train_df) // max(1, segment_count * 3)))
     random_search = RandomizedSearchCV(
         estimator=RandomForestRegressor(random_state=42),
         param_distributions=param_dist,
@@ -592,6 +612,13 @@ def train_and_evaluate_model(df):
         improvement = round(((baseline_metrics['mae'] - validation_metrics['mae']) / baseline_metrics['mae']) * 100, 2)
 
     metrics = {
+        'total_training_rows': int(len(training_df)),
+        'total_segments': int(training_df[['diagnosis', 'age_group', 'gender']].drop_duplicates().shape[0]),
+        'diagnosis_count': int(training_df['diagnosis'].nunique()),
+        'age_group_count': int(training_df['age_group'].nunique()),
+        'gender_count': int(training_df['gender'].nunique()),
+        'data_period_start': str(unique_periods[0]),
+        'data_period_end': str(unique_periods[-1]),
         'r2_score': validation_metrics['r2'],
         'mae': validation_metrics['mae'],
         'mse': validation_metrics['mse'],
@@ -623,6 +650,11 @@ def train_and_evaluate_model(df):
 def generate_forecast_for_month(model, feature_columns, label_mapping, df, target_month, target_year):
     training_df = build_forecasting_training_frame(df)
     if training_df.empty:
+        generate_forecast_for_month.last_demographic_forecast = {
+            'age_group': [],
+            'gender': [],
+            'segments': [],
+        }
         return []
 
     target_period = pd.Period(year=target_year, month=target_month, freq='M')
@@ -631,9 +663,11 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
         col for col in feature_columns
         if col.startswith('diagnosis_') and col != 'diagnosis_code'
     ]
+    age_columns = [col for col in feature_columns if col.startswith('age_group_')]
+    gender_columns = [col for col in feature_columns if col.startswith('gender_')]
 
-    for diagnosis, diag_data in training_df.groupby('diagnosis'):
-        history = diag_data.sort_values('period').copy()
+    for (diagnosis, age_group, gender), segment_data in training_df.groupby(['diagnosis', 'age_group', 'gender']):
+        history = segment_data.sort_values('period').copy()
         counts = history.set_index('period')['case_count']
 
         def lag_value(months_back):
@@ -658,37 +692,111 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
             'rolling_std_3': float(np.std(recent_3, ddof=1)) if len(recent_3) > 1 else 0,
             'trend_1': lag_1 - lag_2,
             'diagnosis_code': int(history['diagnosis_code'].iloc[-1]),
+            'diagnosis': diagnosis,
+            'age_group': age_group,
+            'gender': gender,
         }
         for col in diagnosis_columns:
             row[col] = 1 if col == f'diagnosis_{diagnosis}' else 0
+        for col in age_columns:
+            row[col] = 1 if col == f'age_group_{age_group}' else 0
+        for col in gender_columns:
+            row[col] = 1 if col == f'gender_{gender}' else 0
         next_rows.append(row)
 
     pred_df = pd.DataFrame(next_rows)
     preds = model.predict(pred_df[feature_columns])
-    results = []
-    for i, diag_enc in enumerate(pred_df['diagnosis_code']):
-        diag_name = label_mapping.get(diag_enc, f"Unknown_{diag_enc}")
-        results.append((diag_name, max(0, round(preds[i]))))
-    results.sort(key=lambda x: x[1], reverse=True)
+    pred_df['predicted_cases'] = [max(0, round(value)) for value in preds]
+
+    diagnosis_totals = (
+        pred_df.groupby('diagnosis')['predicted_cases']
+        .sum()
+        .sort_values(ascending=False)
+    )
+    age_totals = (
+        pred_df.groupby('age_group')['predicted_cases']
+        .sum()
+        .sort_values(ascending=False)
+        .reset_index()
+        .rename(columns={'predicted_cases': 'forecasted_cases'})
+        .to_dict('records')
+    )
+    gender_totals = (
+        pred_df.groupby('gender')['predicted_cases']
+        .sum()
+        .sort_values(ascending=False)
+        .reset_index()
+        .rename(columns={'predicted_cases': 'forecasted_cases'})
+        .to_dict('records')
+    )
+    segment_rows = (
+        pred_df[pred_df['predicted_cases'] > 0]
+        .sort_values('predicted_cases', ascending=False)
+        [['diagnosis', 'age_group', 'gender', 'predicted_cases']]
+        .rename(columns={'predicted_cases': 'forecasted_cases'})
+        .head(15)
+        .to_dict('records')
+    )
+
+    results = [(diagnosis, int(count)) for diagnosis, count in diagnosis_totals.items()]
+    generate_forecast_for_month.last_demographic_forecast = {
+        'age_group': age_totals,
+        'gender': gender_totals,
+        'segments': segment_rows,
+    }
     return results
 
 def write_training_report(report_path, metrics):
     with open(report_path, 'w', encoding='utf-8') as handle:
         handle.write('Smart Healthcare Clinic Management - Training Report\n')
         handle.write('===================================================\n')
-        handle.write(f"Model Verdict: {metrics.get('model_verdict', 'Unknown')}\n")
-        handle.write(f"Validation Period: {metrics.get('validation_period_start')} to {metrics.get('validation_period_end')}\n")
+        handle.write('\n1. Model Objective\n')
+        handle.write('The objective of this model is to forecast monthly consultation demand for Accudetek Health Diagnostics. ')
+        handle.write('The model predicts consultation volume by diagnosis, age group, and gender so the clinic can support staff planning, service readiness, and data-driven operational decisions.\n')
+
+        handle.write('\n2. Dataset and Feature Preparation\n')
+        handle.write(f"Dataset Period: {metrics.get('data_period_start', 'N/A')} to {metrics.get('data_period_end', 'N/A')}\n")
+        handle.write(f"Training Frame Rows: {metrics.get('total_training_rows', 'N/A')}\n")
+        handle.write(f"Diagnosis-Age-Gender Segments: {metrics.get('total_segments', 'N/A')}\n")
+        handle.write(f"Diagnoses Covered: {metrics.get('diagnosis_count', 'N/A')}\n")
+        handle.write(f"Age Groups Covered: {metrics.get('age_group_count', 'N/A')}\n")
+        handle.write(f"Gender Categories Covered: {metrics.get('gender_count', 'N/A')}\n")
+        handle.write('Training Grain: diagnosis + age group + gender by month\n')
+        handle.write('Predictive Features: monthly seasonality, time index, lag values, rolling averages, recent trend, diagnosis, age group, and gender\n')
+        handle.write('The historical records are transformed into monthly consultation counts, then lag and rolling-average features are created so the model can learn both recent demand movement and seasonal behavior.\n')
+
+        handle.write('\n3. Validation Method\n')
+        handle.write('The model uses a time-based validation split instead of a random 80/20 split. Older months are used for training and the most recent months are used for validation, which better reflects real forecasting where future months must be predicted from past records.\n')
         handle.write(f"Training Months: {metrics.get('training_months')}\n")
         handle.write(f"Validation Months: {metrics.get('validation_months')}\n")
+        handle.write(f"Validation Period: {metrics.get('validation_period_start')} to {metrics.get('validation_period_end')}\n")
+        handle.write('Baseline Method: last-month value, meaning the previous month count is used as the simple comparison forecast.\n')
+
+        handle.write('\n4. Model Performance\n')
+        handle.write(f"Model Verdict: {metrics.get('model_verdict', 'Unknown')}\n")
         handle.write(f"Validation R2: {metrics.get('validation_r2')}\n")
         handle.write(f"Validation MAE: {metrics.get('validation_mae')}\n")
         handle.write(f"Validation RMSE: {metrics.get('validation_rmse')}\n")
         handle.write(f"Baseline MAE (last month): {metrics.get('baseline_mae')}\n")
         handle.write(f"Baseline RMSE (last month): {metrics.get('baseline_rmse')}\n")
         handle.write(f"Improvement vs Baseline: {metrics.get('improvement_vs_baseline_pct')}%\n")
-        handle.write(f"CV R2 Mean: {metrics.get('cv_r2_mean')} (+/-{metrics.get('cv_r2_std')})\n")
-        handle.write(f"CV MAE Mean: {metrics.get('cv_mae_mean')}\n")
-        handle.write(f"Training R2 (in-sample only): {metrics.get('training_r2')}\n")
+        handle.write(f"Cross-Validation R2 Mean: {metrics.get('cv_r2_mean')} (+/-{metrics.get('cv_r2_std')})\n")
+        handle.write(f"Cross-Validation MAE Mean: {metrics.get('cv_mae_mean')}\n")
+        handle.write(f"Training R2 (in-sample reference only): {metrics.get('training_r2')}\n")
+
+        handle.write('\n5. Metric Meaning\n')
+        handle.write('Validation R2 measures how well the model explains unseen validation data; higher values indicate stronger predictive fit.\n')
+        handle.write('MAE measures the average prediction error in consultation cases; lower values mean the model is closer to actual demand.\n')
+        handle.write('RMSE gives more weight to larger errors; lower values mean large mistakes are controlled.\n')
+        handle.write('Improvement vs Baseline shows how much the Random Forest reduced error compared with simply using last month as the forecast.\n')
+
+        handle.write('\n6. Final Interpretation\n')
+        handle.write(f"Based on the validation results, the Random Forest model is {str(metrics.get('model_verdict', 'acceptable')).lower()} for short-term consultation forecasting. ")
+        handle.write(f"The model achieved a validation R2 of {metrics.get('validation_r2')} and a validation MAE of {metrics.get('validation_mae')} cases per diagnosis-age-gender month segment. ")
+        handle.write(f"It reduced prediction error by {metrics.get('improvement_vs_baseline_pct')}% compared with the last-month baseline, showing that the model learned useful consultation patterns beyond simply repeating previous monthly counts. ")
+        handle.write('These results support the system as a practical decision-support tool for forecasting consultation trends and guiding staff management at Accudetek Health Diagnostics.\n')
+
+        handle.write('\n7. Best Random Forest Parameters\n')
         handle.write(f"Best Params: {metrics.get('best_params')}\n")
 
 def _pdf_escape(value):
@@ -781,135 +889,282 @@ def _build_report_pdf(payload, logo_path=None):
     muted = '0.392 0.455 0.545'
     light = '0.961 0.984 0.992'
     border = '0.831 0.875 0.918'
-    colors = [
-        (0.059, 0.357, 0.541),
-        (0.169, 0.655, 0.773),
-        (0.184, 0.620, 0.267),
-        (0.851, 0.467, 0.024),
-        (0.486, 0.227, 0.929),
-        (0.863, 0.149, 0.149),
-    ]
-
-    commands = [
-        f'{light} rg 0 0 {width} {height} re f',
-        f'{primary} rg 0 760 {width} 82 re f',
-        f'{accent} rg 0 754 {width} 6 re f',
-    ]
-
+    colors = [(0.059, 0.357, 0.541), (0.169, 0.655, 0.773), (0.184, 0.620, 0.267), (0.851, 0.467, 0.024), (0.486, 0.227, 0.929), (0.863, 0.149, 0.149)]
     image_info = _jpeg_size(logo_path) if logo_path else None
-    image_obj_num = None
-    if image_info:
-        commands.append('q 46 0 0 46 42 778 cm /Logo Do Q')
-        title_x = 100
-    else:
-        commands.append('1 1 1 rg 42 778 46 46 re f')
-        commands.append(_pdf_text(54, 795, 'A', 20, primary, 'F2'))
-        title_x = 100
+    pages = []
 
-    commands.extend([
-        _pdf_text(title_x, 805, 'Accudetek Health Diagnostics', 15, '1 1 1', 'F2'),
-        _pdf_text(title_x, 786, payload['title'], 11, '1 1 1'),
-        _pdf_text(420, 805, 'Generated', 9, '0.860 0.945 0.969'),
-        _pdf_text(420, 789, payload['generated_at'], 11, '1 1 1', 'F2'),
-        _pdf_text(42, 727, payload['description'], 11, text),
-        f'1 1 1 rg 42 552 528 150 re f',
-        f'{border} RG 42 552 528 150 re S',
-        f'{primary} rg 42 676 528 26 re f',
-        _pdf_text(56, 684, 'Metric', 10, '1 1 1', 'F2'),
-        _pdf_text(390, 684, 'Value', 10, '1 1 1', 'F2'),
-    ])
+    def clip(value, limit):
+        return str(value)
 
-    row_y = 652
-    for section in payload['sections'][:6]:
-        metric = str(section.get('metric', ''))
-        if len(metric) > 54:
-            metric = metric[:51] + '...'
-        commands.append(f'{border} RG 42 {row_y - 8} 528 1 re f')
-        commands.append(_pdf_text(56, row_y, metric, 9, text, 'F2'))
-        commands.append(_pdf_text(390, row_y, section.get('value', ''), 10, primary, 'F2'))
-        row_y -= 22
-
-    chart_top = 505
-    commands.extend([
-        _pdf_text(42, 524, payload.get('details_title', 'Details'), 14, text, 'F2'),
-        _pdf_text(42, 508, payload.get('details_note', '')[:105], 8, muted),
-    ])
-
-    if payload.get('key') in {'monthly-consultation', 'quarterly'} and payload.get('chart_rows', {}).get('datasets'):
-        left, bottom, chart_w, chart_h = 64, 222, 480, 235
+    def new_page(title=None):
+        commands = [
+            f'{light} rg 0 0 {width} {height} re f',
+            f'{primary} rg 0 760 {width} 82 re f',
+            f'{accent} rg 0 754 {width} 6 re f',
+        ]
+        if image_info:
+            commands.append('q 46 0 0 46 42 778 cm /Logo Do Q')
+            title_x = 100
+        else:
+            commands.append('1 1 1 rg 42 778 46 46 re f')
+            commands.append(_pdf_text(54, 795, 'A', 20, primary, 'F2'))
+            title_x = 100
         commands.extend([
-            f'1 1 1 rg 42 188 528 300 re f',
-            f'{border} RG 42 188 528 300 re S',
-            f'{border} RG {left} {bottom} {chart_w} {chart_h} re S',
+            _pdf_text(title_x, 805, 'Accudetek Health Diagnostics', 15, '1 1 1', 'F2'),
+            _pdf_text(title_x, 786, title or payload['title'], 11, '1 1 1'),
+            _pdf_text(420, 805, 'Generated', 9, '0.860 0.945 0.969'),
+            _pdf_text(420, 789, payload['generated_at'], 11, '1 1 1', 'F2'),
         ])
-        labels = payload['chart_rows']['labels']
-        datasets = payload['chart_rows']['datasets']
-        max_value = max([max(item['data']) for item in datasets] + [1])
+        return commands
+
+    def add_footer(commands):
+        commands.append(_pdf_text(42, 42, 'Smart Healthcare Clinic Management', 8, muted))
+        pages.append(commands)
+
+    def wrap_words(value, max_chars):
+        words = str(value).split()
+        lines = []
+        current = ''
+        for word in words:
+            candidate = word if not current else current + ' ' + word
+            if len(candidate) <= max_chars:
+                current = candidate
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+        return lines or ['']
+
+    def draw_metric_table(commands, x, y, sections):
+        commands.extend([
+            f'{primary} rg {x} {y - 4} 528 26 re f',
+            _pdf_text(x + 14, y + 4, 'Metric', 10, '1 1 1', 'F2'),
+            _pdf_text(x + 340, y + 4, 'Value', 10, '1 1 1', 'F2'),
+        ])
+        row_y = y - 24
+        for section in sections[:7]:
+            metric_lines = wrap_words(section.get('metric', ''), 48)
+            value_lines = wrap_words(section.get('value', ''), 30)
+            line_count = max(len(metric_lines), len(value_lines))
+            row_height = 12 * line_count + 10
+            commands.append(f'{border} RG {x} {row_y + 8} m {x + 528} {row_y + 8} l S')
+            for line_index, line in enumerate(metric_lines):
+                commands.append(_pdf_text(x + 14, row_y - (line_index * 12), line, 8, text, 'F2'))
+            for line_index, line in enumerate(value_lines):
+                commands.append(_pdf_text(x + 340, row_y - (line_index * 12), line, 8, primary, 'F2'))
+            row_y -= row_height
+        commands.append(f'{border} RG {x} {row_y + 8} m {x + 528} {row_y + 8} l S')
+        commands.append(f'{border} RG {x} {row_y + 8} {528} {y + 18 - (row_y + 8)} re S')
+        return row_y
+
+    def draw_line_chart(commands, chart, title, note, x=42, y=705, w=528, h=330):
+        commands.append(_pdf_text(x, y, clip(title, 74), 14, text, 'F2'))
+        if note:
+            commands.append(_pdf_text(x, y - 16, clip(note, 110), 8, muted))
+        left, bottom, chart_w, chart_h = x + 36, y - h + 34, w - 58, h - 95
+        commands.extend([f'1 1 1 rg {x} {bottom - 34} {w} {h - 35} re f', f'{border} RG {x} {bottom - 34} {w} {h - 35} re S', f'{border} RG {left} {bottom} {chart_w} {chart_h} re S'])
+        labels = chart.get('labels', [])
+        datasets = chart.get('datasets', [])
+        max_value = max([max(ds.get('data') or [0]) for ds in datasets] + [1])
         y_max = max(10, int(np.ceil(max_value / 10.0) * 10))
-
-        for step in range(0, 6):
-            y = bottom + (chart_h * step / 5)
+        for step in range(6):
+            yy = bottom + (chart_h * step / 5)
             value = int(y_max * step / 5)
-            commands.append(f'0.906 0.925 0.953 RG {left} {y:.2f} m {left + chart_w} {y:.2f} l S')
-            commands.append(_pdf_text(42, y - 3, value, 7, muted))
-
+            commands.append(f'0.906 0.925 0.953 RG {left} {yy:.2f} m {left + chart_w} {yy:.2f} l S')
+            commands.append(_pdf_text(x + 4, yy - 3, value, 7, muted))
         label_divisor = max(1, len(labels) - 1)
-        for index, label in enumerate(labels):
-            x = left + (chart_w * index / label_divisor)
-            commands.append(f'{border} RG {x:.2f} {bottom} m {x:.2f} {bottom - 4} l S')
-            commands.append(_pdf_text(x - 8, bottom - 18, label, 7, muted))
-
-        legend_x = left
-        legend_y = bottom + chart_h + 18
-        for ds_index, dataset in enumerate(datasets):
-            r, g, b = colors[ds_index % len(colors)]
-            commands.append(f'{r} {g} {b} rg {legend_x} {legend_y - 2} 14 4 re f')
-            commands.append(_pdf_text(legend_x + 19, legend_y - 5, dataset['year'], 8, text))
-            legend_x += 70
-
+        for idx, label in enumerate(labels):
+            xx = left + (chart_w * idx / label_divisor)
+            commands.append(_pdf_text(xx - 8, bottom - 18, clip(label, 6), 7, muted))
+        legend_x, legend_y = left, bottom + chart_h + 16
+        for ds_idx, dataset in enumerate(datasets):
+            r, g, b = colors[ds_idx % len(colors)]
+            label = dataset.get('year', dataset.get('label', 'Series'))
+            commands.append(f'{r} {g} {b} rg {legend_x} {legend_y - 2} 12 4 re f')
+            commands.append(_pdf_text(legend_x + 17, legend_y - 5, label, 8, text))
+            legend_x += 68
             points = []
-            point_divisor = max(1, len(dataset['data']) - 1)
-            for point_index, value in enumerate(dataset['data']):
-                x = left + (chart_w * point_index / point_divisor)
-                y = bottom + (chart_h * (value / y_max))
-                points.append((x, y))
+            values = dataset.get('data', [])
+            point_divisor = max(1, len(values) - 1)
+            for point_idx, value in enumerate(values):
+                xx = left + (chart_w * point_idx / point_divisor)
+                yy = bottom + (chart_h * (value / y_max))
+                points.append((xx, yy))
             if points:
                 path = [f'{r} {g} {b} RG 2 w {points[0][0]:.2f} {points[0][1]:.2f} m']
-                path.extend(f'{x:.2f} {y:.2f} l' for x, y in points[1:])
+                path.extend(f'{xx:.2f} {yy:.2f} l' for xx, yy in points[1:])
                 path.append('S')
                 commands.append(' '.join(path))
-                for x, y in points:
-                    commands.append(f'{r} {g} {b} rg {x - 2:.2f} {y - 2:.2f} 4 4 re f')
+                for xx, yy in points:
+                    commands.append(f'{r} {g} {b} rg {xx - 2:.2f} {yy - 2:.2f} 4 4 re f')
+
+    def draw_bar_chart(commands, chart, x=42, y=705, w=528, h=260):
+        commands.append(_pdf_text(x, y, clip(chart.get('title', 'Chart'), 74), 14, text, 'F2'))
+        labels = chart.get('labels', [])
+        values = chart.get('data', [])
+        max_value = max(values + [1])
+        left, bottom, chart_w, chart_h = x + 34, y - h + 38, w - 62, h - 78
+        commands.extend([f'1 1 1 rg {x} {bottom - 34} {w} {h - 25} re f', f'{border} RG {x} {bottom - 34} {w} {h - 25} re S'])
+        bar_count = max(1, len(values))
+        bar_w = min(56, chart_w / (bar_count * 1.7))
+        gap = (chart_w - (bar_w * bar_count)) / max(1, bar_count)
+        for idx, value in enumerate(values):
+            r, g, b = colors[idx % len(colors)]
+            bar_h = chart_h * (value / max_value)
+            xx = left + gap / 2 + idx * (bar_w + gap)
+            commands.append(f'{r} {g} {b} rg {xx:.2f} {bottom:.2f} {bar_w:.2f} {bar_h:.2f} re f')
+            commands.append(_pdf_text(xx, bottom + bar_h + 6, value, 8, text, 'F2'))
+            commands.append(_pdf_text(xx - 4, bottom - 18, clip(labels[idx], 12), 7, muted))
+        commands.append(_pdf_text(x + 8, bottom + chart_h + 8, clip(chart.get('y_title', 'Consultations'), 45), 8, muted))
+
+    def draw_table(commands, title, rows, x=42, y=705, w=528, max_rows=18):
+        commands.append(_pdf_text(x, y, str(title), 14, text, 'F2'))
+        if not rows:
+            commands.append(_pdf_text(x, y - 24, 'No rows available.', 9, muted))
+            return
+        keys = list(rows[0].keys())[:4]
+        col_w = w / len(keys)
+        header_y = y - 28
+        commands.append(f'{primary} rg {x} {header_y - 8} {w} 22 re f')
+        for idx, key in enumerate(keys):
+            header_lines = wrap_words(str(key).replace('_', ' ').title(), 18)
+            commands.append(_pdf_text(x + idx * col_w + 6, header_y, header_lines[0], 8, '1 1 1', 'F2'))
+        row_y = header_y - 22
+        row_limit = min(max_rows, len(rows))
+        for row in rows[:row_limit]:
+            wrapped_cells = [wrap_words(row.get(key, ''), 20) for key in keys]
+            line_count = max(len(lines) for lines in wrapped_cells)
+            row_height = 12 * line_count + 10
+            commands.append(f'{border} RG {x} {row_y + 8} m {x + w} {row_y + 8} l S')
+            for idx, key in enumerate(keys):
+                for line_index, line in enumerate(wrapped_cells[idx]):
+                    commands.append(_pdf_text(x + idx * col_w + 6, row_y - (line_index * 12), line, 7, text))
+            row_y -= row_height
+        commands.append(f'{border} RG {x} {row_y + 8} m {x + w} {row_y + 8} l S')
+
+    def draw_simple_metric_table(commands, title, sections, x=42, y=705, w=528):
+        commands.append(_pdf_text(x, y, title, 14, text, 'F2'))
+        header_y = y - 30
+        table_top = header_y + 14
+        metric_w = 190
+        value_w = w - metric_w
+        commands.append(f'{primary} rg {x} {header_y - 8} {w} 22 re f')
+        commands.append(_pdf_text(x + 8, header_y, 'Metric', 9, '1 1 1', 'F2'))
+        commands.append(_pdf_text(x + metric_w + 8, header_y, 'Value', 9, '1 1 1', 'F2'))
+        row_y = header_y - 24
+        for section in sections:
+            metric_lines = wrap_words(section.get('metric', ''), 28)
+            value_lines = wrap_words(section.get('value', ''), 48)
+            line_count = max(len(metric_lines), len(value_lines))
+            row_height = 12 * line_count + 8
+            commands.append(f'{border} RG {x} {row_y + 8} m {x + w} {row_y + 8} l S')
+            for line_index, line in enumerate(metric_lines):
+                commands.append(_pdf_text(x + 8, row_y - (line_index * 12), line, 8, text, 'F2'))
+            for line_index, line in enumerate(value_lines):
+                commands.append(_pdf_text(x + metric_w + 8, row_y - (line_index * 12), line, 8, primary))
+            row_y -= row_height
+        commands.append(f'{border} RG {x} {row_y + 8} m {x + w} {row_y + 8} l S')
+        commands.append(f'{border} RG {x} {row_y + 8} {w} {table_top - (row_y + 8)} re S')
+        return row_y
+
+    def draw_simple_rows_table(commands, title, rows, x=42, y=360, w=528):
+        commands.append(_pdf_text(x, y, title, 14, text, 'F2'))
+        if not rows:
+            commands.append(_pdf_text(x, y - 24, 'No rows available.', 9, muted))
+            return
+        keys = list(rows[0].keys())[:2]
+        col_w = w / max(1, len(keys))
+        header_y = y - 30
+        table_top = header_y + 14
+        commands.append(f'{primary} rg {x} {header_y - 8} {w} 22 re f')
+        for idx, key in enumerate(keys):
+            commands.append(_pdf_text(x + idx * col_w + 8, header_y, str(key).replace('_', ' ').title(), 9, '1 1 1', 'F2'))
+        row_y = header_y - 24
+        for row in rows[:12]:
+            wrapped = [wrap_words(row.get(key, ''), 32) for key in keys]
+            line_count = max(len(lines) for lines in wrapped)
+            row_height = 12 * line_count + 8
+            commands.append(f'{border} RG {x} {row_y + 8} m {x + w} {row_y + 8} l S')
+            for idx, lines in enumerate(wrapped):
+                for line_index, line in enumerate(lines):
+                    commands.append(_pdf_text(x + idx * col_w + 8, row_y - (line_index * 12), line, 8, text))
+            row_y -= row_height
+        commands.append(f'{border} RG {x} {row_y + 8} m {x + w} {row_y + 8} l S')
+        commands.append(f'{border} RG {x} {row_y + 8} {w} {table_top - (row_y + 8)} re S')
+        return row_y
+
+    first = new_page()
+    first.append(_pdf_text(42, 727, clip(payload['description'], 110), 11, text))
+    if payload.get('key') == 'resource-recommendation':
+        metric_end_y = draw_simple_metric_table(first, 'Resource Recommendation Summary', payload.get('sections', []), y=690)
+        draw_simple_rows_table(first, payload.get('details_title', 'Details'), payload.get('rows', []), y=metric_end_y - 28)
+        add_footer(first)
+    else:
+        metric_end_y = draw_metric_table(first, 42, 676, payload.get('sections', []))
+    if payload.get('key') == 'resource-recommendation':
+        pass
+    elif payload.get('key') == 'prediction':
+        draw_table(first, payload.get('details_title', 'Diagnosis Forecast Details'), payload.get('rows', []), y=metric_end_y - 28, max_rows=8)
+        add_footer(first)
+        page = new_page('Prediction Demographic Forecast')
+        demographic_tables = payload.get('extra_tables', [])
+        if len(demographic_tables) > 0:
+            draw_table(page, demographic_tables[0].get('title', 'Forecast by Age Group'), demographic_tables[0].get('rows', []), y=705, max_rows=5)
+        if len(demographic_tables) > 1:
+            draw_table(page, demographic_tables[1].get('title', 'Forecast by Gender'), demographic_tables[1].get('rows', []), y=520, max_rows=5)
+        if len(demographic_tables) > 2:
+            draw_table(page, demographic_tables[2].get('title', 'Top Diagnosis-Demographic Forecast Segments'), demographic_tables[2].get('rows', []), y=335, max_rows=8)
+        add_footer(page)
+    elif payload.get('key') in {'monthly-consultation', 'quarterly'} and payload.get('chart_rows', {}).get('datasets'):
+        draw_line_chart(first, payload['chart_rows'], payload.get('details_title', 'Trend Graph'), payload.get('details_note', ''), y=500, h=360)
+        add_footer(first)
     elif payload.get('rows'):
-        y = 470
-        for row in payload['rows'][:10]:
-            commands.append(_pdf_text(52, y, ' | '.join(f'{k}: {v}' for k, v in row.items())[:110], 8, text))
-            y -= 16
+        add_footer(first)
+        page = new_page(payload.get('details_title', payload['title']))
+        draw_table(page, payload.get('details_title', 'Details'), payload['rows'])
+        add_footer(page)
+    else:
+        add_footer(first)
 
-    commands.append(_pdf_text(42, 42, 'Smart Healthcare Clinic Management', 8, muted))
-    content = '\n'.join(commands).encode('latin-1', errors='replace')
+    if payload.get('key') not in {'prediction', 'resource-recommendation'}:
+        extra_charts = payload.get('extra_charts', [])
+        for index in range(0, len(extra_charts), 2):
+            page = new_page('Additional Report Graphs')
+            draw_bar_chart(page, extra_charts[index], y=705, h=255)
+            if index + 1 < len(extra_charts):
+                draw_bar_chart(page, extra_charts[index + 1], y=405, h=255)
+            add_footer(page)
 
-    objects = [
-        (1, b'<< /Type /Catalog /Pages 2 0 R >>'),
-        (2, b'<< /Type /Pages /Kids [4 0 R] /Count 1 >>'),
-        (3, b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'),
-        (5, b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>'),
-    ]
+        extra_tables = payload.get('extra_tables', [])
+        for index in range(0, len(extra_tables), 2):
+            page = new_page('Additional Report Tables')
+            draw_table(page, extra_tables[index].get('title', 'Additional Details'), extra_tables[index].get('rows', []), y=705, max_rows=10)
+            if index + 1 < len(extra_tables):
+                draw_table(page, extra_tables[index + 1].get('title', 'Additional Details'), extra_tables[index + 1].get('rows', []), y=390, max_rows=10)
+            add_footer(page)
+
+    objects = [(1, b'<< /Type /Catalog /Pages 2 0 R >>'), (3, b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'), (5, b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>')]
     resources = '<< /Font << /F1 3 0 R /F2 5 0 R >>'
     next_obj = 6
     if image_info:
         img_w, img_h, img_data = image_info
         image_obj_num = next_obj
         next_obj += 1
-        objects.append((
-            image_obj_num,
-            f'<< /Type /XObject /Subtype /Image /Width {img_w} /Height {img_h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(img_data)} >>\nstream\n'.encode('ascii') + img_data + b'\nendstream'
-        ))
+        objects.append((image_obj_num, f'<< /Type /XObject /Subtype /Image /Width {img_w} /Height {img_h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(img_data)} >>\nstream\n'.encode('ascii') + img_data + b'\nendstream'))
         resources += f' /XObject << /Logo {image_obj_num} 0 R >>'
     resources += ' >>'
-    objects.append((next_obj, b'<< /Length ' + str(len(content)).encode('ascii') + b' >>\nstream\n' + content + b'\nendstream'))
-    content_obj = next_obj
-    objects.append((4, f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] /Resources {resources} /Contents {content_obj} 0 R >>'.encode('ascii')))
+    page_refs = []
+    for commands in pages:
+        content = '\n'.join(commands).encode('latin-1', errors='replace')
+        content_obj = next_obj
+        page_obj = next_obj + 1
+        next_obj += 2
+        objects.append((content_obj, b'<< /Length ' + str(len(content)).encode('ascii') + b' >>\nstream\n' + content + b'\nendstream'))
+        objects.append((page_obj, f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] /Resources {resources} /Contents {content_obj} 0 R >>'.encode('ascii')))
+        page_refs.append(f'{page_obj} 0 R')
+    objects.append((2, f'<< /Type /Pages /Kids [{" ".join(page_refs)}] /Count {len(page_refs)} >>'.encode('ascii')))
     objects = sorted(objects, key=lambda item: item[0])
 
     pdf = bytearray(b'%PDF-1.4\n')
@@ -942,7 +1197,7 @@ def create_app():
     db.init_app(app)
     cache_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'dashboard_summary.json')
     settings_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'app_settings.json')
-    dashboard_cache_version = 3
+    dashboard_cache_version = 5
 
     def load_app_settings():
         defaults = {'staff_capacity_per_month': STAFF_CAPACITY_PER_MONTH}
@@ -988,6 +1243,7 @@ def create_app():
         monthly_counts = Counter()
         diagnosis_counts = Counter()
         gender_counts = Counter()
+        age_group_counts = Counter()
         for record in records:
             try:
                 d = pd.to_datetime(record.consultation_date, errors='coerce')
@@ -999,6 +1255,8 @@ def create_app():
                 diagnosis_counts[record.diagnosis] += 1
             if record.gender:
                 gender_counts[record.gender] += 1
+            if record.age_group:
+                age_group_counts[record.age_group] += 1
 
         monthly_trend = [
             {'month': pd.to_datetime(month + '-01').strftime('%b %Y'), 'count': count}
@@ -1016,6 +1274,7 @@ def create_app():
         reference_year = predicted_year - 1
 
         predicted_month_label = datetime(predicted_year, predicted_month, 1).strftime('%b %Y')
+        predicted_month_full_label = datetime(predicted_year, predicted_month, 1).strftime('%B %Y')
         reference_month_label = datetime(reference_year, reference_month, 1).strftime('%b %Y')
 
         # Count actual consultations for the reference month (last year)
@@ -1037,8 +1296,14 @@ def create_app():
                 'consultation_type': r.consultation_type,
             } for r in records])
             total_pred, forecast, rf_metrics = generate_forecast_for_specific_month(df, predicted_month, predicted_year)
+            demographic_forecast = getattr(generate_forecast_for_month, 'last_demographic_forecast', {
+                'age_group': [],
+                'gender': [],
+                'segments': [],
+            })
         else:
             total_pred, forecast, rf_metrics = None, None, None
+            demographic_forecast = {'age_group': [], 'gender': [], 'segments': []}
 
         if total_pred is not None and total_pred > 0:
             predicted_cases_next_month = total_pred
@@ -1090,6 +1355,17 @@ def create_app():
                 })
             resource_recommendation = 'Naive fallback (RF unavailable).'
             rf_metrics = None
+            demographic_forecast = {
+                'age_group': [
+                    {'age_group': group, 'forecasted_cases': count}
+                    for group, count in age_group_counts.most_common()
+                ],
+                'gender': [
+                    {'gender': gender, 'forecasted_cases': count}
+                    for gender, count in gender_counts.most_common()
+                ],
+                'segments': [],
+            }
 
         top_diagnosis = diagnosis_counts.most_common(1)[0][0] if diagnosis_counts else 'None'
         facility_staff_count = sum(item['count'] for item in FACILITY_STAFF_COMPLEMENT)
@@ -1126,11 +1402,14 @@ def create_app():
             'monthly_trend': monthly_trend,
             'consultation_distribution': diagnosis_counts.most_common(10),
             'gender_distribution': gender_counts.most_common(),
+            'age_group_distribution': age_group_counts.most_common(),
             'top_cases': diagnosis_counts.most_common(5),
             'predictions': predictions,
+            'demographic_forecast': demographic_forecast,
             'resource_recommendation': resource_recommendation,
             'reference_month': reference_month_label,
             'predicted_month_label': predicted_month_label,
+            'predicted_month_full_label': predicted_month_full_label,
             'services': SERVICE_CATALOG,
             'equipment': EQUIPMENT_INVENTORY,
             'facility_staff_complement': FACILITY_STAFF_COMPLEMENT,
@@ -1180,7 +1459,7 @@ def create_app():
             if user and user.password == request.form['password']:
                 session['user_id'] = user.id
                 session['role'] = user.role
-                flash('Login successful', 'success')
+                flash(f'Welcome back, {user.username}.', 'success')
                 return redirect(url_for('dashboard'))
             flash('Invalid credentials', 'error')
         return render_template('auth/login.html')
@@ -1347,48 +1626,31 @@ def create_app():
 
     @app.route('/predict')
     def predict():
-        records = ConsultationRecord.query.all()
-        if not records:
+        summary = get_dashboard_summary()
+        if not summary.get('total_consultations'):
             flash('No consultation records found. Please upload data first.', 'warning')
             return render_template('forecasting/index.html',
                                    metrics={'r2_score': 0, 'mae': 0, 'mse': 0, 'rmse': 0},
                                    top_cases=[],
-                                   forecast=[])
+                                   forecast=[],
+                                   summary={
+                                       'predicted_month_full_label': 'Next Month',
+                                       'predictions': [],
+                                       'demographic_forecast': {'age_group': [], 'gender': [], 'segments': []}
+                                   })
 
-        df = pd.DataFrame([{
-            'consultation_date': r.consultation_date,
-            'age_group': r.age_group,
-            'gender': r.gender,
-            'diagnosis': r.diagnosis,
-            'department': r.department,
-            'physician': r.physician,
-            'consultation_type': r.consultation_type,
-        } for r in records])
-
-        try:
-            model, metrics, feature_cols, label_mapping = train_and_evaluate_model(df)
-            # Predict next month after the latest data
-            dates = pd.to_datetime(df['consultation_date'], errors='coerce')
-            latest = dates.max()
-            next_month = latest.month + 1
-            next_year = latest.year
-            if next_month > 12:
-                next_month = 1
-                next_year += 1
-            forecast = generate_forecast_for_month(model, feature_cols, label_mapping, df, next_month, next_year)
-            diagnosis_counts = Counter(df['diagnosis'])
-            top_cases = [f"{diag} ({count})" for diag, count in diagnosis_counts.most_common(5)]
-        except Exception as e:
-            traceback.print_exc()
-            flash(f'Could not generate forecast: {str(e)}', 'error')
-            metrics = {'r2_score': 0, 'mae': 0, 'mse': 0, 'rmse': 0}
-            top_cases = []
-            forecast = []
+        metrics = summary.get('rf_metrics') or {'r2_score': 0, 'mae': 0, 'mse': 0, 'rmse': 0}
+        top_cases = [f"{diag} ({count})" for diag, count in summary.get('top_cases', [])]
+        forecast = [
+            (item.get('diagnosis'), item.get('predicted_next_month'))
+            for item in summary.get('predictions', [])
+        ]
 
         return render_template('forecasting/index.html',
                                metrics=metrics,
                                top_cases=top_cases,
-                               forecast=forecast)
+                               forecast=forecast,
+                               summary=summary)
 
     @app.route('/retrain', methods=['POST'])
     def retrain():
@@ -1442,9 +1704,21 @@ def create_app():
             db.session.delete(member)
         if expired_staff:
             db.session.commit()
+            get_dashboard_summary(force_refresh=True)
 
-        active_staff = StaffMember.query.filter_by(is_active=True).all()
-        inactive_staff = StaffMember.query.filter_by(is_active=False).all()
+        page = request.args.get('page', 1, type=int)
+        active_staff = (
+            StaffMember.query
+            .filter_by(is_active=True)
+            .order_by(StaffMember.role.asc(), StaffMember.name.asc())
+            .paginate(page=page, per_page=10, error_out=False)
+        )
+        inactive_staff = (
+            StaffMember.query
+            .filter_by(is_active=False)
+            .order_by(StaffMember.deleted_at.desc(), StaffMember.name.asc())
+            .all()
+        )
         return render_template('staff/index.html', active_staff=active_staff, inactive_staff=inactive_staff)
 
     staff_role_options = [item['role'] for item in FACILITY_STAFF_COMPLEMENT]
@@ -1577,12 +1851,18 @@ def create_app():
         sections = []
         rows = []
         chart_rows = []
+        extra_charts = []
+        extra_tables = []
         details_title = 'Details'
         details_note = 'Supporting rows used for this report.'
 
         if not df.empty:
             df['consultation_date'] = pd.to_datetime(df['consultation_date'], errors='coerce')
             df = df.dropna(subset=['consultation_date'])
+            for col in ['age_group', 'gender']:
+                if col not in df.columns:
+                    df[col] = 'Unknown'
+                df[col] = df[col].fillna('Unknown').replace('', 'Unknown')
 
         if report_key == 'monthly-consultation':
             monthly_rows = []
@@ -1633,6 +1913,48 @@ def create_app():
                     )
                     if not top_diagnosis_monthly.empty:
                         average_monthly_top_diagnosis_consultations = round(top_diagnosis_monthly['consultations'].mean(), 2)
+                age_monthly = (
+                    df.assign(month=df['consultation_date'].dt.strftime('%Y-%m'))
+                    .groupby(['age_group', 'month'])
+                    .size()
+                    .reset_index(name='consultations')
+                )
+                if not age_monthly.empty:
+                    age_summary = (
+                        age_monthly.groupby('age_group')['consultations']
+                        .mean()
+                        .round(2)
+                        .reset_index(name='consultations')
+                        .sort_values('consultations', ascending=False)
+                    )
+                    extra_charts.append({
+                        'title': 'Average Monthly Consultations by Age Group',
+                        'type': 'bar',
+                        'labels': age_summary['age_group'].tolist(),
+                        'data': age_summary['consultations'].tolist(),
+                        'y_title': 'Average Consultations'
+                    })
+                gender_monthly = (
+                    df.assign(month=df['consultation_date'].dt.strftime('%Y-%m'))
+                    .groupby(['gender', 'month'])
+                    .size()
+                    .reset_index(name='consultations')
+                )
+                if not gender_monthly.empty:
+                    gender_summary = (
+                        gender_monthly.groupby('gender')['consultations']
+                        .mean()
+                        .round(2)
+                        .reset_index(name='consultations')
+                        .sort_values('consultations', ascending=False)
+                    )
+                    extra_charts.append({
+                        'title': 'Average Monthly Consultations by Sex',
+                        'type': 'bar',
+                        'labels': gender_summary['gender'].tolist(),
+                        'data': gender_summary['consultations'].tolist(),
+                        'y_title': 'Average Consultations'
+                    })
             sections = [
                 {
                     'metric': 'Average Monthly Consultations',
@@ -1655,9 +1977,9 @@ def create_app():
                     'explanation': 'The forecasted total consultation demand for the next calendar month. This helps compare recent actual volume with expected upcoming demand.'
                 },
             ]
-            rows = monthly_rows
-            details_title = 'Monthly Consultation History'
-            details_note = 'This table shows actual historical consultation totals per month. It is shown so the clinic can see recent demand patterns and compare them with the latest forecast.'
+            rows = []
+            details_title = 'Monthly Consultation Trend Graph'
+            details_note = 'This graph shows monthly consultation totals by year so the clinic can compare seasonal demand patterns and growth more easily.'
 
         elif report_key == 'quarterly':
             quarterly_rows = []
@@ -1691,6 +2013,48 @@ def create_app():
                     }
                     for year, year_data in quarterly_for_chart.groupby('year')
                 ]
+                age_quarterly = (
+                    df.assign(quarter=df['consultation_date'].dt.to_period('Q').astype(str))
+                    .groupby(['age_group', 'quarter'])
+                    .size()
+                    .reset_index(name='consultations')
+                )
+                if not age_quarterly.empty:
+                    age_summary = (
+                        age_quarterly.groupby('age_group')['consultations']
+                        .mean()
+                        .round(2)
+                        .reset_index(name='consultations')
+                        .sort_values('consultations', ascending=False)
+                    )
+                    extra_charts.append({
+                        'title': 'Average Quarterly Consultations by Age Group',
+                        'type': 'bar',
+                        'labels': age_summary['age_group'].tolist(),
+                        'data': age_summary['consultations'].tolist(),
+                        'y_title': 'Average Consultations'
+                    })
+                gender_quarterly = (
+                    df.assign(quarter=df['consultation_date'].dt.to_period('Q').astype(str))
+                    .groupby(['gender', 'quarter'])
+                    .size()
+                    .reset_index(name='consultations')
+                )
+                if not gender_quarterly.empty:
+                    gender_summary = (
+                        gender_quarterly.groupby('gender')['consultations']
+                        .mean()
+                        .round(2)
+                        .reset_index(name='consultations')
+                        .sort_values('consultations', ascending=False)
+                    )
+                    extra_charts.append({
+                        'title': 'Average Quarterly Consultations by Sex',
+                        'type': 'bar',
+                        'labels': gender_summary['gender'].tolist(),
+                        'data': gender_summary['consultations'].tolist(),
+                        'y_title': 'Average Consultations'
+                    })
             sections = [
                 {
                     'metric': 'Average Consultations per Quarter',
@@ -1708,13 +2072,14 @@ def create_app():
                     'explanation': 'Overall demand-versus-staffing status based on predicted cases and estimated monthly capacity.'
                 },
             ]
-            rows = quarterly_rows
-            details_title = 'Quarterly Consultation History'
+            rows = []
+            details_title = 'Quarterly Consultation Trend Graph'
             details_note = 'This graph has four points per year, one for each quarter. Each colored line represents a year so quarter-to-quarter changes are easier to compare.'
 
         elif report_key == 'prediction':
             forecast = summary.get('predictions', [])
             metrics = summary.get('rf_metrics') or {}
+            demographic_forecast = summary.get('demographic_forecast') or {}
             sections = [
                 {
                     'metric': 'Predicted Month',
@@ -1745,6 +2110,20 @@ def create_app():
             rows = forecast
             details_title = 'Diagnosis Forecast Details'
             details_note = 'This table lists the forecasted next-month case count by diagnosis so staff and resources can be planned by expected demand area.'
+            extra_tables = [
+                {
+                    'title': 'Forecast by Age Group',
+                    'rows': demographic_forecast.get('age_group', [])
+                },
+                {
+                    'title': 'Forecast by Gender',
+                    'rows': demographic_forecast.get('gender', [])
+                },
+                {
+                    'title': 'Top Diagnosis-Demographic Forecast Segments',
+                    'rows': demographic_forecast.get('segments', [])
+                },
+            ]
 
         elif report_key == 'resource-recommendation':
             sections = [
@@ -1784,6 +2163,8 @@ def create_app():
             'sections': sections,
             'rows': rows,
             'chart_rows': chart_rows,
+            'extra_charts': extra_charts,
+            'extra_tables': [table for table in extra_tables if table.get('rows')],
             'details_title': details_title,
             'details_note': details_note,
         }

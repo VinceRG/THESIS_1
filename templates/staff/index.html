@@ -16,7 +16,7 @@
       <tr><th>Name</th><th>Position</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody>
-      {% for person in active_staff %}
+      {% for person in active_staff.items %}
         <tr>
           <td>{{ person.name }}</td>
           <td>{{ person.role }}</td>
@@ -39,6 +39,29 @@
       {% endfor %}
     </tbody>
   </table>
+  {% if active_staff.pages > 1 %}
+    <div class="pagination" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      {% if active_staff.has_prev %}
+        <a class="btn secondary" href="{{ url_for('staff', page=active_staff.prev_num) }}">Previous</a>
+      {% endif %}
+
+      {% for page_num in active_staff.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+        {% if page_num %}
+          {% if page_num == active_staff.page %}
+            <span class="btn" style="cursor:default;">{{ page_num }}</span>
+          {% else %}
+            <a class="btn secondary" href="{{ url_for('staff', page=page_num) }}">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span style="padding:10px 4px; color:#64748b;">...</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if active_staff.has_next %}
+        <a class="btn secondary" href="{{ url_for('staff', page=active_staff.next_num) }}">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
 </div>
 
 <div class="chart-card" style="margin-top:20px;">

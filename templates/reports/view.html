@@ -41,9 +41,11 @@
   <h3>{{ report.details_title }}</h3>
   <p style="margin:0 0 14px; color:#64748b; line-height:1.5;">{{ report.details_note }}</p>
   {% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows %}
-    <div class="chart-container">
+    <div class="chart-container report-chart-container">
       <canvas id="reportLineChart"></canvas>
     </div>
+  {% elif report.key in ['monthly-consultation', 'quarterly'] %}
+    <p style="margin:0; color:#64748b;">No graph data available yet.</p>
   {% elif report.rows %}
     <table class="table">
       <thead>
@@ -68,6 +70,43 @@
   {% endif %}
 </div>
 
+{% for chart in report.extra_charts %}
+<div class="chart-card" style="margin-top:20px;">
+  <h3>{{ chart.title }}</h3>
+  <div class="chart-container report-chart-container">
+    <canvas id="extraReportChart{{ loop.index }}"></canvas>
+  </div>
+</div>
+{% endfor %}
+
+{% for table in report.extra_tables %}
+<div class="chart-card" style="margin-top:20px;">
+  <h3>{{ table.title }}</h3>
+  {% if table.rows %}
+    <table class="table">
+      <thead>
+        <tr>
+          {% for key in table.rows[0].keys() %}
+          <th>{{ key|replace('_', ' ')|title }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in table.rows %}
+        <tr>
+          {% for value in row.values() %}
+          <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="margin:0; color:#64748b;">No demographic rows available.</p>
+  {% endif %}
+</div>
+{% endfor %}
+
 {% if print_mode %}
 <script>
   window.addEventListener('load', () => window.print());
@@ -75,12 +114,17 @@
 {% endif %}
 
 {% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const reportLineCtx = document.getElementById('reportLineChart');
-  if (reportLineCtx) {
+  async function renderReportLineChart() {
+    if (typeof loadChartJs === 'function') {
+      await loadChartJs();
+    }
+    if (!window.Chart) return;
+    const reportLineCtx = document.getElementById('reportLineChart');
+    if (!reportLineCtx) return;
     const reportKey = {{ report.key|tojson }};
     const chartPayload = {{ report.chart_rows | tojson }};
+    if (!chartPayload.datasets || !chartPayload.datasets.length) return;
     const isQuarterly = reportKey === 'quarterly';
     const allValues = chartPayload.datasets.flatMap(item => item.data);
     const minValue = Math.min(...allValues);
@@ -160,6 +204,56 @@
       }
     });
   }
+  renderReportLineChart();
+</script>
+{% endif %}
+{% if report.extra_charts %}
+<script>
+  async function renderExtraReportCharts() {
+    if (typeof loadChartJs === 'function') {
+      await loadChartJs();
+    }
+    if (!window.Chart) return;
+    const charts = {{ report.extra_charts | tojson }};
+    charts.forEach((chart, index) => {
+      const ctx = document.getElementById('extraReportChart' + (index + 1));
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: chart.type || 'bar',
+        data: {
+          labels: chart.labels || [],
+          datasets: [{
+            label: chart.y_title || 'Consultations',
+            data: chart.data || [],
+            backgroundColor: ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706', '#7c3aed', '#dc2626'],
+            borderRadius: 8,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: context => context.parsed.y + ' consultations'
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: chart.y_title || 'Consultations' },
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    });
+  }
+  renderExtraReportCharts();
 </script>
 {% endif %}
 {% endblock %}
