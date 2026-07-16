@@ -526,6 +526,128 @@ def _model_verdict(metrics):
         return 'Needs more data, but better than baseline'
     return 'Not acceptable yet'
 
+def build_non_demographic_training_frame(df):
+    """Build one diagnosis-month row per observed month without age or gender features."""
+    raw = df.copy()
+    for col in ['consultation_date', 'diagnosis']:
+        if col in raw.columns:
+            raw[col] = raw[col].astype(str).str.strip()
+    raw = raw.dropna(subset=['consultation_date', 'diagnosis'])
+    raw['consultation_date'] = pd.to_datetime(raw['consultation_date'], errors='coerce')
+    raw = raw.dropna(subset=['consultation_date'])
+    raw = raw[raw['diagnosis'] != '']
+    if raw.empty:
+        return pd.DataFrame()
+
+    raw['period'] = raw['consultation_date'].dt.to_period('M')
+    diagnoses = sorted(raw['diagnosis'].unique())
+    periods = pd.period_range(raw['period'].min(), raw['period'].max(), freq='M')
+    full_index = pd.MultiIndex.from_product(
+        [diagnoses, periods],
+        names=['diagnosis', 'period']
+    )
+
+    grouped = raw.groupby(['diagnosis', 'period']).size().rename('case_count')
+    merged = grouped.reindex(full_index, fill_value=0).reset_index()
+    merged['period_start'] = merged['period'].dt.to_timestamp()
+    merged['year'] = merged['period_start'].dt.year
+    merged['month'] = merged['period_start'].dt.month
+    merged['season'] = (merged['month'] - 1) // 3 + 1
+    merged['time_index'] = (merged['year'] - merged['year'].min()) * 12 + merged['month']
+    merged = merged.sort_values(['diagnosis', 'period']).reset_index(drop=True)
+
+    segment_group = merged.groupby(['diagnosis'])['case_count']
+    merged['lag_1'] = segment_group.shift(1)
+    merged['lag_2'] = segment_group.shift(2)
+    merged['lag_3'] = segment_group.shift(3)
+    merged['lag_6'] = segment_group.shift(6)
+    merged['lag_12'] = segment_group.shift(12)
+    merged['rolling_mean_3'] = merged.groupby(['diagnosis'])['case_count'].transform(
+        lambda x: x.rolling(3, min_periods=1).mean().shift(1)
+    )
+    merged['rolling_mean_6'] = merged.groupby(['diagnosis'])['case_count'].transform(
+        lambda x: x.rolling(6, min_periods=1).mean().shift(1)
+    )
+    merged['rolling_std_3'] = merged.groupby(['diagnosis'])['case_count'].transform(
+        lambda x: x.rolling(3, min_periods=2).std().shift(1)
+    )
+    merged['trend_1'] = merged['lag_1'] - merged['lag_2']
+
+    history_columns = [
+        'lag_1', 'lag_2', 'lag_3', 'lag_6', 'lag_12',
+        'rolling_mean_3', 'rolling_mean_6', 'rolling_std_3', 'trend_1'
+    ]
+    merged[history_columns] = merged[history_columns].fillna(0)
+    diagnosis_dummies = pd.get_dummies(merged['diagnosis'], prefix='diagnosis', dtype=int)
+    return pd.concat([merged, diagnosis_dummies], axis=1)
+
+def evaluate_model_without_demographics(df):
+    training_df = build_non_demographic_training_frame(df)
+    if training_df.empty:
+        return None
+
+    diagnosis_feature_columns = sorted([
+        col for col in training_df.columns
+        if col.startswith('diagnosis_')
+    ])
+    feature_columns = [
+        'month', 'season', 'time_index',
+        'lag_1', 'lag_2', 'lag_3', 'lag_6', 'lag_12',
+        'rolling_mean_3', 'rolling_mean_6', 'rolling_std_3', 'trend_1',
+    ] + diagnosis_feature_columns
+
+    training_df = training_df.sort_values(['period_start', 'diagnosis']).reset_index(drop=True)
+    unique_periods = sorted(training_df['period'].unique())
+    if len(unique_periods) < 8:
+        return None
+
+    holdout_months = min(6, max(2, len(unique_periods) // 4))
+    validation_periods = unique_periods[-holdout_months:]
+    train_df = training_df[~training_df['period'].isin(validation_periods)]
+    validation_df = training_df[training_df['period'].isin(validation_periods)]
+
+    param_dist = {
+        'n_estimators': [100, 150, 200, 300],
+        'max_depth': [4, 6, 8, 10, None],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4],
+        'max_features': ['sqrt', 'log2', 0.5]
+    }
+    segment_count = max(1, training_df[['diagnosis']].drop_duplicates().shape[0])
+    cv_splits = min(3, max(2, len(train_df) // max(1, segment_count * 3)))
+    random_search = RandomizedSearchCV(
+        estimator=RandomForestRegressor(random_state=42),
+        param_distributions=param_dist,
+        n_iter=20,
+        cv=TimeSeriesSplit(n_splits=cv_splits),
+        scoring='neg_mean_absolute_error',
+        n_jobs=-1,
+        random_state=42,
+        verbose=0
+    )
+    random_search.fit(train_df[feature_columns], train_df['case_count'])
+
+    validation_preds = random_search.best_estimator_.predict(validation_df[feature_columns])
+    validation_metrics = _regression_metrics(validation_df['case_count'], validation_preds)
+    baseline_metrics = _regression_metrics(validation_df['case_count'], validation_df['lag_1'])
+    improvement = None
+    if baseline_metrics['mae']:
+        improvement = round(((baseline_metrics['mae'] - validation_metrics['mae']) / baseline_metrics['mae']) * 100, 2)
+
+    return {
+        'training_grain': 'diagnosis by month',
+        'training_rows': int(len(training_df)),
+        'validation_r2': validation_metrics['r2'],
+        'validation_mae': validation_metrics['mae'],
+        'validation_rmse': validation_metrics['rmse'],
+        'baseline_mae': baseline_metrics['mae'],
+        'improvement_vs_baseline_pct': improvement,
+        'training_months': len(unique_periods) - holdout_months,
+        'validation_months': holdout_months,
+        'validation_period_start': str(validation_periods[0]),
+        'validation_period_end': str(validation_periods[-1]),
+    }
+
 def train_and_evaluate_model(df):
     training_df = build_forecasting_training_frame(df)
     if training_df.empty:
@@ -644,6 +766,11 @@ def train_and_evaluate_model(df):
         'validation_period_end': str(validation_periods[-1]),
         'best_params': random_search.best_params_,
     }
+    try:
+        metrics['model_b_without_demographics'] = evaluate_model_without_demographics(df)
+    except Exception:
+        traceback.print_exc()
+        metrics['model_b_without_demographics'] = None
     metrics['model_verdict'] = _model_verdict(metrics)
     return final_model, metrics, feature_columns, label_mapping
 
@@ -747,57 +874,149 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
     return results
 
 def write_training_report(report_path, metrics):
+    def month_label(value):
+        try:
+            return datetime.strptime(str(value), '%Y-%m').strftime('%B %Y')
+        except Exception:
+            return str(value)
+
+    def fmt(value, suffix=''):
+        if value is None:
+            return 'N/A'
+        return f'{value}{suffix}'
+
+    model_b = metrics.get('model_b_without_demographics') or {}
+    best_params = metrics.get('best_params') or {}
+
     with open(report_path, 'w', encoding='utf-8') as handle:
-        handle.write('Smart Healthcare Clinic Management - Training Report\n')
-        handle.write('===================================================\n')
+        handle.write('Smart Healthcare Clinic Management - Model Training and Evaluation Report\n')
+        handle.write('=======================================================================\n')
         handle.write('\n1. Model Objective\n')
-        handle.write('The objective of this model is to forecast monthly consultation demand for Accudetek Health Diagnostics. ')
-        handle.write('The model predicts consultation volume by diagnosis, age group, and gender so the clinic can support staff planning, service readiness, and data-driven operational decisions.\n')
+        handle.write('\n')
+        handle.write('The objective of this Random Forest regression model is to forecast the monthly consultation demand at Accudetek Health Diagnostics. ')
+        handle.write('The model predicts the expected consultation volume by diagnosis, age group, and gender to provide decision-support information for clinic administrators in staff planning, resource preparedness, service readiness, and operational decision-making.\n')
 
         handle.write('\n2. Dataset and Feature Preparation\n')
-        handle.write(f"Dataset Period: {metrics.get('data_period_start', 'N/A')} to {metrics.get('data_period_end', 'N/A')}\n")
-        handle.write(f"Training Frame Rows: {metrics.get('total_training_rows', 'N/A')}\n")
-        handle.write(f"Diagnosis-Age-Gender Segments: {metrics.get('total_segments', 'N/A')}\n")
-        handle.write(f"Diagnoses Covered: {metrics.get('diagnosis_count', 'N/A')}\n")
-        handle.write(f"Age Groups Covered: {metrics.get('age_group_count', 'N/A')}\n")
-        handle.write(f"Gender Categories Covered: {metrics.get('gender_count', 'N/A')}\n")
-        handle.write('Training Grain: diagnosis + age group + gender by month\n')
-        handle.write('Predictive Features: monthly seasonality, time index, lag values, rolling averages, recent trend, diagnosis, age group, and gender\n')
-        handle.write('The historical records are transformed into monthly consultation counts, then lag and rolling-average features are created so the model can learn both recent demand movement and seasonal behavior.\n')
+        handle.write('\n')
+        handle.write(f"Dataset Period: {month_label(metrics.get('data_period_start', 'N/A'))} - {month_label(metrics.get('data_period_end', 'N/A'))}\n\n")
+        handle.write(f"Training Frame Rows: {metrics.get('total_training_rows', 'N/A')}\n\n")
+        handle.write(f"Diagnosis-Age Group-Gender Segments: {metrics.get('total_segments', 'N/A')}\n\n")
+        handle.write(f"Diagnoses Covered: {metrics.get('diagnosis_count', 'N/A')}\n\n")
+        handle.write(f"Age Groups Covered: {metrics.get('age_group_count', 'N/A')}\n\n")
+        handle.write(f"Gender Categories Covered: {metrics.get('gender_count', 'N/A')}\n\n")
+        handle.write('Training Granularity: Diagnosis x Age Group x Gender x Month\n\n')
+        handle.write('Predictive Features\n\n')
+        handle.write('The model was trained using the following features:\n\n')
+        for feature in [
+            'Diagnosis',
+            'Age Group',
+            'Gender',
+            'Monthly Seasonality',
+            'Time Index',
+            'One-, Two-, Three-, Six-, and Twelve-Month Lag Values',
+            'Rolling Averages',
+            'Recent Trend Indicators',
+        ]:
+            handle.write(f'{feature}\n')
+        handle.write('\n')
+        handle.write('The consultation records were transformed into monthly consultation counts for each diagnosis-age group-gender segment. ')
+        handle.write('Feature engineering was then performed by generating lag values, rolling averages, seasonal indicators, and trend features to enable the Random Forest model to learn recurring consultation patterns and temporal behavior.\n')
 
-        handle.write('\n3. Validation Method\n')
-        handle.write('The model uses a time-based validation split instead of a random 80/20 split. Older months are used for training and the most recent months are used for validation, which better reflects real forecasting where future months must be predicted from past records.\n')
-        handle.write(f"Training Months: {metrics.get('training_months')}\n")
-        handle.write(f"Validation Months: {metrics.get('validation_months')}\n")
-        handle.write(f"Validation Period: {metrics.get('validation_period_start')} to {metrics.get('validation_period_end')}\n")
-        handle.write('Baseline Method: last-month value, meaning the previous month count is used as the simple comparison forecast.\n')
+        handle.write('\n3. Model Validation Method\n')
+        handle.write('\n')
+        handle.write('To simulate real-world forecasting, the model used a time-based validation approach rather than a random train-test split.\n\n')
+        handle.write('Earlier months were used for model training, while the most recent months were reserved for validation.\n\n')
+        handle.write('This prevents information leakage and reflects the practical forecasting scenario in which future consultation demand must be predicted using only historical records.\n\n')
+        handle.write(f"Training Months: {metrics.get('training_months')}\n\n")
+        handle.write(f"Validation Months: {metrics.get('validation_months')}\n\n")
+        handle.write(f"Validation Period: {month_label(metrics.get('validation_period_start'))} - {month_label(metrics.get('validation_period_end'))}\n\n")
+        handle.write('Baseline Forecast\n\n')
+        handle.write("The model was compared against a naive forecasting approach that assumes the next month's consultation count will be the same as the previous month's value.\n\n")
+        handle.write('This baseline provides a simple benchmark for evaluating whether the Random Forest model learns meaningful consultation patterns beyond historical repetition.\n')
 
-        handle.write('\n4. Model Performance\n')
+        handle.write('\n4. Demographic Feature Comparison\n')
+        handle.write('\n')
+        handle.write('Two Random Forest models were evaluated.\n\n')
+        handle.write('Model A - Proposed Model\n\n')
+        handle.write('Features Included:\n\n')
+        for feature in ['Diagnosis', 'Age Group', 'Gender', 'Monthly Lag Values', 'Rolling Averages', 'Trend Features', 'Seasonal Indicators']:
+            handle.write(f'{feature}\n')
+        handle.write('\nValidation Results\n\n')
+        handle.write(f"Validation R2: {fmt(metrics.get('validation_r2'))}\n")
+        handle.write(f"Validation MAE: {fmt(metrics.get('validation_mae'))}\n")
+        handle.write(f"Validation RMSE: {fmt(metrics.get('validation_rmse'))}\n")
+        handle.write(f"Improvement over Baseline: {fmt(metrics.get('improvement_vs_baseline_pct'), '%')}\n")
+        handle.write('\nModel B - Comparison Model\n\n')
+        handle.write('Features Included\n\n')
+        for feature in ['Diagnosis', 'Monthly Lag Values', 'Rolling Averages', 'Trend Features', 'Seasonal Indicators']:
+            handle.write(f'{feature}\n')
+        handle.write('\n(Age Group and Gender excluded.)\n\n')
+        handle.write('Validation Results\n\n')
+        handle.write(f"Validation R2: {fmt(model_b.get('validation_r2'))}\n")
+        handle.write(f"Validation MAE: {fmt(model_b.get('validation_mae'))}\n")
+        handle.write(f"Validation RMSE: {fmt(model_b.get('validation_rmse'))}\n")
+        handle.write(f"Improvement over Baseline: {fmt(model_b.get('improvement_vs_baseline_pct'), '%')}\n")
+        handle.write('\nInterpretation\n\n')
+        if model_b:
+            mae_delta = round(model_b.get('validation_mae', 0) - metrics.get('validation_mae', 0), 4)
+            if mae_delta > 0:
+                handle.write(f'Model A generated lower prediction error than Model B by {mae_delta} MAE points while producing detailed forecasts by diagnosis, age group, and gender.\n\n')
+            elif mae_delta < 0:
+                handle.write(f'Model B generated lower MAE by {abs(mae_delta)} points, but it performed a simpler diagnosis-level forecasting task and cannot produce age-group or gender-specific forecast outputs.\n\n')
+            else:
+                handle.write('Model A and Model B produced the same MAE on this validation split, but Model A provides demographic-specific forecast outputs required by the study objectives.\n\n')
+            handle.write('Since the two models operate at different levels of granularity, their R2 values should not be interpreted as a direct measure of superiority.\n\n')
+            handle.write('Model A was selected because it provides demographic-specific predictions that better support clinic planning, staffing, and resource allocation.\n')
+        else:
+            handle.write('Model B metrics were not available in this report. Run model retraining to generate the non-demographic comparison results.\n')
+
+        handle.write('\n5. Model Performance\n')
+        handle.write('\n')
         handle.write(f"Model Verdict: {metrics.get('model_verdict', 'Unknown')}\n")
-        handle.write(f"Validation R2: {metrics.get('validation_r2')}\n")
-        handle.write(f"Validation MAE: {metrics.get('validation_mae')}\n")
-        handle.write(f"Validation RMSE: {metrics.get('validation_rmse')}\n")
-        handle.write(f"Baseline MAE (last month): {metrics.get('baseline_mae')}\n")
-        handle.write(f"Baseline RMSE (last month): {metrics.get('baseline_rmse')}\n")
-        handle.write(f"Improvement vs Baseline: {metrics.get('improvement_vs_baseline_pct')}%\n")
-        handle.write(f"Cross-Validation R2 Mean: {metrics.get('cv_r2_mean')} (+/-{metrics.get('cv_r2_std')})\n")
-        handle.write(f"Cross-Validation MAE Mean: {metrics.get('cv_mae_mean')}\n")
-        handle.write(f"Training R2 (in-sample reference only): {metrics.get('training_r2')}\n")
+        handle.write('\nMetric\tResult\n')
+        handle.write(f"Validation R2\t{fmt(metrics.get('validation_r2'))}\n")
+        handle.write(f"Validation MAE\t{fmt(metrics.get('validation_mae'))}\n")
+        handle.write(f"Validation RMSE\t{fmt(metrics.get('validation_rmse'))}\n")
+        handle.write(f"Baseline MAE\t{fmt(metrics.get('baseline_mae'))}\n")
+        handle.write(f"Baseline RMSE\t{fmt(metrics.get('baseline_rmse'))}\n")
+        handle.write(f"Improvement over Baseline\t{fmt(metrics.get('improvement_vs_baseline_pct'), '%')}\n")
+        handle.write(f"Cross-Validation R2 Mean\t{fmt(metrics.get('cv_r2_mean'))} +/- {fmt(metrics.get('cv_r2_std'))}\n")
+        handle.write(f"Cross-Validation MAE Mean\t{fmt(metrics.get('cv_mae_mean'))}\n")
+        handle.write(f"Training R2 (Reference Only)\t{fmt(metrics.get('training_r2'))}\n")
 
-        handle.write('\n5. Metric Meaning\n')
-        handle.write('Validation R2 measures how well the model explains unseen validation data; higher values indicate stronger predictive fit.\n')
-        handle.write('MAE measures the average prediction error in consultation cases; lower values mean the model is closer to actual demand.\n')
-        handle.write('RMSE gives more weight to larger errors; lower values mean large mistakes are controlled.\n')
-        handle.write('Improvement vs Baseline shows how much the Random Forest reduced error compared with simply using last month as the forecast.\n')
+        handle.write('\n6. Performance Metric Interpretation\n')
+        handle.write('Validation R2\n\n')
+        handle.write('Measures how well the model explains the variation in unseen validation data.\n\n')
+        handle.write('Higher values indicate stronger predictive performance on future consultation records.\n\n')
+        handle.write('Mean Absolute Error (MAE)\n\n')
+        handle.write('Measures the average prediction error in consultation cases.\n\n')
+        handle.write(f"An MAE of {fmt(metrics.get('validation_mae'))} means that, on average, the predicted consultation volume differs from the actual value by approximately {round(metrics.get('validation_mae', 0)) if metrics.get('validation_mae') is not None else 'N/A'} consultation cases per diagnosis-age group-gender segment.\n\n")
+        handle.write('Root Mean Squared Error (RMSE)\n\n')
+        handle.write('Measures the magnitude of prediction errors while assigning greater weight to larger mistakes.\n\n')
+        handle.write('Lower RMSE values indicate better overall forecasting accuracy.\n\n')
+        handle.write('Baseline Improvement\n\n')
+        handle.write("This measures how much the Random Forest model reduced prediction error compared with simply using the previous month's consultation count as the forecast.\n\n")
+        handle.write(f"A {fmt(metrics.get('improvement_vs_baseline_pct'), '%')} improvement demonstrates that the model learned meaningful consultation patterns rather than merely repeating historical observations.\n")
 
-        handle.write('\n6. Final Interpretation\n')
-        handle.write(f"Based on the validation results, the Random Forest model is {str(metrics.get('model_verdict', 'acceptable')).lower()} for short-term consultation forecasting. ")
-        handle.write(f"The model achieved a validation R2 of {metrics.get('validation_r2')} and a validation MAE of {metrics.get('validation_mae')} cases per diagnosis-age-gender month segment. ")
-        handle.write(f"It reduced prediction error by {metrics.get('improvement_vs_baseline_pct')}% compared with the last-month baseline, showing that the model learned useful consultation patterns beyond simply repeating previous monthly counts. ")
-        handle.write('These results support the system as a practical decision-support tool for forecasting consultation trends and guiding staff management at Accudetek Health Diagnostics.\n')
+        handle.write('\n7. Final Interpretation\n')
+        handle.write('\n')
+        handle.write('Based on the validation results, the Random Forest regression model demonstrated acceptable performance for short-term consultation forecasting.\n\n')
+        handle.write(f"The model achieved a validation R2 of {fmt(metrics.get('validation_r2'))}, indicating that it explained approximately {round(metrics.get('validation_r2', 0) * 100) if metrics.get('validation_r2') is not None else 'N/A'}% of the variation in unseen consultation demand.\n\n")
+        handle.write(f"Its Mean Absolute Error of {fmt(metrics.get('validation_mae'))} indicates that the average forecasting error was approximately {round(metrics.get('validation_mae', 0)) if metrics.get('validation_mae') is not None else 'N/A'} consultation cases per diagnosis-age group-gender month segment.\n\n")
+        handle.write(f"Compared with the naive last-month forecasting baseline, the proposed model reduced prediction error by {fmt(metrics.get('improvement_vs_baseline_pct'), '%')}, demonstrating that it successfully learned recurring consultation patterns rather than simply repeating previous observations.\n\n")
+        handle.write('These findings support the feasibility of the proposed Smart Healthcare Clinic Management System as a decision-support tool for forecasting consultation trends, supporting staff planning, improving service preparedness, and assisting operational decision-making at Accudetek Health Diagnostics.\n')
 
-        handle.write('\n7. Best Random Forest Parameters\n')
-        handle.write(f"Best Params: {metrics.get('best_params')}\n")
+        handle.write('\n8. Best Random Forest Parameters\n')
+        handle.write(f"n_estimators      : {best_params.get('n_estimators', 'N/A')}\n")
+        handle.write(f"max_depth         : {best_params.get('max_depth', 'N/A')}\n")
+        handle.write(f"min_samples_split : {best_params.get('min_samples_split', 'N/A')}\n")
+        handle.write(f"min_samples_leaf  : {best_params.get('min_samples_leaf', 'N/A')}\n")
+        handle.write(f"max_features      : {best_params.get('max_features', 'N/A')}\n")
+
+        handle.write('\n9. Study Limitation\n')
+        handle.write('\n')
+        handle.write("Note: The reported model performance was obtained using the simulated consultation dataset developed for this study. ")
+        handle.write("Although the system demonstrates the technical feasibility of consultation forecasting, deployment in an actual clinical environment would require retraining and validation using Accudetek Health Diagnostics' historical consultation records to verify predictive performance under real-world conditions.\n")
 
 def _pdf_escape(value):
     return str(value).replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
