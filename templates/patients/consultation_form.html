@@ -1,0 +1,118 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Add Consultation - {{ patient.full_name }}{% endblock %}
+{% block page_title %}Add Patient Consultation{% endblock %}
+{% block page_subtitle %}Record a consultation directly under an individual patient profile{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary">Back to Patient Profile</a>
+</div>
+
+<div class="chart-card patient-profile">
+  <div class="patient-profile-header">
+    <div>
+      <span class="sidebar-user-label">Patient</span>
+      <h3>{{ patient.full_name }}</h3>
+      <p>{{ patient.patient_number }} | {{ patient.age if patient.age is not none else 'Age not set' }} years old | {{ patient.age_group }}</p>
+    </div>
+    <span class="status-pill status-healthy">Active</span>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Consultation Details</h3>
+  <form method="post" class="form-grid patient-form"
+        data-confirm-title="Save consultation?"
+        data-confirm="This will add a consultation record linked to {{ patient.full_name }}. Continue?">
+    <label>
+      Consultation Date
+      <input type="date" name="consultation_date" value="{{ today }}" required data-consultation-date-input>
+    </label>
+    <label>
+      Patient Age During Consultation
+      <input type="text" value="{{ patient.age if patient.age is not none else '' }}" readonly data-age-output data-birthdate="{{ patient.birthdate if patient.birthdate else '' }}" class="readonly-field">
+    </label>
+    <label>
+      Computed Age Group
+      <input type="text" value="{{ patient.age_group }}" readonly data-age-group-output class="readonly-field">
+    </label>
+    <label>
+      Gender
+      <select name="gender" required>
+        {% for gender in gender_options %}
+          <option value="{{ gender }}" {% if patient.gender == gender %}selected{% endif %}>{{ gender }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Diagnosis
+      <input type="text" name="diagnosis" placeholder="Example: Hypertension" required>
+    </label>
+    <label>
+      Physician or Attending Staff
+      <input type="text" name="physician" list="staffOptions" placeholder="Select or type attending staff" required>
+      <datalist id="staffOptions">
+        {% for staff in staff_members %}
+          <option value="{{ staff.name }}">{{ staff.role }}</option>
+        {% endfor %}
+      </datalist>
+    </label>
+    <label>
+      Consultation Type
+      <select name="consultation_type" required>
+        {% for option in consultation_type_options %}
+          <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Department
+      <input type="text" value="Clinic" readonly class="readonly-field">
+    </label>
+    <div class="form-actions form-wide">
+      <button type="submit" class="btn">Save Consultation</button>
+      <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  function parseLocalDate(value) {
+    const parts = (value || '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+    return { year: parts[0], month: parts[1], day: parts[2] };
+  }
+
+  function calculateAgeFromBirthdate(birthdateValue, referenceValue) {
+    const birthdate = parseLocalDate(birthdateValue);
+    const reference = parseLocalDate(referenceValue);
+    if (!birthdate || !reference) return null;
+    let age = reference.year - birthdate.year;
+    if (reference.month < birthdate.month || (reference.month === birthdate.month && reference.day < birthdate.day)) {
+      age -= 1;
+    }
+    return age >= 0 && age <= 130 ? age : null;
+  }
+
+  function consultationAgeGroup(age) {
+    if (age === null) return '';
+    if (age <= 17) return 'Child';
+    if (age <= 59) return 'Adult';
+    return 'Senior';
+  }
+
+  document.querySelectorAll('[data-consultation-date-input]').forEach(input => {
+    const form = input.closest('form');
+    const ageOutput = form?.querySelector('[data-age-output]');
+    const groupOutput = form?.querySelector('[data-age-group-output]');
+    const update = () => {
+      const age = calculateAgeFromBirthdate(ageOutput?.dataset.birthdate || '', input.value);
+      if (ageOutput) ageOutput.value = age === null ? '' : age;
+      if (groupOutput) groupOutput.value = consultationAgeGroup(age);
+    };
+    input.addEventListener('change', update);
+    update();
+  });
+</script>
+{% endblock %}

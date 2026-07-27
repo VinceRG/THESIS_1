@@ -86,6 +86,8 @@
     }
     button:hover { filter:brightness(1.04); }
     .meta { margin-top:14px; font-size:13px; color:var(--muted); line-height:1.5; }
+    .meta a { color:var(--primary); font-weight:700; text-decoration:none; }
+    .meta a:hover { text-decoration:underline; }
     @media (max-width: 840px) { .page { grid-template-columns:1fr; } .hero { min-height:260px; } .form-side { padding:28px 24px 36px; } }
   </style>
 </head>
@@ -129,7 +131,11 @@
         </label>
         <button type="submit">Sign In</button>
       </form>
-      <div class="meta">For authorized personnel only. Use your clinic credentials to continue.</div>
+      <div class="meta">
+        For authorized personnel only. Use your clinic credentials to continue.<br>
+        Patients can book through the
+        <a href="{{ url_for('patient_portal') }}">Patient Appointment Portal</a>.
+      </div>
     </div>
   </div>
 </body>

@@ -1,0 +1,187 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Services - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Services{% endblock %}
+{% block page_subtitle %}
+  {% if mode == 'global' %}
+    Global Accudetek service catalog
+  {% else %}
+    Branch service availability and pricing
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <div class="page-heading-row">
+    <div>
+      <h3>{% if mode == 'global' %}Global Service Catalog{% else %}{{ branch.name }} Service Settings{% endif %}</h3>
+      <p class="muted-copy">
+        {% if mode == 'global' %}
+          Superadmin edits here become the master service reference used by all branches.
+        {% else %}
+          Changes here affect appointment booking only for this branch.
+        {% endif %}
+      </p>
+    </div>
+    <div class="service-actions">
+      {% if is_superadmin %}
+        <a href="{{ url_for('create_service') }}" class="btn">Add Service</a>
+        <form method="post" action="{{ url_for('import_services') }}" style="display:inline-block;"
+              data-confirm-title="Sync website services?"
+              data-confirm="This will import missing services from the scraped Accudetek file without overwriting edited services. Continue?">
+          <button type="submit" class="btn secondary">Sync Scraped Services</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="get" class="filter-form service-filter">
+    <label>
+      Search
+      <input type="search" name="q" value="{{ search_query }}" placeholder="Search service, section, or category">
+    </label>
+    <label>
+      Category
+      <select name="category">
+        <option value="">All categories</option>
+        {% for category in categories %}
+          <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit" class="btn">Apply Filters</button>
+      <a href="{{ url_for('services') }}" class="btn secondary">Reset</a>
+    </div>
+  </form>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  {% if mode == 'global' %}
+    <h3>Master Services</h3>
+    <div class="table-scroll">
+      <table class="table service-table">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Category</th>
+            <th>Required Staff</th>
+            <th>Equipment</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for service in services.items %}
+            <tr>
+              <td>
+                <strong>{{ service.service_name }}</strong>
+                <div class="muted-copy">{{ service.section or 'No section' }} | {{ service.source_page or 'manual' }}</div>
+              </td>
+              <td>{{ service.category }}</td>
+              <td>{{ service.role_items()|join(', ') or 'Not set' }}</td>
+              <td>{{ service.equipment_items()|join(', ') or 'No equipment' }}</td>
+              <td>{{ 'PHP ' ~ service.price_php if service.price_php else 'Not set' }}</td>
+              <td>
+                <span class="status-pill status-{{ 'healthy' if service.is_active else 'high' }}">
+                  {{ 'Active' if service.is_active else 'Inactive' }}
+                </span>
+              </td>
+              <td><a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary">Edit</a></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">No services found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <h3>Branch Services</h3>
+    <div class="table-scroll">
+      <table class="table service-table">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Category</th>
+            <th>Master Price</th>
+            <th>Branch Setting</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for setting in services.items %}
+            {% set service = setting.service %}
+            <tr>
+              <td>
+                <strong>{{ service.service_name }}</strong>
+                <div class="muted-copy">{{ service.section or 'No section' }}</div>
+                {% if is_superadmin %}
+                  <div style="margin-top:8px;">
+                    <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary">Edit Global</a>
+                  </div>
+                {% endif %}
+                <div class="tag-stack" style="margin-top:8px;">
+                  {% for role in service.role_items() %}
+                    <span class="tag-pill tag-primary">{{ role }}</span>
+                  {% endfor %}
+                </div>
+              </td>
+              <td>{{ service.category }}</td>
+              <td>{{ 'PHP ' ~ service.price_php if service.price_php else 'Not set' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('update_branch_service', service_id=service.id) }}" class="branch-service-form"
+                      data-confirm-title="Update branch service?"
+                      data-confirm="This will update service availability or branch pricing. Continue?">
+                  <input type="hidden" name="page" value="{{ services.page }}">
+                  <input type="hidden" name="q" value="{{ search_query }}">
+                  <input type="hidden" name="category" value="{{ selected_category }}">
+                  <label class="toggle-line">
+                    <input type="checkbox" name="is_available" {% if setting.is_available and service.is_active %}checked{% endif %} {% if not service.is_active %}disabled{% endif %}>
+                    Available for booking
+                  </label>
+                  {% if not service.is_active %}
+                    <div class="muted-copy">Disabled globally by superadmin.</div>
+                  {% endif %}
+                  <label>
+                    Branch Price
+                    <input type="text" name="custom_price_php" value="{{ setting.custom_price_php or '' }}" placeholder="Use master price">
+                  </label>
+                  <label>
+                    Branch Notes
+                    <input type="text" name="branch_notes" value="{{ setting.branch_notes or '' }}" placeholder="Optional branch note">
+                  </label>
+                  <button type="submit" class="btn secondary">Save</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4">No branch services found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  {% if services.pages > 1 %}
+    <div class="pagination" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      {% if services.has_prev %}
+        <a class="btn secondary" href="{{ url_for('services', page=services.prev_num, q=search_query, category=selected_category) }}">Previous</a>
+      {% endif %}
+      {% for page_num in services.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+        {% if page_num %}
+          {% if page_num == services.page %}
+            <span class="btn" style="cursor:default;">{{ page_num }}</span>
+          {% else %}
+            <a class="btn secondary" href="{{ url_for('services', page=page_num, q=search_query, category=selected_category) }}">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span style="padding:10px 4px; color:#64748b;">...</span>
+        {% endif %}
+      {% endfor %}
+      {% if services.has_next %}
+        <a class="btn secondary" href="{{ url_for('services', page=services.next_num, q=search_query, category=selected_category) }}">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

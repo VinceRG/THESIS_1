@@ -1,0 +1,51 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ 'Edit' if package else 'Add' }} Package - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}{{ 'Edit Package' if package else 'Add Package' }}{% endblock %}
+{% block page_subtitle %}Global package catalog maintenance for all branches{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('packages') }}" class="btn secondary">Back to Packages</a>
+</div>
+
+<form method="post" class="grid demographic-comparison"
+      data-confirm-title="{{ 'Update package?' if package else 'Add package?' }}"
+      data-confirm="This will update the global package catalog used by all branches. Continue?">
+  <div class="chart-card">
+    <h3>Package Details</h3>
+    <div class="form-grid">
+      <label>
+        Package Name
+        <input type="text" name="package_name" value="{{ package.package_name if package else '' }}" required>
+      </label>
+      <label>
+        Price PHP
+        <input type="text" name="price_php" value="{{ package.price_php if package else '' }}" placeholder="Optional package price">
+      </label>
+      <label>
+        Source Page
+        <input type="text" name="source_page" value="{{ package.source_page if package else 'manual' }}">
+      </label>
+      <label class="toggle-line">
+        <input type="checkbox" name="is_active" {% if not package or package.is_active %}checked{% endif %}>
+        Active globally
+      </label>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Included Services</h3>
+    <p class="muted-copy">Enter one service item per line. The system will infer required staff and equipment from each item and link it to an existing service when names match.</p>
+    <label class="form-grid" style="max-width:none;">
+      Service Items
+      <textarea name="included_services" class="large-textarea" required>{{ item_text }}</textarea>
+    </label>
+
+    <div class="form-actions" style="margin-top:20px;">
+      <button type="submit" class="btn">{{ 'Save Package' if package else 'Add Package' }}</button>
+      <a href="{{ url_for('packages') }}" class="btn secondary">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

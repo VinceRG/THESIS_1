@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Appointment Submitted - Accudetek Health Diagnostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="patient-public-body">
+  <header class="patient-public-header">
+    <a class="patient-public-brand" href="{{ url_for('patient_portal') }}">
+      <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
+      <span>
+        <strong>Accudetek Health Diagnostics</strong>
+        <small>{{ branch.name }}</small>
+      </span>
+    </a>
+    <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
+  </header>
+
+  <main class="patient-success-main">
+    <section class="patient-success-card">
+      <div class="success-mark">&#10003;</div>
+      <span>Appointment Request Submitted</span>
+      <h1>{{ patient.full_name }}</h1>
+      <p>Your appointment request has been saved and is now pending clinic confirmation.</p>
+
+      <dl class="patient-success-details">
+        <dt>Patient Number</dt>
+        <dd>{{ patient.patient_number }}</dd>
+        <dt>Branch</dt>
+        <dd>{{ branch.name }}</dd>
+        <dt>Schedule</dt>
+        <dd>{{ appointment.appointment_date }}{% if appointment.appointment_time %} at {{ format_appointment_time(appointment.appointment_time) }}{% endif %}</dd>
+        <dt>Status</dt>
+        <dd>{{ appointment.status }}</dd>
+      </dl>
+
+      <div class="patient-success-block">
+        <h2>Requested Packages</h2>
+        <div class="tag-stack">
+          {% for package in appointment.package_items() %}
+            <span class="tag-pill tag-primary">{{ package }}</span>
+          {% else %}
+            <span class="tag-pill">No package selected</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="patient-success-block">
+        <h2>Requested Services</h2>
+        <div class="tag-stack">
+          {% for service in appointment.service_items() %}
+            <span class="tag-pill">{{ service }}</span>
+          {% else %}
+            <span class="tag-pill">No separate service selected</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="patient-success-block">
+        <h2>Recommended Staff</h2>
+        <div class="tag-stack">
+          {% for role in appointment.role_items() %}
+            <span class="tag-pill tag-primary">{{ role }}</span>
+          {% else %}
+            <span class="tag-pill">For clinic review</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="patient-success-actions">
+        <a href="{{ url_for('patient_portal', branch_id=branch.id) }}">Book Another Appointment</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

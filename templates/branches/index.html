@@ -1,0 +1,115 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Branches - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Branch Management{% endblock %}
+{% block page_subtitle %}Manage clinic branches and monitor branch-specific data readiness{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('create_branch') }}" class="btn">Add New Branch</a>
+</div>
+
+<div class="chart-card">
+  <h3>Clinic Branches</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Branch</th>
+        <th>Code</th>
+        <th>Status</th>
+        <th>Patients</th>
+        <th>Appointments</th>
+        <th>Consultations</th>
+        <th>Active Staff</th>
+        <th>Users</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in branch_rows %}
+        <tr>
+          <td>
+            <strong>{{ row.branch.name }}</strong>
+            {% if row.branch.address %}
+              <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ row.branch.address }}</div>
+            {% endif %}
+            {% if row.branch.email %}
+              <div style="color:#64748b; font-size:13px; margin-top:4px;">Email: {{ row.branch.email }}</div>
+            {% endif %}
+            {% if row.branch.contact_number %}
+              <div style="color:#64748b; font-size:13px; margin-top:4px;">Contact: {{ row.branch.contact_number }}</div>
+            {% endif %}
+          </td>
+          <td>{{ row.branch.code }}</td>
+          <td>
+            <span class="status-pill status-{{ 'healthy' if row.branch.is_active else 'high' }}">
+              {{ 'Active' if row.branch.is_active else 'Inactive' }}
+            </span>
+          </td>
+          <td>{{ row.patients }}</td>
+          <td>{{ row.appointments }}</td>
+          <td>{{ row.consultations }}</td>
+          <td>{{ row.staff }}</td>
+          <td>{{ row.users }}</td>
+          <td>
+            <a class="btn secondary" href="{{ url_for('edit_branch', branch_id=row.branch.id) }}">Edit</a>
+            <form method="post" action="{{ url_for('toggle_branch', branch_id=row.branch.id) }}" style="display:inline-block; margin-left:8px;"
+                  data-confirm-title="{{ 'Deactivate' if row.branch.is_active else 'Activate' }} branch?"
+                  data-confirm="This will {{ 'deactivate' if row.branch.is_active else 'activate' }} {{ row.branch.name }}. Continue?">
+              <button type="submit" class="btn secondary">{{ 'Deactivate' if row.branch.is_active else 'Activate' }}</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9">No branches available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="page-actions" style="margin-top:20px;">
+  <a href="{{ url_for('create_user') }}" class="btn">Add New User</a>
+</div>
+
+<div class="chart-card">
+  <h3>User Branch Access</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Role</th>
+        <th>Assigned Branch</th>
+        <th>Update Access</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+        <tr>
+          <td>{{ user.username }}</td>
+          <td>{{ user.role }}</td>
+          <td>{{ user.branch.name if user.branch else 'Unassigned' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('assign_user_branch', user_id=user.id) }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;"
+                  data-confirm-title="Update user access?"
+                  data-confirm="This will update {{ user.username }} branch access. Continue?">
+              <select name="branch_id" required>
+                {% for branch in active_branches %}
+                  <option value="{{ branch.id }}" {% if user.branch_id == branch.id %}selected{% endif %}>{{ branch.name }}</option>
+                {% endfor %}
+              </select>
+              <select name="role" required>
+                {% for role in role_options %}
+                  <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>{{ role|replace('_', ' ')|title }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn secondary">Save</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4">No users available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

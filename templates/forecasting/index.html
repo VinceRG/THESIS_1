@@ -5,6 +5,7 @@
 {% block page_subtitle %}Random Forest insights for consultation trends and patient volume{% endblock %}
 
 {% block content %}
+{% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
 <div class="grid cards">
   <div class="card">
     <h3>Algorithm</h3>
@@ -117,14 +118,47 @@
   </div>
 </div>
 
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Doctor and Medical Staff Needed for {{ summary.predicted_month_full_label }}</h3>
+    <div class="chart-container staff-forecast-chart">
+      <canvas id="predictionStaffForecastChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Staff Role Forecast</h3>
+    <table class="table">
+      <thead>
+        <tr><th>Staff Role</th><th>Planning Demand</th><th>Available</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for row in staff_forecast.get('monthly_rows', [])[:7] if row.planning_demand > 0 or row.available_staff > 0 %}
+          <tr>
+            <td>{{ row.staff_role }}</td>
+            <td><strong>{{ row.planning_demand }}</strong></td>
+            <td>{{ row.available_staff }}</td>
+            <td><span class="status-pill status-{{ row.status_class }}">{{ row.status }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No staff role forecast available yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <div class="chart-card" style="margin-top:20px;">
   <h3>Model Notes</h3>
   <p style="margin:0; color:#64748b; line-height:1.5;">
     The Random Forest model uses monthly lag features, rolling averages, seasonality, diagnosis, age group, and gender. Retraining updates the validation metrics and forecast outputs using the current consultation records.
   </p>
-  <form method="post" action="/retrain" style="margin-top:12px;">
-    <button class="btn" type="submit">Retrain from existing data</button>
-  </form>
+  {% if summary.branch_code != 'ALL' %}
+    <form method="post" action="/retrain" style="margin-top:12px;">
+      <button class="btn" type="submit">Retrain from existing data</button>
+    </form>
+  {% else %}
+    <p style="margin:12px 0 0; color:#64748b; line-height:1.5;">Select one branch to retrain the model for branch-specific forecasting.</p>
+  {% endif %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -173,6 +207,41 @@
         scales: {
           x: { grid: { display: false } },
           y: { beginAtZero: true, title: { display: true, text: 'Forecasted Cases' }, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+
+  const predictionStaffCtx = document.getElementById('predictionStaffForecastChart');
+  const predictionStaffPayload = {{ staff_forecast.get('monthly_chart', {'labels': [], 'planning_demand': [], 'capacity': []}) | tojson }};
+  if (predictionStaffCtx && predictionStaffPayload.labels && predictionStaffPayload.labels.length) {
+    new Chart(predictionStaffCtx, {
+      data: {
+        labels: predictionStaffPayload.labels,
+        datasets: [{
+          type: 'bar',
+          label: 'Planning Demand',
+          data: predictionStaffPayload.planning_demand,
+          backgroundColor: '#0f5b8a',
+          borderRadius: 8
+        }, {
+          type: 'line',
+          label: 'Role Capacity',
+          data: predictionStaffPayload.capacity,
+          borderColor: '#2f9e44',
+          backgroundColor: '#2f9e4422',
+          tension: 0.25,
+          pointRadius: 4,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top' } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Cases or Service Needs' }, ticks: { precision: 0 } }
         }
       }
     });

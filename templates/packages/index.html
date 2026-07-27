@@ -1,0 +1,190 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Packages - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Packages{% endblock %}
+{% block page_subtitle %}
+  {% if mode == 'global' %}
+    Global Accudetek package catalog
+  {% else %}
+    Branch package availability and pricing
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <div class="page-heading-row">
+    <div>
+      <h3>{% if mode == 'global' %}Global Package Catalog{% else %}{{ branch.name }} Package Settings{% endif %}</h3>
+      <p class="muted-copy">
+        {% if mode == 'global' %}
+          Superadmin edits the package names and included services used by all branches.
+        {% else %}
+          Changes here affect package booking only for this branch.
+        {% endif %}
+      </p>
+    </div>
+    <div class="service-actions">
+      {% if is_superadmin %}
+        <a href="{{ url_for('create_package') }}" class="btn">Add Package</a>
+        <form method="post" action="{{ url_for('import_packages') }}" style="display:inline-block;"
+              data-confirm-title="Sync website packages?"
+              data-confirm="This will import missing packages from the scraped Accudetek file without overwriting edited packages. Continue?">
+          <button type="submit" class="btn secondary">Sync Scraped Packages</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="get" class="filter-form package-filter">
+    <label>
+      Search
+      <input type="search" name="q" value="{{ search_query }}" placeholder="Search package name">
+    </label>
+    <div class="filter-actions">
+      <button type="submit" class="btn">Apply Filters</button>
+      <a href="{{ url_for('packages') }}" class="btn secondary">Reset</a>
+    </div>
+  </form>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  {% if mode == 'global' %}
+    <h3>Master Packages</h3>
+    <div class="table-scroll">
+      <table class="table service-table">
+        <thead>
+          <tr>
+            <th>Package</th>
+            <th>Included Services</th>
+            <th>Required Staff</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for package in packages.items %}
+            {% set requirements = package_requirements(package) if package_requirements is defined else {'roles': []} %}
+            <tr>
+              <td>
+                <strong>{{ package.package_name }}</strong>
+                <div class="muted-copy">{{ package.source_page or 'manual' }}</div>
+              </td>
+              <td>
+                <div class="muted-copy">{{ package.items|length }} item{{ '' if package.items|length == 1 else 's' }}</div>
+                <details class="package-details">
+                  <summary>View included services</summary>
+                  <ol>
+                    {% for item in package.items|sort(attribute='item_order') %}
+                      <li>{{ item.item_name }}</li>
+                    {% endfor %}
+                  </ol>
+                </details>
+              </td>
+              <td>{{ requirements.roles|join(', ') or 'Not set' }}</td>
+              <td>{{ 'PHP ' ~ package.price_php if package.price_php else 'Not set' }}</td>
+              <td>
+                <span class="status-pill status-{{ 'healthy' if package.is_active else 'high' }}">
+                  {{ 'Active' if package.is_active else 'Inactive' }}
+                </span>
+              </td>
+              <td><a href="{{ url_for('edit_package', package_id=package.id) }}" class="btn secondary">Edit</a></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6">No packages found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <h3>Branch Packages</h3>
+    <div class="table-scroll">
+      <table class="table service-table">
+        <thead>
+          <tr>
+            <th>Package</th>
+            <th>Included Services</th>
+            <th>Master Price</th>
+            <th>Branch Setting</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for setting in packages.items %}
+            {% set package = setting.package %}
+            <tr>
+              <td>
+                <strong>{{ package.package_name }}</strong>
+                {% if is_superadmin %}
+                  <div style="margin-top:8px;">
+                    <a href="{{ url_for('edit_package', package_id=package.id) }}" class="btn secondary">Edit Global</a>
+                  </div>
+                {% endif %}
+              </td>
+              <td>
+                <div class="muted-copy">{{ package.items|length }} item{{ '' if package.items|length == 1 else 's' }}</div>
+                <details class="package-details">
+                  <summary>View included services</summary>
+                  <ol>
+                    {% for item in package.items|sort(attribute='item_order') %}
+                      <li>{{ item.item_name }}</li>
+                    {% endfor %}
+                  </ol>
+                </details>
+              </td>
+              <td>{{ 'PHP ' ~ package.price_php if package.price_php else 'Not set' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('update_branch_package', package_id=package.id) }}" class="branch-service-form"
+                      data-confirm-title="Update branch package?"
+                      data-confirm="This will update package availability or branch pricing. Continue?">
+                  <input type="hidden" name="page" value="{{ packages.page }}">
+                  <input type="hidden" name="q" value="{{ search_query }}">
+                  <label class="toggle-line">
+                    <input type="checkbox" name="is_available" {% if setting.is_available and package.is_active %}checked{% endif %} {% if not package.is_active %}disabled{% endif %}>
+                    Available for booking
+                  </label>
+                  {% if not package.is_active %}
+                    <div class="muted-copy">Disabled globally by superadmin.</div>
+                  {% endif %}
+                  <label>
+                    Branch Package Price
+                    <input type="text" name="custom_price_php" value="{{ setting.custom_price_php or '' }}" placeholder="Use master price">
+                  </label>
+                  <label>
+                    Branch Notes
+                    <input type="text" name="branch_notes" value="{{ setting.branch_notes or '' }}" placeholder="Optional branch note">
+                  </label>
+                  <button type="submit" class="btn secondary">Save</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4">No branch packages found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  {% if packages.pages > 1 %}
+    <div class="pagination" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      {% if packages.has_prev %}
+        <a class="btn secondary" href="{{ url_for('packages', page=packages.prev_num, q=search_query) }}">Previous</a>
+      {% endif %}
+      {% for page_num in packages.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+        {% if page_num %}
+          {% if page_num == packages.page %}
+            <span class="btn" style="cursor:default;">{{ page_num }}</span>
+          {% else %}
+            <a class="btn secondary" href="{{ url_for('packages', page=page_num, q=search_query) }}">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span style="padding:10px 4px; color:#64748b;">...</span>
+        {% endif %}
+      {% endfor %}
+      {% if packages.has_next %}
+        <a class="btn secondary" href="{{ url_for('packages', page=packages.next_num, q=search_query) }}">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

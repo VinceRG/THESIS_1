@@ -1,0 +1,248 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Book Appointment - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Book Appointment{% endblock %}
+{% block page_subtitle %}Select consultation and diagnostic services to generate staff recommendations{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('appointments') }}" class="btn secondary">Back to Appointments</a>
+  {% if selected_patient %}
+    <a href="{{ url_for('patient_detail', patient_id=selected_patient.id) }}" class="btn secondary">Back to Patient Profile</a>
+  {% endif %}
+</div>
+
+{% if not selected_patient and not active_patients %}
+  <div class="chart-card">
+    <h3>No Active Patients</h3>
+    <p style="margin:6px 0 16px; color:#64748b;">Create a patient record before booking an appointment.</p>
+    <a href="{{ url_for('create_patient') }}" class="btn">Add Patient</a>
+  </div>
+{% else %}
+  <form method="post" class="appointment-form"
+        data-confirm-title="Book appointment?"
+        data-confirm="This will save the appointment with the generated staff recommendation. Continue?">
+    <div class="grid demographic-comparison">
+      <div class="chart-card">
+        <h3>Patient and Schedule</h3>
+        <div class="form-grid">
+          {% if selected_patient %}
+            <label>
+              Patient
+              <input type="text" value="{{ selected_patient.full_name }} | {{ selected_patient.patient_number }}" readonly class="readonly-field">
+            </label>
+          {% else %}
+            <label>
+              Patient
+              <select name="patient_id" required>
+                <option value="" selected disabled>Select patient</option>
+                {% for patient in active_patients %}
+                  <option value="{{ patient.id }}">{{ patient.full_name }} | {{ patient.patient_number }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          {% endif %}
+          <label>
+            Appointment Date
+            <input type="date" name="appointment_date" value="{{ today }}" min="{{ today }}" required>
+          </label>
+          <label>
+            Appointment Time
+            <input type="time" name="appointment_time" required>
+          </label>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Recommendation Preview</h3>
+        <div class="recommendation-panel">
+          <div>
+            <strong>Recommended Staff</strong>
+            <div class="tag-stack" data-role-preview>
+              <span class="tag-pill">Select services or reasons</span>
+            </div>
+          </div>
+          <div>
+            <strong>Equipment</strong>
+            <div class="tag-stack" data-equipment-preview>
+              <span class="tag-pill">No equipment selected</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-top:20px;">
+      <h3>Requested Packages</h3>
+      <p style="margin:4px 0 14px; color:#64748b;">Select package deals when the patient wants a bundled set of services.</p>
+      <div class="service-search-row">
+        <input type="search" placeholder="Search packages" data-package-search>
+        <span class="topbar-pill" data-package-count>{{ package_options|length }} available</span>
+      </div>
+      {% if package_options %}
+        <div class="checkbox-grid service-checkbox-grid">
+          {% for package in package_options %}
+            <label class="checkbox-card service-option"
+                   data-package-option
+                   data-package-text="{{ package.label|lower }}">
+              <input type="checkbox" name="selected_packages" value="{{ package.value }}" data-package-checkbox>
+              <span>
+                <strong>{{ package.label }}</strong>
+                <small>
+                  {{ package.item_count }} included service{{ '' if package.item_count == 1 else 's' }}
+                  {% if package.price_php %} | PHP {{ package.price_php }}{% endif %}
+                </small>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="flash-message flash-warning">No packages are available for this branch.</div>
+      {% endif %}
+    </div>
+
+    <div class="chart-card" style="margin-top:20px;">
+      <h3>Requested Services</h3>
+      <p style="margin:4px 0 14px; color:#64748b;">Select one or more services from the current branch catalog. A patient can book consultation and diagnostic tests in the same appointment.</p>
+      <div class="service-search-row">
+        <input type="search" placeholder="Search services, sections, or categories" data-service-search>
+        <span class="topbar-pill" data-service-count>{{ service_options|length }} available</span>
+      </div>
+      {% if service_options %}
+        <div class="service-catalog-list">
+          {% for category, services in service_groups.items() %}
+            <section class="service-group" data-service-group>
+              <h4>{{ category }}</h4>
+              <div class="checkbox-grid service-checkbox-grid">
+                {% for service in services %}
+                  <label class="checkbox-card service-option"
+                         data-service-option
+                         data-service-text="{{ (service.label ~ ' ' ~ service.section ~ ' ' ~ service.category)|lower }}">
+                    <input type="checkbox" name="selected_services" value="{{ service.value }}" data-service-checkbox>
+                    <span>
+                      <strong>{{ service.label }}</strong>
+                      <small>
+                        {{ service.section or service.category }}
+                        {% if service.price_php %} | PHP {{ service.price_php }}{% endif %}
+                      </small>
+                    </span>
+                  </label>
+                {% endfor %}
+              </div>
+            </section>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="flash-message flash-warning">No services are available for this branch. Ask an administrator to enable branch services.</div>
+      {% endif %}
+    </div>
+
+    <div class="chart-card" style="margin-top:20px;">
+      <h3>Consultation Reasons</h3>
+      <p style="margin:4px 0 14px; color:#64748b;">Use this when the booking includes physician consultation. You may select multiple reasons.</p>
+      <div class="checkbox-grid">
+        {% for reason in consultation_reason_options %}
+          <label class="checkbox-card">
+            <input type="checkbox" name="consultation_reasons" value="{{ reason }}" data-reason-checkbox>
+            <span>{{ reason }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <label class="form-grid" style="max-width:none; margin-top:16px;">
+        Other reason or details
+        <textarea name="other_reason" rows="3" placeholder="Example: Asthma follow-up with CBC and ECG request" data-other-reason></textarea>
+      </label>
+    </div>
+
+    <div class="form-actions" style="margin-top:20px;">
+      <button type="submit" class="btn">Book Appointment</button>
+      <a href="{{ url_for('appointments') }}" class="btn secondary">Cancel</a>
+    </div>
+  </form>
+{% endif %}
+
+<script>
+  const serviceRecommendations = {{ service_recommendations|tojson }};
+  const packageRecommendations = {{ package_recommendations|tojson }};
+  const reasonRecommendations = {{ reason_recommendations|tojson }};
+  const keywordRecommendations = {{ keyword_recommendations|tojson }};
+
+  function unique(values) {
+    return Array.from(new Set(values.filter(Boolean)));
+  }
+
+  function renderTags(container, values, emptyText, primary = false) {
+    if (!container) return;
+    const items = values.length ? values : [emptyText];
+    container.innerHTML = items.map(value => `<span class="tag-pill ${primary ? 'tag-primary' : ''}">${value}</span>`).join('');
+  }
+
+  function selectedCheckboxValues(selector) {
+    return Array.from(document.querySelectorAll(selector))
+      .filter(input => input.checked)
+      .map(input => input.value);
+  }
+
+  function refreshRecommendationPreview() {
+    const services = selectedCheckboxValues('[data-service-checkbox]');
+    const packages = selectedCheckboxValues('[data-package-checkbox]');
+    const reasons = selectedCheckboxValues('[data-reason-checkbox]');
+    const otherReason = (document.querySelector('[data-other-reason]')?.value || '').toLowerCase();
+    const roles = [];
+    const equipment = [];
+
+    services.forEach(service => {
+      roles.push(...(serviceRecommendations[service]?.roles || []));
+      equipment.push(...(serviceRecommendations[service]?.equipment || []));
+    });
+
+    packages.forEach(packageName => {
+      roles.push(...(packageRecommendations[packageName]?.roles || []));
+      equipment.push(...(packageRecommendations[packageName]?.equipment || []));
+    });
+
+    reasons.forEach(reason => {
+      roles.push(...(reasonRecommendations[reason] || []));
+    });
+
+    Object.entries(keywordRecommendations).forEach(([keyword, mappedRoles]) => {
+      if (otherReason.includes(keyword)) roles.push(...mappedRoles);
+    });
+
+    renderTags(document.querySelector('[data-role-preview]'), unique(roles), 'General Physicians', true);
+    renderTags(document.querySelector('[data-equipment-preview]'), unique(equipment), 'No equipment required');
+  }
+
+  document.querySelectorAll('[data-service-checkbox], [data-package-checkbox], [data-reason-checkbox]').forEach(input => {
+    input.addEventListener('change', refreshRecommendationPreview);
+  });
+  document.querySelector('[data-other-reason]')?.addEventListener('input', refreshRecommendationPreview);
+  document.querySelector('[data-package-search]')?.addEventListener('input', event => {
+    const term = event.target.value.trim().toLowerCase();
+    let visibleCount = 0;
+    document.querySelectorAll('[data-package-option]').forEach(option => {
+      const visible = !term || (option.dataset.packageText || '').includes(term);
+      option.style.display = visible ? '' : 'none';
+      if (visible) visibleCount += 1;
+    });
+    const count = document.querySelector('[data-package-count]');
+    if (count) count.textContent = `${visibleCount} shown`;
+  });
+  document.querySelector('[data-service-search]')?.addEventListener('input', event => {
+    const term = event.target.value.trim().toLowerCase();
+    let visibleCount = 0;
+    document.querySelectorAll('[data-service-option]').forEach(option => {
+      const visible = !term || (option.dataset.serviceText || '').includes(term);
+      option.style.display = visible ? '' : 'none';
+      if (visible) visibleCount += 1;
+    });
+    document.querySelectorAll('[data-service-group]').forEach(group => {
+      const hasVisible = Array.from(group.querySelectorAll('[data-service-option]')).some(option => option.style.display !== 'none');
+      group.style.display = hasVisible ? '' : 'none';
+    });
+    const count = document.querySelector('[data-service-count]');
+    if (count) count.textContent = `${visibleCount} shown`;
+  });
+  refreshRecommendationPreview();
+</script>
+{% endblock %}

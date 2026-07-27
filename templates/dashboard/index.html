@@ -5,6 +5,7 @@
 {% block page_subtitle %}Trusted overview of patient demand, staffing, and readiness{% endblock %}
 
 {% block content %}
+{% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
 <div class="grid cards">
   <div class="card">
     <h3>Total Consultations</h3>
@@ -112,6 +113,7 @@
     <p>{{ summary.resource_recommendation }}</p>
     <p><strong>Staff Capacity:</strong> {{ summary.estimated_monthly_capacity }} consultations/month</p>
     <p><strong>Forecast Pressure:</strong> {{ summary.forecast_pressure }}%</p>
+    <p><strong>Top Staff Role Needed:</strong> {{ staff_forecast.get('top_role', 'No role demand yet') }} ({{ staff_forecast.get('top_role_demand', 0) }} cases or service needs)</p>
     <p><em>{{ summary.resource_forecast_recommendation }}</em></p>
   </div>
 </div>

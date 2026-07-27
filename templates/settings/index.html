@@ -8,8 +8,9 @@
 <div class="grid">
   <div class="chart-card">
     <h3>Clinic Information</h3>
-    <p>Accudetek Health Diagnostics</p>
-    <p>JL Building, 12 M.H. del Pilar St, San Nicolas, Pasig, 1600 Metro Manila</p>
+    <p>{{ active_branch.name if active_branch else active_branch_label }}</p>
+    <p>{{ active_branch.address if active_branch and active_branch.address else 'Combined monitoring view for all active branches.' }}</p>
+    <p style="margin-bottom:0; color:#64748b;">Branch Code: {{ active_branch.code if active_branch else 'ALL' }}</p>
   </div>
 
   <div class="chart-card">

@@ -21,14 +21,30 @@
       </div>
       <nav class="nav-links">
         <a href="/dashboard" class="{% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/patients" class="{% if request.path.startswith('/patients') %}active{% endif %}">Patients</a>
+        <a href="/appointments" class="{% if request.path.startswith('/appointments') %}active{% endif %}">Appointments</a>
+        {% if can_manage_services %}
+          <a href="/services" class="{% if request.path.startswith('/services') %}active{% endif %}">Services</a>
+          <a href="/packages" class="{% if request.path.startswith('/packages') %}active{% endif %}">Packages</a>
+        {% endif %}
         <a href="/records" class="{% if request.path == '/records' %}active{% endif %}">Consultation Records</a>
         <a href="/predict" class="{% if request.path == '/predict' %}active{% endif %}">Predictions</a>
         <a href="/resources" class="{% if request.path == '/resources' %}active{% endif %}">Resource Planning</a>
         <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">Reports</a>
         <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}">Staff Management</a>
+        {% if can_view_all_branches %}
+          <a href="/branches" class="{% if request.path.startswith('/branches') %}active{% endif %}">Branches</a>
+        {% endif %}
         <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}">Settings</a>
         <a href="/logout">Logout</a>
       </nav>
+      {% if current_user_name %}
+        <div class="sidebar-user">
+          <span class="sidebar-user-label">Signed in as</span>
+          <strong>{{ current_user_name }}</strong>
+          <span>{{ current_user_role_label }} | {{ current_access_label }}</span>
+        </div>
+      {% endif %}
     </aside>
     <main class="main-panel">
       <header class="topbar">
@@ -37,6 +53,20 @@
           <p>{% block page_subtitle %}Hospital operations and consultation forecasting{% endblock %}</p>
         </div>
         <div class="topbar-actions">
+          {% if branch_options %}
+            <form method="post" action="{{ url_for('select_branch') }}" class="branch-selector">
+              <select name="branch_scope" aria-label="Select branch" onchange="this.form.submit()">
+                {% if can_view_all_branches %}
+                  <option value="all" {% if selected_branch_value == 'all' %}selected{% endif %}>All Branches</option>
+                {% endif %}
+                {% for branch in branch_options %}
+                  <option value="{{ branch.id }}" {% if selected_branch_value == branch.id|string %}selected{% endif %}>{{ branch.name }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          {% else %}
+            <span class="topbar-pill">{{ active_branch_label }}</span>
+          {% endif %}
           <span class="topbar-pill">{{ current_date }}</span>
           <span class="topbar-pill">{{ current_time }}</span>
           <a href="/logout" class="topbar-link">Logout</a>

@@ -1,0 +1,164 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Complete Appointment - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Complete Appointment{% endblock %}
+{% block page_subtitle %}Create consultation records from the services completed during this appointment{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('appointments') }}" class="btn secondary">Back to Appointments</a>
+  <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary">View Patient Profile</a>
+</div>
+
+<div class="chart-card patient-profile">
+  <div class="patient-profile-header">
+    <div>
+      <span class="sidebar-user-label">Patient</span>
+      <h3>{{ patient.full_name }}</h3>
+      <p>{{ patient.patient_number }} | {{ patient.age if patient.age is not none else 'Age not set' }} years old | {{ patient.gender }}</p>
+    </div>
+    <span class="status-pill status-moderate">{{ appointment.status }}</span>
+  </div>
+  <dl class="detail-grid" style="margin-top:16px;">
+    <dt>Appointment Date</dt>
+    <dd>{{ appointment.appointment_date }}</dd>
+    <dt>Appointment Time</dt>
+    <dd>{{ format_appointment_time(appointment.appointment_time) }}</dd>
+    <dt>Completion Items</dt>
+    <dd>{{ services|join(', ') }}</dd>
+    <dt>Requested Packages</dt>
+    <dd>{{ appointment.package_items()|join(', ') if appointment.package_items() else 'None' }}</dd>
+    <dt>Consultation Reasons</dt>
+    <dd>
+      {% set reasons = appointment.reason_items() %}
+      {% if reasons or appointment.other_reason %}
+        {{ reasons|join(', ') }}{% if reasons and appointment.other_reason %}, {% endif %}{{ appointment.other_reason or '' }}
+      {% else %}
+        Not provided
+      {% endif %}
+    </dd>
+  </dl>
+</div>
+
+<form method="post" style="margin-top:20px;"
+      data-confirm-title="Complete appointment?"
+      data-confirm="This will mark the appointment as completed and create consultation records for each selected service. Continue?">
+  <div class="chart-card">
+    <h3>Completion Details</h3>
+    <div class="form-grid patient-form">
+      <label>
+        Actual Completed Date
+        <input type="date" name="completed_date" value="{{ completed_date }}" required data-consultation-date-input>
+      </label>
+      <label>
+        Patient Age During Service
+        <input type="text" value="{{ patient.age if patient.age is not none else '' }}" readonly data-age-output data-birthdate="{{ patient.birthdate if patient.birthdate else '' }}" class="readonly-field">
+      </label>
+      <label>
+        Computed Age Group
+        <input type="text" value="{{ patient.age_group }}" readonly data-age-group-output class="readonly-field">
+      </label>
+      <label class="form-wide">
+        Completion Notes
+        <textarea name="completion_notes" rows="3" placeholder="Optional overall notes for this appointment"></textarea>
+      </label>
+    </div>
+  </div>
+
+  <div class="chart-card" style="margin-top:20px;">
+    <h3>Service Results</h3>
+    <p style="margin:4px 0 14px; color:#64748b;">Each selected service will create its own consultation record so different staff members can be credited correctly.</p>
+
+    {% if not staff_members %}
+      <div class="flash-message flash-warning">No active staff members are available in this branch. Add staff before completing the appointment.</div>
+    {% endif %}
+
+    <div class="service-result-list">
+      {% for service in services %}
+        <div class="service-result-item">
+          <div class="service-result-heading">
+            <div>
+              <strong>{{ service }}</strong>
+              <span>Suggested role{{ '' if service_roles[service]|length == 1 else 's' }}: {{ service_roles[service]|join(', ') }}</span>
+            </div>
+            <span class="tag-pill tag-primary">{{ service_types[service] }}</span>
+          </div>
+          <div class="form-grid patient-form">
+            <label>
+              Assigned Medical Staff
+              <select name="assigned_staff_{{ loop.index0 }}" required>
+                <option value="" selected disabled>Select attending staff</option>
+                {% for staff in staff_members %}
+                  <option value="{{ staff.name }}">
+                    {{ staff.name }} - {{ staff.role }}{% if staff.role in service_roles[service] %} (recommended){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Final Diagnosis or Case
+              <input type="text" name="final_diagnosis_{{ loop.index0 }}" value="{{ default_diagnosis }}" required>
+            </label>
+            <label>
+              Department
+              <input type="text" value="{{ service_departments[service] }}" readonly class="readonly-field">
+            </label>
+            <label>
+              Consultation Type
+              <input type="text" value="{{ service_types[service] }}" readonly class="readonly-field">
+            </label>
+            <label class="form-wide">
+              Service Notes
+              <textarea name="service_notes_{{ loop.index0 }}" rows="2" placeholder="Optional result or service note"></textarea>
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="form-actions" style="margin-top:20px;">
+      <button type="submit" class="btn" {% if not staff_members %}disabled{% endif %}>Complete and Save Records</button>
+      <a href="{{ url_for('appointments') }}" class="btn secondary">Cancel</a>
+    </div>
+  </div>
+</form>
+
+<script>
+  function parseLocalDate(value) {
+    const parts = (value || '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+    return { year: parts[0], month: parts[1], day: parts[2] };
+  }
+
+  function calculateAgeFromBirthdate(birthdateValue, referenceValue) {
+    const birthdate = parseLocalDate(birthdateValue);
+    const reference = parseLocalDate(referenceValue);
+    if (!birthdate || !reference) return null;
+    let age = reference.year - birthdate.year;
+    if (reference.month < birthdate.month || (reference.month === birthdate.month && reference.day < birthdate.day)) {
+      age -= 1;
+    }
+    return age >= 0 && age <= 130 ? age : null;
+  }
+
+  function consultationAgeGroup(age) {
+    if (age === null) return '';
+    if (age <= 17) return 'Child';
+    if (age <= 59) return 'Adult';
+    return 'Senior';
+  }
+
+  document.querySelectorAll('[data-consultation-date-input]').forEach(input => {
+    const form = input.closest('form');
+    const ageOutput = form?.querySelector('[data-age-output]');
+    const groupOutput = form?.querySelector('[data-age-group-output]');
+    const update = () => {
+      const age = calculateAgeFromBirthdate(ageOutput?.dataset.birthdate || '', input.value);
+      if (ageOutput) ageOutput.value = age === null ? '' : age;
+      if (groupOutput) groupOutput.value = consultationAgeGroup(age);
+    };
+    input.addEventListener('change', update);
+    update();
+  });
+</script>
+{% endblock %}

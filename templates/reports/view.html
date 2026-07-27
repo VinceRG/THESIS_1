@@ -13,6 +13,7 @@
 
 <div class="chart-card">
   <h3>{{ report.description }}</h3>
+  <p style="margin:0 0 14px; color:#64748b;">Branch: {{ report.branch_name }}{% if report.branch_code %} ({{ report.branch_code }}){% endif %}</p>
   <table class="table">
     <thead>
       <tr>
@@ -237,7 +238,10 @@
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: context => context.parsed.y + ' consultations'
+                label: context => {
+                  const suffix = chart.tooltip_suffix || chart.y_title || 'consultations';
+                  return context.parsed.y + ' ' + suffix;
+                }
               }
             }
           },

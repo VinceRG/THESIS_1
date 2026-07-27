@@ -5,6 +5,7 @@
 {% block page_subtitle %}Plan clinic staffing, equipment, and service readiness from forecasted demand{% endblock %}
 
 {% block content %}
+{% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
 <div class="grid cards">
   <div class="card">
     <h3>Forecast Month</h3>
@@ -17,16 +18,16 @@
     <div class="trend">Total expected cases for {{ summary.predicted_month_label }}</div>
   </div>
   <div class="card">
+    <h3>Top Staff Role Needed</h3>
+    <div class="value" style="font-size:24px;">{{ staff_forecast.get('top_role', 'No demand yet') }}</div>
+    <div class="trend">{{ staff_forecast.get('top_role_demand', 0) }} forecasted cases or service needs</div>
+  </div>
+  <div class="card">
     <h3>Capacity Status</h3>
     <div class="value" style="font-size:24px;">
       <span class="status-pill status-{{ summary.capacity_status|lower }}">{{ summary.capacity_status }}</span>
     </div>
     <div class="trend">{{ summary.forecast_pressure_raw }}% demand pressure</div>
-  </div>
-  <div class="card">
-    <h3>Staff Gap</h3>
-    <div class="value">{{ summary.staff_gap }}</div>
-    <div class="trend">Recommended: {{ summary.recommended_staff_count }} | Clinic: {{ summary.facility_staff_count }}</div>
   </div>
 </div>
 
@@ -53,6 +54,72 @@
       </div>
     </div>
     <p class="resource-note">{{ summary.resource_forecast_recommendation }}</p>
+  </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Monthly Doctor and Medical Staff Forecast for {{ summary.predicted_month_full_label }}</h3>
+    <p class="muted-copy" style="margin-bottom:14px;">
+      Planning demand uses the higher value between the Random Forest diagnosis forecast and already scheduled appointments, grouped by required staff role.
+    </p>
+    <div class="chart-container staff-forecast-chart">
+      <canvas id="monthlyStaffForecastChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Monthly Staff Requirement</h3>
+    <table class="table resource-table">
+      <thead>
+        <tr><th>Staff Role</th><th>Demand</th><th>Available</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for row in staff_forecast.get('monthly_rows', []) if row.planning_demand > 0 or row.available_staff > 0 %}
+          <tr>
+            <td>{{ row.staff_role }}</td>
+            <td><strong>{{ row.planning_demand }}</strong></td>
+            <td>{{ row.available_staff }}</td>
+            <td><span class="status-pill status-{{ row.status_class }}">{{ row.status }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No staff demand forecast is available yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid section-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Daily Staff Needed from Scheduled Appointments</h3>
+    <p class="muted-copy" style="margin-bottom:14px;">
+      This daily view uses booked pending and confirmed appointments for the next {{ 14 }} days.
+    </p>
+    <div class="chart-container staff-forecast-chart">
+      <canvas id="dailyStaffForecastChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Daily Staff Requirement</h3>
+    <table class="table resource-table">
+      <thead>
+        <tr><th>Date</th><th>Staff Role</th><th>Demand</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for row in staff_forecast.get('daily_rows', [])[:12] %}
+          <tr>
+            <td>{{ row.date }}</td>
+            <td>{{ row.staff_role }}</td>
+            <td><strong>{{ row.scheduled_demand }}</strong></td>
+            <td><span class="status-pill status-{{ row.status_class }}">{{ row.status }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No scheduled appointment demand for the next 14 days.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -138,4 +205,77 @@
     </div>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  async function renderStaffForecastCharts() {
+    if (typeof loadChartJs === 'function') {
+      await loadChartJs();
+    }
+    if (!window.Chart) return;
+
+    const colors = ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
+    const monthlyPayload = {{ staff_forecast.get('monthly_chart', {'labels': [], 'planning_demand': [], 'capacity': []}) | tojson }};
+    const monthlyCtx = document.getElementById('monthlyStaffForecastChart');
+    if (monthlyCtx && monthlyPayload.labels && monthlyPayload.labels.length) {
+      new Chart(monthlyCtx, {
+        data: {
+          labels: monthlyPayload.labels,
+          datasets: [{
+            type: 'bar',
+            label: 'Planning Demand',
+            data: monthlyPayload.planning_demand,
+            backgroundColor: '#0f5b8a',
+            borderRadius: 8
+          }, {
+            type: 'line',
+            label: 'Role Capacity',
+            data: monthlyPayload.capacity,
+            borderColor: '#2f9e44',
+            backgroundColor: '#2f9e4422',
+            tension: 0.25,
+            pointRadius: 4,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'top' } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, title: { display: true, text: 'Cases or Service Needs' }, ticks: { precision: 0 } }
+          }
+        }
+      });
+    }
+
+    const dailyPayload = {{ staff_forecast.get('daily_chart', {'labels': [], 'datasets': []}) | tojson }};
+    const dailyCtx = document.getElementById('dailyStaffForecastChart');
+    if (dailyCtx && dailyPayload.labels && dailyPayload.labels.length && dailyPayload.datasets && dailyPayload.datasets.length) {
+      new Chart(dailyCtx, {
+        type: 'bar',
+        data: {
+          labels: dailyPayload.labels,
+          datasets: dailyPayload.datasets.map((dataset, index) => ({
+            label: dataset.label,
+            data: dataset.data,
+            backgroundColor: colors[index % colors.length],
+            borderRadius: 6
+          }))
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'top' } },
+          scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Scheduled Appointments' }, ticks: { precision: 0 } }
+          }
+        }
+      });
+    }
+  }
+  renderStaffForecastCharts();
+</script>
 {% endblock %}

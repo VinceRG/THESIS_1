@@ -1,0 +1,159 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ patient.full_name }} - Patient Record{% endblock %}
+{% block page_title %}Patient Profile{% endblock %}
+{% block page_subtitle %}Individual patient record and branch-specific care reference{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('patients') }}" class="btn secondary">Back to Patients</a>
+  {% if not all_branches_view %}
+    <a href="{{ url_for('edit_patient', patient_id=patient.id) }}" class="btn">Edit Patient</a>
+    {% if patient.is_active %}
+      <a href="{{ url_for('create_appointment', patient_id=patient.id) }}" class="btn">Book Appointment</a>
+      <a href="{{ url_for('create_patient_consultation', patient_id=patient.id) }}" class="btn">Add Consultation</a>
+    {% endif %}
+    {% if patient.is_active %}
+      <form method="post" action="{{ url_for('archive_patient', patient_id=patient.id) }}" style="display:inline-block;"
+            data-confirm-title="Archive patient record?"
+            data-confirm="This will archive {{ patient.full_name }} but keep the record for reference. Continue?">
+        <button type="submit" class="btn secondary">Archive</button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('restore_patient', patient_id=patient.id) }}" style="display:inline-block;"
+            data-confirm-title="Reactivate patient record?"
+            data-confirm="This will reactivate {{ patient.full_name }}. Continue?">
+        <button type="submit" class="btn">Reactivate</button>
+      </form>
+    {% endif %}
+  {% else %}
+    <span class="topbar-pill">All-branch view is read-only. Select one branch to edit this patient.</span>
+  {% endif %}
+</div>
+
+<div class="chart-card patient-profile">
+  <div class="patient-profile-header">
+    <div>
+      <span class="sidebar-user-label">Patient Number</span>
+      <h3>{{ patient.patient_number }}</h3>
+      <p>{{ patient.full_name }}</p>
+    </div>
+    <span class="status-pill status-{{ 'healthy' if patient.is_active else 'high' }}">
+      {{ 'Active' if patient.is_active else 'Archived' }}
+    </span>
+  </div>
+</div>
+
+<div class="grid demographic-comparison" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Patient Information</h3>
+    <dl class="detail-grid">
+      <dt>Branch</dt>
+      <dd>{{ patient.branch.name if patient.branch else 'Unassigned' }}</dd>
+      <dt>Full Name</dt>
+      <dd>{{ patient.full_name }}</dd>
+      <dt>Birthdate</dt>
+      <dd>{{ patient.birthdate or 'Not provided' }}</dd>
+      <dt>Age</dt>
+      <dd>{{ patient.age if patient.age is not none else 'Not provided' }}</dd>
+      <dt>Age Group</dt>
+      <dd>{{ patient.age_group }}</dd>
+      <dt>Gender</dt>
+      <dd>{{ patient.gender }}</dd>
+      <dt>Created At</dt>
+      <dd>{{ patient.created_at }}</dd>
+      <dt>Last Updated</dt>
+      <dd>{{ patient.updated_at }}</dd>
+    </dl>
+  </div>
+
+  <div class="chart-card">
+    <h3>Contact Details</h3>
+    <dl class="detail-grid">
+      <dt>Contact Number</dt>
+      <dd>{{ patient.contact_number or 'Not provided' }}</dd>
+      <dt>Email</dt>
+      <dd>{{ patient.email or 'Not provided' }}</dd>
+      <dt>Address</dt>
+      <dd>{{ patient.address or 'Not provided' }}</dd>
+      <dt>Emergency Contact</dt>
+      <dd>{{ patient.emergency_contact_name or 'Not provided' }}</dd>
+      <dt>Emergency Contact Number</dt>
+      <dd>{{ patient.emergency_contact_number or 'Not provided' }}</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Recent Appointments</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Services</th>
+        <th>Recommended Staff</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for appointment in patient_appointments %}
+        <tr>
+          <td>{{ appointment.appointment_date }}</td>
+          <td>{{ format_appointment_time(appointment.appointment_time) }}</td>
+          <td>
+            {% if appointment.package_items() %}
+              Packages: {{ appointment.package_items()|join(', ') }}
+              {% if appointment.service_items() %}<br>{% endif %}
+            {% endif %}
+            {% if appointment.service_items() %}
+              Services: {{ appointment.service_items()|join(', ') }}
+            {% endif %}
+          </td>
+          <td>{{ appointment.role_items()|join(', ') }}</td>
+          <td>
+            <span class="status-pill status-{{ 'healthy' if appointment.status in ['Confirmed', 'Completed'] else 'moderate' if appointment.status == 'Pending' else 'high' }}">
+              {{ appointment.status }}
+            </span>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">No appointments booked yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Linked Consultation Records</h3>
+  <p style="margin:0 0 12px; color:#64748b;">{{ consultation_count }} consultation record{{ '' if consultation_count == 1 else 's' }} linked to this patient.</p>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Age</th>
+        <th>Diagnosis</th>
+        <th>Age Group</th>
+        <th>Gender</th>
+        <th>Physician</th>
+        <th>Consultation Type</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in linked_consultations %}
+        <tr>
+          <td>{{ record.consultation_date }}</td>
+          <td>{{ record.patient_age if record.patient_age is not none else 'Not provided' }}</td>
+          <td>{{ record.diagnosis }}</td>
+          <td>{{ record.age_group }}</td>
+          <td>{{ record.gender }}</td>
+          <td>{{ record.physician }}</td>
+          <td>{{ record.consultation_type }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7">No linked consultation records yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -6,18 +6,23 @@
 
 {% block content %}
 <div class="page-actions">
-  <a href="{{ url_for('create_staff') }}" class="btn">Add New Staff</a>
+  {% if not all_branches_view %}
+    <a href="{{ url_for('create_staff') }}" class="btn">Add New Staff</a>
+  {% else %}
+    <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit staff.</span>
+  {% endif %}
 </div>
 
 <div class="chart-card">
   <h3>Active Staff</h3>
   <table class="table">
     <thead>
-      <tr><th>Name</th><th>Position</th><th>Status</th><th>Actions</th></tr>
+      <tr>{% if all_branches_view %}<th>Branch</th>{% endif %}<th>Name</th><th>Position</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody>
       {% for person in active_staff.items %}
         <tr>
+          {% if all_branches_view %}<td>{{ person.branch.name if person.branch else 'Unassigned' }}</td>{% endif %}
           <td>{{ person.name }}</td>
           <td>{{ person.role }}</td>
           <td>
@@ -26,16 +31,20 @@
             </span>
           </td>
           <td>
-            <a class="btn secondary" href="{{ url_for('edit_staff', staff_id=person.id) }}">Edit</a>
-            <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
-                  data-confirm-title="Remove staff member?"
-                  data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
-              <button type="submit" class="btn secondary">Remove</button>
-            </form>
+            {% if not all_branches_view %}
+              <a class="btn secondary" href="{{ url_for('edit_staff', staff_id=person.id) }}">Edit</a>
+              <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
+                    data-confirm-title="Remove staff member?"
+                    data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
+                <button type="submit" class="btn secondary">Remove</button>
+              </form>
+            {% else %}
+              <span style="color:#64748b;">Select branch to edit</span>
+            {% endif %}
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="4">No active staff members available.</td></tr>
+        <tr><td colspan="{{ 5 if all_branches_view else 4 }}">No active staff members available.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -75,29 +84,34 @@
   <div id="formerStaffPanel" style="display:none; margin-top:16px;">
     <table class="table">
       <thead>
-        <tr><th>Name</th><th>Position</th><th>Deleted At</th><th>Actions</th></tr>
+        <tr>{% if all_branches_view %}<th>Branch</th>{% endif %}<th>Name</th><th>Position</th><th>Deleted At</th><th>Actions</th></tr>
       </thead>
       <tbody>
         {% for person in inactive_staff %}
           <tr>
+            {% if all_branches_view %}<td>{{ person.branch.name if person.branch else 'Unassigned' }}</td>{% endif %}
             <td>{{ person.name }}</td>
             <td>{{ person.role }}</td>
             <td>{{ person.deleted_at }}</td>
             <td>
-              <form method="post" action="{{ url_for('restore_staff', staff_id=person.id) }}" style="display:inline-block;"
-                    data-confirm-title="Restore staff member?"
-                    data-confirm="This will restore {{ person.name }} to the active staff roster. Continue?">
-                <button type="submit" class="btn">Restore</button>
-              </form>
-              <form method="post" action="{{ url_for('permanent_delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
-                    data-confirm-title="Permanently delete staff member?"
-                    data-confirm="This will permanently delete {{ person.name }} and cannot be undone. Continue?">
-                <button type="submit" class="btn danger">Delete Permanently</button>
-              </form>
+              {% if not all_branches_view %}
+                <form method="post" action="{{ url_for('restore_staff', staff_id=person.id) }}" style="display:inline-block;"
+                      data-confirm-title="Restore staff member?"
+                      data-confirm="This will restore {{ person.name }} to the active staff roster. Continue?">
+                  <button type="submit" class="btn">Restore</button>
+                </form>
+                <form method="post" action="{{ url_for('permanent_delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
+                      data-confirm-title="Permanently delete staff member?"
+                      data-confirm="This will permanently delete {{ person.name }} and cannot be undone. Continue?">
+                  <button type="submit" class="btn danger">Delete Permanently</button>
+                </form>
+              {% else %}
+                <span style="color:#64748b;">Select branch to edit</span>
+              {% endif %}
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="4">No removed staff members.</td></tr>
+          <tr><td colspan="{{ 5 if all_branches_view else 4 }}">No removed staff members.</td></tr>
         {% endfor %}
       </tbody>
     </table>

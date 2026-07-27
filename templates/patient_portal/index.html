@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book Appointment - Accudetek Health Diagnostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="patient-public-body">
+  <header class="patient-public-header">
+    <a class="patient-public-brand" href="{{ url_for('patient_portal') }}">
+      <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
+      <span>
+        <strong>Accudetek Health Diagnostics</strong>
+        <small>{{ branch.name }}</small>
+      </span>
+    </a>
+    <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
+  </header>
+
+  <main class="patient-public-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="patient-flash-stack">
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="patient-booking-shell">
+      <form method="post" class="patient-booking-panel">
+        <div class="patient-hero-card">
+          <div class="patient-section-heading">
+            <span>Appointment Request</span>
+            <h1>Book a clinic visit</h1>
+            <p>Choose your branch, schedule, patient details, and requested diagnostic services in one form.</p>
+          </div>
+          <div class="patient-trust-strip" aria-label="Clinic highlights">
+            <span>Fast and reliable results</span>
+            <span>Multi-specialty clinic and diagnostic laboratory</span>
+            <span>Secure patient request</span>
+          </div>
+        </div>
+
+        <ol class="patient-progress" aria-label="Booking progress">
+          <li class="is-active" data-public-progress="schedule"><span>1</span><strong>Schedule</strong></li>
+          <li data-public-progress="patient"><span>2</span><strong>Patient</strong></li>
+          <li data-public-progress="services"><span>3</span><strong>Services</strong></li>
+          <li data-public-progress="reasons"><span>4</span><strong>Reason</strong></li>
+          <li data-public-progress="review"><span>5</span><strong>Review</strong></li>
+        </ol>
+
+        <section class="patient-form-section" id="schedule">
+          <div class="patient-step-heading">
+            <span class="patient-step-badge">Step 1</span>
+            <div>
+              <h2>Branch and Schedule</h2>
+              <p>Select where and when the patient wants to visit.</p>
+            </div>
+          </div>
+          <div class="patient-form-grid">
+            <label>
+              Branch
+              <select name="branch_id" onchange="window.location.href='{{ url_for('patient_portal') }}?branch_id=' + this.value">
+                {% for option in branch_options %}
+                  <option value="{{ option.id }}" {% if option.id == branch.id %}selected{% endif %}>{{ option.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Preferred Date
+              <input type="date" name="appointment_date" value="{{ values.appointment_date or today }}" min="{{ today }}" required data-public-schedule-input>
+            </label>
+            <div class="patient-time-field">
+              <span class="patient-field-label">Preferred Time</span>
+              <input type="hidden" name="appointment_time" value="{{ values.appointment_time }}" data-public-time-hidden data-public-schedule-input>
+              <button type="button" class="patient-clock-trigger" data-public-time-open>
+                <strong data-public-time-display>Select time</strong>
+                <small>Clock picker with 10-minute intervals</small>
+              </button>
+              <small class="patient-field-help">Minutes are selectable in 10-minute increments.</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="patient-form-section" id="patient-info">
+          <div class="patient-step-heading">
+            <span class="patient-step-badge">Step 2</span>
+            <div>
+              <h2>Patient Information</h2>
+              <p>Birthdate is used to compute the age group automatically.</p>
+            </div>
+          </div>
+          <div class="patient-form-grid">
+            <label>
+              Full Name
+              <input type="text" name="full_name" value="{{ values.full_name }}" required data-public-patient-input>
+            </label>
+            <label>
+              Birthdate
+              <input type="date" name="birthdate" value="{{ values.birthdate }}" max="{{ current_date }}" required data-public-birthdate data-public-patient-input>
+            </label>
+            <label>
+              Computed Age Group
+              <input type="text" readonly class="readonly-field" data-public-age-group>
+            </label>
+            <label>
+              Gender
+              <select name="gender" required data-public-patient-input>
+                <option value="" disabled {% if not values.gender %}selected{% endif %}>Select gender</option>
+                {% for gender in gender_options %}
+                  <option value="{{ gender }}" {% if values.gender == gender %}selected{% endif %}>{{ gender }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Contact Number
+              <input type="text" name="contact_number" value="{{ values.contact_number }}" placeholder="Mobile or landline" data-public-contact-input>
+            </label>
+            <label>
+              Email
+              <input type="email" name="email" value="{{ values.email }}" placeholder="name@example.com" data-public-contact-input>
+            </label>
+            <label class="patient-wide-field">
+              Address
+              <textarea name="address" rows="2">{{ values.address }}</textarea>
+            </label>
+          </div>
+        </section>
+
+        <div class="patient-service-tabs" role="tablist" aria-label="Booking sections">
+          <a href="#packages">Packages</a>
+          <a href="#services">Services</a>
+          <a href="#reasons">Check-up Reasons</a>
+        </div>
+
+        <section class="patient-form-section patient-service-block" id="packages">
+          <div class="patient-step-heading patient-step-heading-search">
+            <span class="patient-step-badge">Step 3A</span>
+            <div>
+              <h2>Packages</h2>
+              <p>Select bundled services if the patient wants a package.</p>
+            </div>
+            <input type="search" placeholder="Search packages" data-public-package-search>
+          </div>
+          <div class="patient-option-grid">
+            {% for package in package_options %}
+              <label class="patient-option-card" data-public-package-option data-public-package-text="{{ package.label|lower }}">
+                <input type="checkbox" name="selected_packages" value="{{ package.value }}" data-public-package-checkbox {% if package.value in values.selected_packages %}checked{% endif %}>
+                <span>
+                  <strong>{{ package.label }}</strong>
+                  <small>{{ package.item_count }} service{{ '' if package.item_count == 1 else 's' }}{% if package.price_php %} | PHP {{ package.price_php }}{% endif %}</small>
+                </span>
+              </label>
+            {% else %}
+              <div class="patient-empty-state">No packages available for this branch.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="patient-form-section patient-service-block" id="services">
+          <div class="patient-step-heading patient-step-heading-search">
+            <span class="patient-step-badge">Step 3B</span>
+            <div>
+              <h2>Services</h2>
+              <p>Select one or more consultation, laboratory, imaging, or diagnostic services.</p>
+            </div>
+            <input type="search" placeholder="Search services" data-public-service-search>
+          </div>
+          <div class="patient-service-list">
+            {% for category, services in service_groups.items() %}
+              <section data-public-service-group>
+                <h3>{{ category }}</h3>
+                <div class="patient-option-grid">
+                  {% for service in services %}
+                    <label class="patient-option-card" data-public-service-option data-public-service-text="{{ (service.label ~ ' ' ~ service.section ~ ' ' ~ service.category)|lower }}">
+                      <input type="checkbox" name="selected_services" value="{{ service.value }}" data-public-service-checkbox {% if service.value in values.selected_services %}checked{% endif %}>
+                      <span>
+                        <strong>{{ service.label }}</strong>
+                        <small>{{ service.section or service.category }}{% if service.price_php %} | PHP {{ service.price_php }}{% endif %}</small>
+                      </span>
+                    </label>
+                  {% endfor %}
+                </div>
+              </section>
+            {% else %}
+              <div class="patient-empty-state">No services available for this branch.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="patient-form-section patient-service-block" id="reasons">
+          <div class="patient-step-heading">
+            <span class="patient-step-badge">Step 4</span>
+            <div>
+              <h2>Check-up Reasons</h2>
+              <p>Choose common concerns or enter a specific request.</p>
+            </div>
+          </div>
+          <div class="patient-reason-grid">
+            {% for reason in consultation_reason_options %}
+              <label class="patient-reason-pill">
+                <input type="checkbox" name="consultation_reasons" value="{{ reason }}" data-public-reason-checkbox {% if reason in values.consultation_reasons %}checked{% endif %}>
+                <span>{{ reason }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          <label class="patient-public-notes">
+            Other reason or request
+            <textarea name="other_reason" rows="3" data-public-other-reason>{{ values.other_reason }}</textarea>
+          </label>
+        </section>
+
+        <section class="patient-form-section patient-review-section">
+          <div class="patient-step-heading">
+            <span class="patient-step-badge">Step 5</span>
+            <div>
+              <h2>Review and Submit</h2>
+              <p>The clinic will confirm the pending appointment after checking availability.</p>
+            </div>
+          </div>
+          <div class="patient-booking-actions">
+            <span class="patient-status-badge">Pending clinic confirmation</span>
+            <button type="submit">Submit Appointment Request</button>
+          </div>
+        </section>
+      </form>
+
+      <aside class="patient-summary-panel">
+        <div class="patient-summary-card patient-clinic-card">
+          <img src="{{ url_for('static', filename='Screenshot 2026-07-09 000115.png') }}" alt="Accudetek clinic">
+          <div>
+            <span class="patient-status-badge patient-status-badge-soft">Selected Branch</span>
+            <h2>{{ branch.name }}</h2>
+            <p>{{ branch.address or 'Accudetek Health Diagnostics' }}</p>
+            {% if branch.contact_number %}<p>{{ branch.contact_number }}</p>{% endif %}
+            {% if branch.email %}<p>{{ branch.email }}</p>{% endif %}
+          </div>
+        </div>
+
+        <div class="patient-summary-card">
+          <div class="patient-summary-heading">
+            <h2>Staff Recommendation</h2>
+            <span class="patient-status-badge">Auto-mapped</span>
+          </div>
+          <div class="tag-stack" data-public-role-preview>
+            <span class="tag-pill">Select services</span>
+          </div>
+        </div>
+
+        <div class="patient-summary-card">
+          <div class="patient-summary-heading">
+            <h2>Equipment</h2>
+            <span class="patient-status-badge patient-status-badge-soft">If needed</span>
+          </div>
+          <div class="tag-stack" data-public-equipment-preview>
+            <span class="tag-pill">No equipment selected</span>
+          </div>
+        </div>
+
+        <div class="patient-summary-card">
+          <div class="patient-summary-heading">
+            <h2>Selected Items</h2>
+            <span class="patient-status-badge patient-status-badge-soft" data-public-selected-count>0 selected</span>
+          </div>
+          <div class="patient-selected-list" data-public-selected-preview>
+            No selected services yet.
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="patient-clock-overlay" data-public-time-overlay aria-hidden="true">
+    <div class="patient-clock-dialog" role="dialog" aria-modal="true" aria-label="Select appointment time">
+      <div class="patient-clock-title">Select Time</div>
+      <div class="patient-clock-readout">
+        <button type="button" class="is-active" data-public-time-mode="hour" aria-label="Select hour">
+          <span data-public-clock-hour>07</span>
+        </button>
+        <strong>:</strong>
+        <button type="button" data-public-time-mode="minute" aria-label="Select minute">
+          <span data-public-clock-minute>00</span>
+        </button>
+        <div class="patient-clock-period" aria-label="AM or PM">
+          <button type="button" class="is-active" data-public-time-period-button="AM">AM</button>
+          <button type="button" data-public-time-period-button="PM">PM</button>
+        </div>
+      </div>
+      <div class="patient-clock-face" data-public-clock-dial aria-label="Clock options"></div>
+      <div class="patient-clock-actions">
+        <button type="button" data-public-time-cancel>Cancel</button>
+        <button type="button" data-public-time-ok>OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const serviceRecommendations = {{ service_recommendations|tojson }};
+    const packageRecommendations = {{ package_recommendations|tojson }};
+    const reasonRecommendations = {{ reason_recommendations|tojson }};
+    const keywordRecommendations = {{ keyword_recommendations|tojson }};
+
+    function unique(values) {
+      return Array.from(new Set(values.filter(Boolean)));
+    }
+
+    function selectedValues(selector) {
+      return Array.from(document.querySelectorAll(selector)).filter(input => input.checked).map(input => input.value);
+    }
+
+    function renderTags(container, values, emptyText, primary = false) {
+      if (!container) return;
+      const items = values.length ? values : [emptyText];
+      container.innerHTML = items.map(value => `<span class="tag-pill ${primary ? 'tag-primary' : ''}">${value}</span>`).join('');
+    }
+
+    function updateCardStates() {
+      document.querySelectorAll('.patient-option-card').forEach(card => {
+        const input = card.querySelector('input');
+        card.classList.toggle('is-selected', Boolean(input?.checked));
+      });
+    }
+
+    function updateProgress() {
+      const scheduleDone = Array.from(document.querySelectorAll('[data-public-schedule-input]')).some(input => input.value.trim());
+      const patientBasics = Array.from(document.querySelectorAll('[data-public-patient-input]')).every(input => input.value.trim());
+      const contactDone = Array.from(document.querySelectorAll('[data-public-contact-input]')).some(input => input.value.trim());
+      const patientDone = patientBasics && contactDone;
+      const servicesDone = selectedValues('[data-public-service-checkbox]').length > 0 || selectedValues('[data-public-package-checkbox]').length > 0;
+      const reasonText = (document.querySelector('[data-public-other-reason]')?.value || '').trim();
+      const reasonsDone = selectedValues('[data-public-reason-checkbox]').length > 0 || Boolean(reasonText) || servicesDone;
+      const steps = {
+        schedule: scheduleDone,
+        patient: patientDone,
+        services: servicesDone,
+        reasons: reasonsDone,
+        review: scheduleDone && patientDone && servicesDone && reasonsDone,
+      };
+      let activeFound = false;
+      document.querySelectorAll('[data-public-progress]').forEach(item => {
+        const key = item.getAttribute('data-public-progress');
+        item.classList.toggle('is-complete', Boolean(steps[key]));
+        item.classList.remove('is-active');
+        if (!steps[key] && !activeFound) {
+          item.classList.add('is-active');
+          activeFound = true;
+        }
+      });
+      if (!activeFound) document.querySelector('[data-public-progress="review"]')?.classList.add('is-active');
+    }
+
+    function updateRecommendationPreview() {
+      const services = selectedValues('[data-public-service-checkbox]');
+      const packages = selectedValues('[data-public-package-checkbox]');
+      const reasons = selectedValues('[data-public-reason-checkbox]');
+      const otherReason = (document.querySelector('[data-public-other-reason]')?.value || '').toLowerCase();
+      const roles = [];
+      const equipment = [];
+      const selected = [];
+
+      services.forEach(service => {
+        roles.push(...(serviceRecommendations[service]?.roles || []));
+        equipment.push(...(serviceRecommendations[service]?.equipment || []));
+        selected.push(service);
+      });
+      packages.forEach(packageName => {
+        roles.push(...(packageRecommendations[packageName]?.roles || []));
+        equipment.push(...(packageRecommendations[packageName]?.equipment || []));
+        selected.push('Package: ' + packageName);
+      });
+      reasons.forEach(reason => roles.push(...(reasonRecommendations[reason] || [])));
+      Object.entries(keywordRecommendations).forEach(([keyword, mappedRoles]) => {
+        if (otherReason.includes(keyword)) roles.push(...mappedRoles);
+      });
+
+      renderTags(document.querySelector('[data-public-role-preview]'), unique(roles), 'General Physicians', true);
+      renderTags(document.querySelector('[data-public-equipment-preview]'), unique(equipment), 'No equipment required');
+      const selectedPreview = document.querySelector('[data-public-selected-preview]');
+      if (selectedPreview) {
+        selectedPreview.innerHTML = selected.length ? selected.map(item => `<span>${item}</span>`).join('') : 'No selected services yet.';
+      }
+      const selectedCount = document.querySelector('[data-public-selected-count]');
+      if (selectedCount) selectedCount.textContent = selected.length === 1 ? '1 selected' : `${selected.length} selected`;
+      updateCardStates();
+      updateProgress();
+    }
+
+    function filterOptions(inputSelector, optionSelector, textAttribute, groupSelector = null) {
+      const input = document.querySelector(inputSelector);
+      if (!input) return;
+      input.addEventListener('input', () => {
+        const term = input.value.trim().toLowerCase();
+        document.querySelectorAll(optionSelector).forEach(option => {
+          const visible = !term || (option.getAttribute(textAttribute) || '').includes(term);
+          option.style.display = visible ? '' : 'none';
+        });
+        if (groupSelector) {
+          document.querySelectorAll(groupSelector).forEach(group => {
+            const visible = Array.from(group.querySelectorAll(optionSelector)).some(option => option.style.display !== 'none');
+            group.style.display = visible ? '' : 'none';
+          });
+        }
+      });
+    }
+
+    function parseLocalDate(value) {
+      const parts = (value || '').split('-').map(Number);
+      if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+      return { year: parts[0], month: parts[1], day: parts[2] };
+    }
+
+    function pad2(value) {
+      return String(value).padStart(2, '0');
+    }
+
+    const clockState = { hour: 7, minute: '00', period: 'AM', mode: 'hour' };
+    const clockMinuteOptions = ['00', '10', '20', '30', '40', '50'];
+
+    function displayTimeLabel(value) {
+      const match = (value || '').trim().match(/^(\d{1,2}):(\d{2})/);
+      if (!match) return 'Select time';
+      const hour24 = Math.max(0, Math.min(23, Number(match[1])));
+      const minute = Math.max(0, Math.min(59, Number(match[2])));
+      const period = hour24 >= 12 ? 'PM' : 'AM';
+      return `${hour24 % 12 || 12}:${pad2(minute)} ${period}`;
+    }
+
+    function updateTimeDisplay() {
+      const hidden = document.querySelector('[data-public-time-hidden]');
+      const display = document.querySelector('[data-public-time-display]');
+      if (display && hidden) display.textContent = displayTimeLabel(hidden.value);
+    }
+
+    function setClockFromHidden() {
+      const hidden = document.querySelector('[data-public-time-hidden]');
+      const match = (hidden?.value || '').trim().match(/^(\d{1,2}):(\d{2})/);
+      if (!match) return;
+      const hour24 = Math.max(0, Math.min(23, Number(match[1])));
+      const minute = Math.max(0, Math.min(59, Number(match[2])));
+      clockState.hour = hour24 % 12 || 12;
+      clockState.minute = pad2(Math.floor(minute / 10) * 10);
+      clockState.period = hour24 >= 12 ? 'PM' : 'AM';
+    }
+
+    function selectedClockValue() {
+      return clockState.mode === 'hour' ? clockState.hour : Number(clockState.minute);
+    }
+
+    function clockAngle(value) {
+      return clockState.mode === 'hour' ? (value % 12) * 30 : value * 6;
+    }
+
+    function syncClockReadout() {
+      const hourDisplay = document.querySelector('[data-public-clock-hour]');
+      const minuteDisplay = document.querySelector('[data-public-clock-minute]');
+      if (hourDisplay) hourDisplay.textContent = pad2(clockState.hour);
+      if (minuteDisplay) minuteDisplay.textContent = clockState.minute;
+      document.querySelectorAll('[data-public-time-mode]').forEach(button => {
+        button.classList.toggle('is-active', button.getAttribute('data-public-time-mode') === clockState.mode);
+      });
+      document.querySelectorAll('[data-public-time-period-button]').forEach(button => {
+        button.classList.toggle('is-active', button.getAttribute('data-public-time-period-button') === clockState.period);
+      });
+    }
+
+    function renderClockDial() {
+      const dial = document.querySelector('[data-public-clock-dial]');
+      if (!dial) return;
+      const values = clockState.mode === 'hour'
+        ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        : [0, 10, 20, 30, 40, 50];
+      const activeValue = selectedClockValue();
+      const activeAngle = clockAngle(activeValue);
+      dial.innerHTML = `<span class="patient-clock-hand" style="transform:translate(-50%, -100%) rotate(${activeAngle}deg);"></span>`;
+      values.forEach(value => {
+        const angle = clockAngle(value) - 90;
+        const radius = 88;
+        const x = 50 + Math.cos(angle * Math.PI / 180) * radius / 2.2;
+        const y = 50 + Math.sin(angle * Math.PI / 180) * radius / 2.2;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'patient-clock-option';
+        button.style.left = `${x}%`;
+        button.style.top = `${y}%`;
+        button.textContent = clockState.mode === 'hour' ? String(value) : pad2(value);
+        button.classList.toggle('is-selected', value === activeValue);
+        button.addEventListener('click', () => {
+          if (clockState.mode === 'hour') {
+            clockState.hour = value;
+            clockState.mode = 'minute';
+          } else {
+            clockState.minute = pad2(value);
+          }
+          syncClockReadout();
+          renderClockDial();
+        });
+        dial.appendChild(button);
+      });
+    }
+
+    function openClockPicker() {
+      const overlay = document.querySelector('[data-public-time-overlay]');
+      setClockFromHidden();
+      syncClockReadout();
+      renderClockDial();
+      overlay?.classList.add('active');
+      overlay?.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('patient-clock-open');
+    }
+
+    function closeClockPicker() {
+      const overlay = document.querySelector('[data-public-time-overlay]');
+      overlay?.classList.remove('active');
+      overlay?.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('patient-clock-open');
+    }
+
+    function commitClockTime() {
+      const hidden = document.querySelector('[data-public-time-hidden]');
+      if (!hidden) return;
+      let hour = Number(clockState.hour);
+      if (clockState.period === 'PM' && hour < 12) hour += 12;
+      if (clockState.period === 'AM' && hour === 12) hour = 0;
+      hidden.value = `${pad2(hour)}:${clockState.minute}`;
+      updateTimeDisplay();
+      updateProgress();
+      closeClockPicker();
+    }
+
+    function initializeTimePicker() {
+      setClockFromHidden();
+      updateTimeDisplay();
+      syncClockReadout();
+    }
+
+    function updateAgeGroup() {
+      const input = document.querySelector('[data-public-birthdate]');
+      const output = document.querySelector('[data-public-age-group]');
+      const birthdate = parseLocalDate(input?.value);
+      const reference = parseLocalDate('{{ current_date }}');
+      if (!birthdate || !reference || !output) return;
+      let age = reference.year - birthdate.year;
+      if (reference.month < birthdate.month || (reference.month === birthdate.month && reference.day < birthdate.day)) age -= 1;
+      output.value = age <= 17 ? 'Child' : age <= 59 ? 'Adult' : 'Senior';
+    }
+
+    document.querySelectorAll('[data-public-service-checkbox], [data-public-package-checkbox], [data-public-reason-checkbox]').forEach(input => {
+      input.addEventListener('change', updateRecommendationPreview);
+    });
+    document.querySelector('[data-public-other-reason]')?.addEventListener('input', updateRecommendationPreview);
+    document.querySelectorAll('[data-public-schedule-input], [data-public-patient-input], [data-public-contact-input]').forEach(input => {
+      input.addEventListener('input', updateProgress);
+      input.addEventListener('change', updateProgress);
+    });
+    document.querySelector('[data-public-time-open]')?.addEventListener('click', openClockPicker);
+    document.querySelector('[data-public-time-ok]')?.addEventListener('click', commitClockTime);
+    document.querySelector('[data-public-time-cancel]')?.addEventListener('click', closeClockPicker);
+    document.querySelector('[data-public-time-overlay]')?.addEventListener('click', event => {
+      if (event.target === event.currentTarget) closeClockPicker();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeClockPicker();
+    });
+    document.querySelectorAll('[data-public-time-mode]').forEach(button => {
+      button.addEventListener('click', () => {
+        clockState.mode = button.getAttribute('data-public-time-mode');
+        syncClockReadout();
+        renderClockDial();
+      });
+    });
+    document.querySelectorAll('[data-public-time-period-button]').forEach(button => {
+      button.addEventListener('click', () => {
+        clockState.period = button.getAttribute('data-public-time-period-button');
+        syncClockReadout();
+      });
+    });
+    document.querySelector('[data-public-birthdate]')?.addEventListener('change', () => {
+      updateAgeGroup();
+      updateProgress();
+    });
+    filterOptions('[data-public-package-search]', '[data-public-package-option]', 'data-public-package-text');
+    filterOptions('[data-public-service-search]', '[data-public-service-option]', 'data-public-service-text', '[data-public-service-group]');
+    initializeTimePicker();
+    updateAgeGroup();
+    updateRecommendationPreview();
+  </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ 'Edit Branch' if branch else 'Add Branch' }} - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}{{ 'Edit Branch' if branch else 'Add Branch' }}{% endblock %}
+{% block page_subtitle %}Configure branch identity for future multi-branch clinic operations{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <form method="post" class="form-grid"
+        data-confirm-title="{{ 'Update branch?' if branch else 'Create branch?' }}"
+        data-confirm="{{ 'This will save changes to this branch.' if branch else 'This will add a new clinic branch.' }} Continue?">
+    <label>
+      Branch Name
+      <input type="text" name="name" value="{{ branch.name if branch else '' }}" required>
+    </label>
+    <label>
+      Branch Code
+      <input type="text" name="code" value="{{ branch.code if branch else '' }}" maxlength="40" {% if branch and branch.is_main %}readonly{% endif %} required>
+    </label>
+    <label>
+      Address
+      <input type="text" name="address" value="{{ branch.address if branch and branch.address else '' }}">
+    </label>
+    <label>
+      Branch Email
+      <input type="email" name="email" value="{{ branch.email if branch and branch.email else '' }}">
+    </label>
+    <label>
+      Contact Number
+      <input type="text" name="contact_number" value="{{ branch.contact_number if branch and branch.contact_number else '' }}">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn">{{ 'Save Branch' if branch else 'Create Branch' }}</button>
+      <a href="{{ url_for('branches') }}" class="btn secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

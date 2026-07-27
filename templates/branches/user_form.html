@@ -1,0 +1,42 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Add User - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Add User{% endblock %}
+{% block page_subtitle %}Create a user account and assign branch access{% endblock %}
+
+{% block content %}
+<div class="chart-card">
+  <form method="post" class="form-grid"
+        data-confirm-title="Create user?"
+        data-confirm="This will create a new user account with the selected branch access. Continue?">
+    <label>
+      Username
+      <input type="text" name="username" required>
+    </label>
+    <label>
+      Password
+      <input type="text" name="password" required>
+    </label>
+    <label>
+      Assigned Branch
+      <select name="branch_id" required>
+        {% for branch in active_branches %}
+          <option value="{{ branch.id }}">{{ branch.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Role
+      <select name="role" required>
+        {% for role in role_options %}
+          <option value="{{ role }}" {% if role == 'staff' %}selected{% endif %}>{{ role|replace('_', ' ')|title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn">Create User</button>
+      <a href="{{ url_for('branches') }}" class="btn secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

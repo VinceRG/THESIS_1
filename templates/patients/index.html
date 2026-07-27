@@ -1,0 +1,156 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Patient Records - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Patient Records{% endblock %}
+{% block page_subtitle %}Manage individual patient profiles for branch-specific clinic operations{% endblock %}
+
+{% block content %}
+<div class="grid cards patient-stats">
+  <div class="card">
+    <h3>Active Patients</h3>
+    <div class="value">{{ active_count }}</div>
+    <div class="trend">Currently available patient records</div>
+  </div>
+  <div class="card">
+    <h3>Archived Patients</h3>
+    <div class="value">{{ inactive_count }}</div>
+    <div class="trend">Inactive records kept for reference</div>
+  </div>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <div class="page-heading-row">
+    <div>
+      <h3>Search Patient Records</h3>
+      <p style="margin:4px 0 0; color:#64748b;">Search by patient number, name, contact number, or email.</p>
+    </div>
+    {% if not all_branches_view %}
+      <a href="{{ url_for('create_patient') }}" class="btn">Add New Patient</a>
+    {% else %}
+      <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit patients.</span>
+    {% endif %}
+  </div>
+
+  <form method="get" class="filter-form">
+    <label>
+      Search
+      <input type="text" name="q" value="{{ search_query }}" placeholder="Patient number, name, contact, or email">
+    </label>
+    <label>
+      Age Group
+      <select name="age_group">
+        <option value="">All age groups</option>
+        {% for age_group in age_group_options %}
+          <option value="{{ age_group }}" {% if selected_age_group == age_group %}selected{% endif %}>{{ age_group }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Gender
+      <select name="gender">
+        <option value="">All genders</option>
+        {% for gender in gender_options %}
+          <option value="{{ gender }}" {% if selected_gender == gender %}selected{% endif %}>{{ gender }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Status
+      <select name="status">
+        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Archived</option>
+        <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All records</option>
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit" class="btn">Apply Filters</button>
+      <a href="{{ url_for('patients') }}" class="btn secondary">Reset</a>
+    </div>
+  </form>
+</div>
+
+<div class="chart-card" style="margin-top:20px;">
+  <h3>Patient Registry</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        {% if all_branches_view %}<th>Branch</th>{% endif %}
+        <th>Patient No.</th>
+        <th>Full Name</th>
+        <th>Age</th>
+        <th>Age Group</th>
+        <th>Gender</th>
+        <th>Contact</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for patient in patients.items %}
+        <tr>
+          {% if all_branches_view %}<td>{{ patient.branch.name if patient.branch else 'Unassigned' }}</td>{% endif %}
+          <td>{{ patient.patient_number }}</td>
+          <td>
+            <strong>{{ patient.full_name }}</strong>
+            {% if patient.email %}
+              <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ patient.email }}</div>
+            {% endif %}
+          </td>
+          <td>{{ patient.age if patient.age is not none else 'Not provided' }}</td>
+          <td>{{ patient.age_group }}</td>
+          <td>{{ patient.gender }}</td>
+          <td>{{ patient.contact_number or 'Not provided' }}</td>
+          <td>
+            <span class="status-pill status-{{ 'healthy' if patient.is_active else 'high' }}">
+              {{ 'Active' if patient.is_active else 'Archived' }}
+            </span>
+          </td>
+          <td>
+            <a class="btn secondary" href="{{ url_for('patient_detail', patient_id=patient.id) }}">View</a>
+            {% if not all_branches_view %}
+              <a class="btn secondary" href="{{ url_for('edit_patient', patient_id=patient.id) }}">Edit</a>
+              {% if patient.is_active %}
+                <form method="post" action="{{ url_for('archive_patient', patient_id=patient.id) }}" style="display:inline-block; margin-left:8px;"
+                      data-confirm-title="Archive patient record?"
+                      data-confirm="This will archive {{ patient.full_name }} but keep the record for reference. Continue?">
+                  <button type="submit" class="btn secondary">Archive</button>
+                </form>
+              {% else %}
+                <form method="post" action="{{ url_for('restore_patient', patient_id=patient.id) }}" style="display:inline-block; margin-left:8px;"
+                      data-confirm-title="Reactivate patient record?"
+                      data-confirm="This will reactivate {{ patient.full_name }}. Continue?">
+                  <button type="submit" class="btn">Reactivate</button>
+                </form>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="{{ 9 if all_branches_view else 8 }}">No patient records found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if patients.pages > 1 %}
+    <div class="pagination" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      {% if patients.has_prev %}
+        <a class="btn secondary" href="{{ url_for('patients', page=patients.prev_num, q=search_query, gender=selected_gender, age_group=selected_age_group, status=selected_status) }}">Previous</a>
+      {% endif %}
+      {% for page_num in patients.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+        {% if page_num %}
+          {% if page_num == patients.page %}
+            <span class="btn" style="cursor:default;">{{ page_num }}</span>
+          {% else %}
+            <a class="btn secondary" href="{{ url_for('patients', page=page_num, q=search_query, gender=selected_gender, age_group=selected_age_group, status=selected_status) }}">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span style="padding:10px 4px; color:#64748b;">...</span>
+        {% endif %}
+      {% endfor %}
+      {% if patients.has_next %}
+        <a class="btn secondary" href="{{ url_for('patients', page=patients.next_num, q=search_query, gender=selected_gender, age_group=selected_age_group, status=selected_status) }}">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ 'Edit' if service else 'Add' }} Service - Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}{{ 'Edit Service' if service else 'Add Service' }}{% endblock %}
+{% block page_subtitle %}Global service catalog maintenance for all branches{% endblock %}
+
+{% block content %}
+<div class="page-actions">
+  <a href="{{ url_for('services') }}" class="btn secondary">Back to Services</a>
+</div>
+
+<form method="post" class="grid demographic-comparison"
+      data-confirm-title="{{ 'Update service?' if service else 'Add service?' }}"
+      data-confirm="This will update the global service catalog used by all branches. Continue?">
+  <div class="chart-card">
+    <h3>Service Details</h3>
+    <div class="form-grid">
+      <label>
+        Category
+        <input type="text" name="category" value="{{ service.category if service else '' }}" list="categoryOptions" required>
+        <datalist id="categoryOptions">
+          {% for category in categories %}
+            <option value="{{ category }}"></option>
+          {% endfor %}
+        </datalist>
+      </label>
+      <label>
+        Section
+        <input type="text" name="section" value="{{ service.section if service else '' }}" placeholder="Example: Hematology">
+      </label>
+      <label>
+        Service Name
+        <input type="text" name="service_name" value="{{ service.service_name if service else '' }}" required>
+      </label>
+      <label>
+        Price PHP
+        <input type="text" name="price_php" value="{{ service.price_php if service else '' }}" placeholder="Example: 280.00">
+      </label>
+      <label>
+        Source Page
+        <input type="text" name="source_page" value="{{ service.source_page if service else 'manual' }}">
+      </label>
+      <label class="toggle-line">
+        <input type="checkbox" name="is_active" {% if not service or service.is_active %}checked{% endif %}>
+        Active globally
+      </label>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Recommendation Mapping</h3>
+    <p class="muted-copy">These roles and equipment appear in appointment recommendations when this service is selected.</p>
+    <h4 class="compact-heading">Required Staff Roles</h4>
+    <div class="checkbox-grid compact-checkbox-grid">
+      {% set selected_roles = service.role_items() if service else [] %}
+      {% for role in role_options %}
+        <label class="checkbox-card">
+          <input type="checkbox" name="required_roles" value="{{ role }}" {% if role in selected_roles %}checked{% endif %}>
+          <span>{{ role }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    <label class="form-grid" style="max-width:none; margin-top:14px;">
+      Other Staff Roles
+      <input type="text" name="custom_roles" placeholder="Comma separated if needed">
+    </label>
+
+    <h4 class="compact-heading">Required Equipment</h4>
+    <div class="checkbox-grid compact-checkbox-grid">
+      {% set selected_equipment = service.equipment_items() if service else [] %}
+      {% for equipment in equipment_options %}
+        <label class="checkbox-card">
+          <input type="checkbox" name="required_equipment" value="{{ equipment }}" {% if equipment in selected_equipment %}checked{% endif %}>
+          <span>{{ equipment }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    <label class="form-grid" style="max-width:none; margin-top:14px;">
+      Other Equipment
+      <input type="text" name="custom_equipment" placeholder="Comma separated if needed">
+    </label>
+
+    <div class="form-actions" style="margin-top:20px;">
+      <button type="submit" class="btn">{{ 'Save Service' if service else 'Add Service' }}</button>
+      <a href="{{ url_for('services') }}" class="btn secondary">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}
