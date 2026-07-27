@@ -3,4 +3,17 @@ __pycache__/
 *.sqlite3
 *.db
 .env
+
+# Local Python environments
+.venv/
+venv/
+env/
+.venv_broken/
+venv_broken/
+
+# Local runtime files
+instance/
+*.log
+
+# Local uploads and generated reports/data
 uploads/
