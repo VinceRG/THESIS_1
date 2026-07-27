@@ -6,6 +6,24 @@
 
 {% block content %}
 {% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
+<div class="chart-card">
+  <div class="page-heading-row">
+    <div>
+      <h3>Model Controls</h3>
+      <p style="margin:4px 0 0; color:#64748b;">Retrain the Random Forest model using the current consultation records for the selected branch.</p>
+    </div>
+    {% if summary.branch_code != 'ALL' %}
+      <form method="post" action="{{ url_for('retrain') }}"
+            data-confirm-title="Retrain Random Forest model?"
+            data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
+        <button class="btn" type="submit">Retrain Model</button>
+      </form>
+    {% else %}
+      <span class="topbar-pill">Select one branch to retrain</span>
+    {% endif %}
+  </div>
+</div>
+
 <div class="grid cards">
   <div class="card">
     <h3>Algorithm</h3>
@@ -153,7 +171,9 @@
     The Random Forest model uses monthly lag features, rolling averages, seasonality, diagnosis, age group, and gender. Retraining updates the validation metrics and forecast outputs using the current consultation records.
   </p>
   {% if summary.branch_code != 'ALL' %}
-    <form method="post" action="/retrain" style="margin-top:12px;">
+    <form method="post" action="{{ url_for('retrain') }}" style="margin-top:12px;"
+          data-confirm-title="Retrain Random Forest model?"
+          data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
       <button class="btn" type="submit">Retrain from existing data</button>
     </form>
   {% else %}

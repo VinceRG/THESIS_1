@@ -8,7 +8,8 @@ import pandas as pd
 import numpy as np
 from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
+from sqlalchemy import or_, text
+from sqlalchemy.exc import IntegrityError
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
@@ -87,9 +88,9 @@ STAFF_CAPACITY_PER_MONTH = 40
 DEFAULT_BRANCH_CODE = 'MAIN'
 DEFAULT_BRANCH_NAME = 'Accudetek Main Branch'
 DEFAULT_BRANCH_ADDRESS = 'JL Building, 12 M.H. del Pilar St, San Nicolas, Pasig, 1600 Metro Manila'
-MAIN_ADMIN_ROLES = {'administrator', 'main_admin'}
+MAIN_ADMIN_ROLES = {'administrator', 'main_admin', 'superadmin'}
 ALL_BRANCHES_SCOPE = 'all'
-USER_ROLE_OPTIONS = ['administrator', 'branch_admin', 'staff']
+USER_ROLE_OPTIONS = ['superadmin', 'administrator', 'branch_admin', 'staff']
 
 # -------------------------------------------------------------
 # Database setup
@@ -124,7 +125,10 @@ class ConsultationRecord(db.Model):
     department = db.Column(db.String(100), nullable=False)
     physician = db.Column(db.String(100), nullable=False)
     consultation_type = db.Column(db.String(100), nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=True)
+    patient_age = db.Column(db.Integer, nullable=True)
     branch = db.relationship('Branch', backref='consultation_records')
+    patient = db.relationship('Patient', backref='consultation_records')
 
 class StaffMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -135,6 +139,144 @@ class StaffMember(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
     branch = db.relationship('Branch', backref='staff_members')
+
+class Patient(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
+    patient_number = db.Column(db.String(60), unique=True, nullable=False)
+    full_name = db.Column(db.String(140), nullable=False)
+    birthdate = db.Column(db.String(20), nullable=True)
+    age = db.Column(db.Integer, nullable=True)
+    age_group = db.Column(db.String(40), nullable=False)
+    gender = db.Column(db.String(20), nullable=False)
+    contact_number = db.Column(db.String(60), nullable=True)
+    email = db.Column(db.String(140), nullable=True)
+    address = db.Column(db.String(255), nullable=True)
+    emergency_contact_name = db.Column(db.String(140), nullable=True)
+    emergency_contact_number = db.Column(db.String(60), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    branch = db.relationship('Branch', backref='patients')
+
+class Appointment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    appointment_date = db.Column(db.String(20), nullable=False)
+    appointment_time = db.Column(db.String(20), nullable=True)
+    selected_services = db.Column(db.Text, nullable=True)
+    selected_packages = db.Column(db.Text, nullable=True)
+    consultation_reasons = db.Column(db.Text, nullable=True)
+    other_reason = db.Column(db.Text, nullable=True)
+    recommended_roles = db.Column(db.Text, nullable=True)
+    recommended_equipment = db.Column(db.Text, nullable=True)
+    recommendation_notes = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(30), default='Pending', nullable=False)
+    converted_to_records = db.Column(db.Boolean, default=False, nullable=False)
+    completion_notes = db.Column(db.Text, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    branch = db.relationship('Branch', backref='appointments')
+    patient = db.relationship('Patient', backref='appointments')
+
+    def _items(self, value):
+        return [item.strip() for item in (value or '').split('||') if item.strip()]
+
+    def service_items(self):
+        return self._items(self.selected_services)
+
+    def package_items(self):
+        return self._items(self.selected_packages)
+
+    def reason_items(self):
+        return self._items(self.consultation_reasons)
+
+    def role_items(self):
+        return self._items(self.recommended_roles)
+
+    def equipment_items(self):
+        return self._items(self.recommended_equipment)
+
+    def note_items(self):
+        return self._items(self.recommendation_notes)
+
+class AppointmentServiceResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey('appointment.id'), nullable=False)
+    consultation_record_id = db.Column(db.Integer, db.ForeignKey('consultation_record.id'), nullable=True)
+    service_name = db.Column(db.String(180), nullable=False)
+    assigned_staff = db.Column(db.String(140), nullable=True)
+    final_diagnosis = db.Column(db.String(140), nullable=True)
+    service_notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    appointment = db.relationship('Appointment', backref='service_results')
+    consultation_record = db.relationship('ConsultationRecord', backref='appointment_service_results')
+
+class MedicalService(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    source_page = db.Column(db.String(80), default='manual', nullable=False)
+    category = db.Column(db.String(120), nullable=False)
+    section = db.Column(db.String(120), nullable=True)
+    service_name = db.Column(db.String(180), unique=True, nullable=False)
+    price_php = db.Column(db.String(40), nullable=True)
+    required_roles = db.Column(db.Text, nullable=True)
+    required_equipment = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    def _items(self, value):
+        return [item.strip() for item in (value or '').split('||') if item.strip()]
+
+    def role_items(self):
+        return self._items(self.required_roles)
+
+    def equipment_items(self):
+        return self._items(self.required_equipment)
+
+class BranchServiceSetting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=False)
+    service_id = db.Column(db.Integer, db.ForeignKey('medical_service.id'), nullable=False)
+    is_available = db.Column(db.Boolean, default=True, nullable=False)
+    custom_price_php = db.Column(db.String(40), nullable=True)
+    branch_notes = db.Column(db.String(255), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    branch = db.relationship('Branch', backref='service_settings')
+    service = db.relationship('MedicalService', backref='branch_settings')
+    __table_args__ = (db.UniqueConstraint('branch_id', 'service_id', name='uq_branch_service'),)
+
+class ServicePackage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    package_name = db.Column(db.String(180), unique=True, nullable=False)
+    price_php = db.Column(db.String(40), nullable=True)
+    source_page = db.Column(db.String(80), default='manual', nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+class ServicePackageItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('service_package.id'), nullable=False)
+    service_id = db.Column(db.Integer, db.ForeignKey('medical_service.id'), nullable=True)
+    item_name = db.Column(db.String(180), nullable=False)
+    item_order = db.Column(db.Integer, default=0, nullable=False)
+    package = db.relationship('ServicePackage', backref='items')
+    service = db.relationship('MedicalService')
+
+class BranchPackageSetting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=False)
+    package_id = db.Column(db.Integer, db.ForeignKey('service_package.id'), nullable=False)
+    is_available = db.Column(db.Boolean, default=True, nullable=False)
+    custom_price_php = db.Column(db.String(40), nullable=True)
+    branch_notes = db.Column(db.String(255), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    branch = db.relationship('Branch', backref='package_settings')
+    package = db.relationship('ServicePackage', backref='branch_settings')
+    __table_args__ = (db.UniqueConstraint('branch_id', 'package_id', name='uq_branch_package'),)
 
 def build_facility_staff_roster():
     return [
@@ -440,12 +582,12 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
     results.sort(key=lambda x: x[1], reverse=True)
     return results
 
-def generate_forecast_for_specific_month(df, target_month, target_year):
+def generate_forecast_for_specific_month(df, target_month, target_year, fast=True):
     """Wrapper to generate forecast for a specific month."""
     if df.empty:
         return None, None, None
     try:
-        model, metrics, feature_cols, label_mapping = train_and_evaluate_model(df)
+        model, metrics, feature_cols, label_mapping = train_and_evaluate_model(df, fast=fast)
         forecast = generate_forecast_for_month(model, feature_cols, label_mapping, df, target_month, target_year)
         total_pred = sum(count for _, count in forecast)
         return total_pred, forecast, metrics
@@ -603,7 +745,7 @@ def build_non_demographic_training_frame(df):
     diagnosis_dummies = pd.get_dummies(merged['diagnosis'], prefix='diagnosis', dtype=int)
     return pd.concat([merged, diagnosis_dummies], axis=1)
 
-def evaluate_model_without_demographics(df):
+def evaluate_model_without_demographics(df, fast=False):
     training_df = build_non_demographic_training_frame(df)
     if training_df.empty:
         return None
@@ -629,27 +771,33 @@ def evaluate_model_without_demographics(df):
     validation_df = training_df[training_df['period'].isin(validation_periods)]
 
     param_dist = {
-        'n_estimators': [100, 150, 200, 300],
-        'max_depth': [4, 6, 8, 10, None],
-        'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 2, 4],
+        'n_estimators': [80, 120, 150],
+        'max_depth': [4, 6, 8],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf': [1, 2],
         'max_features': ['sqrt', 'log2', 0.5]
     }
     segment_count = max(1, training_df[['diagnosis']].drop_duplicates().shape[0])
     cv_splits = min(3, max(2, len(train_df) // max(1, segment_count * 3)))
-    random_search = RandomizedSearchCV(
-        estimator=RandomForestRegressor(random_state=42),
-        param_distributions=param_dist,
-        n_iter=20,
-        cv=TimeSeriesSplit(n_splits=cv_splits),
-        scoring='neg_mean_absolute_error',
-        n_jobs=-1,
-        random_state=42,
-        verbose=0
-    )
-    random_search.fit(train_df[feature_columns], train_df['case_count'])
+    if fast:
+        best_params = {'n_estimators': 80, 'max_depth': 6, 'min_samples_split': 5, 'min_samples_leaf': 2, 'max_features': 'sqrt'}
+        model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
+        model.fit(train_df[feature_columns], train_df['case_count'])
+    else:
+        random_search = RandomizedSearchCV(
+            estimator=RandomForestRegressor(random_state=42),
+            param_distributions=param_dist,
+            n_iter=8,
+            cv=TimeSeriesSplit(n_splits=cv_splits),
+            scoring='neg_mean_absolute_error',
+            n_jobs=1,
+            random_state=42,
+            verbose=0
+        )
+        random_search.fit(train_df[feature_columns], train_df['case_count'])
+        model = random_search.best_estimator_
 
-    validation_preds = random_search.best_estimator_.predict(validation_df[feature_columns])
+    validation_preds = model.predict(validation_df[feature_columns])
     validation_metrics = _regression_metrics(validation_df['case_count'], validation_preds)
     baseline_metrics = _regression_metrics(validation_df['case_count'], validation_df['lag_1'])
     improvement = None
@@ -670,7 +818,7 @@ def evaluate_model_without_demographics(df):
         'validation_period_end': str(validation_periods[-1]),
     }
 
-def train_and_evaluate_model(df):
+def train_and_evaluate_model(df, fast=False):
     training_df = build_forecasting_training_frame(df)
     if training_df.empty:
         raise ValueError('Insufficient data for model training')
@@ -707,35 +855,43 @@ def train_and_evaluate_model(df):
     y_validation = validation_df['case_count']
 
     param_dist = {
-        'n_estimators': [100, 150, 200, 300],
-        'max_depth': [4, 6, 8, 10, None],
-        'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 2, 4],
+        'n_estimators': [80, 120, 150],
+        'max_depth': [4, 6, 8],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf': [1, 2],
         'max_features': ['sqrt', 'log2', 0.5]
     }
     segment_count = max(1, training_df[['diagnosis', 'age_group', 'gender']].drop_duplicates().shape[0])
     cv_splits = min(3, max(2, len(train_df) // max(1, segment_count * 3)))
-    random_search = RandomizedSearchCV(
-        estimator=RandomForestRegressor(random_state=42),
-        param_distributions=param_dist,
-        n_iter=20,
-        cv=TimeSeriesSplit(n_splits=cv_splits),
-        scoring='neg_mean_absolute_error',
-        n_jobs=-1,
-        random_state=42,
-        verbose=0
-    )
-    random_search.fit(X_train, y_train)
+    if fast:
+        best_params = {'n_estimators': 80, 'max_depth': 6, 'min_samples_split': 5, 'min_samples_leaf': 2, 'max_features': 'sqrt'}
+        tuned_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
+        tuned_model.fit(X_train, y_train)
+    else:
+        random_search = RandomizedSearchCV(
+            estimator=RandomForestRegressor(random_state=42),
+            param_distributions=param_dist,
+            n_iter=8,
+            cv=TimeSeriesSplit(n_splits=cv_splits),
+            scoring='neg_mean_absolute_error',
+            n_jobs=1,
+            random_state=42,
+            verbose=0
+        )
+        random_search.fit(X_train, y_train)
+        best_params = random_search.best_params_
+        tuned_model = random_search.best_estimator_
 
-    validation_preds = random_search.best_estimator_.predict(X_validation)
+    validation_preds = tuned_model.predict(X_validation)
     validation_metrics = _regression_metrics(y_validation, validation_preds)
     baseline_metrics = _regression_metrics(y_validation, validation_df['lag_1'])
 
     cv_scores = {'r2': [], 'mae': [], 'rmse': []}
+    cv_splits_to_run = 1 if fast else cv_splits
     for train_idx, test_idx in TimeSeriesSplit(n_splits=cv_splits).split(training_df):
         fold_train = training_df.iloc[train_idx]
         fold_test = training_df.iloc[test_idx]
-        model = RandomForestRegressor(**random_search.best_params_, random_state=42)
+        model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
         model.fit(fold_train[feature_columns], fold_train['case_count'])
         preds = model.predict(fold_test[feature_columns])
         fold_metrics = _regression_metrics(fold_test['case_count'], preds)
@@ -743,8 +899,11 @@ def train_and_evaluate_model(df):
             cv_scores['r2'].append(fold_metrics['r2'])
         cv_scores['mae'].append(fold_metrics['mae'])
         cv_scores['rmse'].append(fold_metrics['rmse'])
+        cv_splits_to_run -= 1
+        if cv_splits_to_run <= 0:
+            break
 
-    final_model = RandomForestRegressor(**random_search.best_params_, random_state=42)
+    final_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
     final_model.fit(training_df[feature_columns], training_df['case_count'])
     training_metrics = _regression_metrics(
         training_df['case_count'],
@@ -786,10 +945,10 @@ def train_and_evaluate_model(df):
         'validation_months': holdout_months,
         'validation_period_start': str(validation_periods[0]),
         'validation_period_end': str(validation_periods[-1]),
-        'best_params': random_search.best_params_,
+        'best_params': best_params,
     }
     try:
-        metrics['model_b_without_demographics'] = evaluate_model_without_demographics(df)
+        metrics['model_b_without_demographics'] = evaluate_model_without_demographics(df, fast=fast)
     except Exception:
         traceback.print_exc()
         metrics['model_b_without_demographics'] = None
@@ -1562,7 +1721,341 @@ def create_app():
         flash('Only the main administrator can manage branches.', 'error')
         return redirect(url_for('dashboard'))
 
-    def build_dashboard_context(records, staff_members, branch=None):
+    def parse_iso_date(date_value):
+        try:
+            return datetime.strptime(str(date_value).strip(), '%Y-%m-%d').date()
+        except Exception:
+            return None
+
+    def calculate_age_from_birthdate(birthdate_value, reference_date=None):
+        birthdate = parse_iso_date(birthdate_value)
+        if birthdate is None:
+            return None
+        reference_date = reference_date or datetime.now().date()
+        if reference_date < birthdate:
+            return None
+        age = reference_date.year - birthdate.year
+        if (reference_date.month, reference_date.day) < (birthdate.month, birthdate.day):
+            age -= 1
+        return age if 0 <= age <= 130 else None
+
+    def age_group_from_age(age):
+        if age is None:
+            return 'Unknown'
+        if age <= 17:
+            return 'Child'
+        if age <= 59:
+            return 'Adult'
+        return 'Senior'
+
+    def join_items(values):
+        return '||'.join([str(value).strip() for value in values if str(value).strip()])
+
+    def split_items(value):
+        return [item.strip() for item in (value or '').split('||') if item.strip()]
+
+    def normalize_appointment_time(value):
+        value = str(value or '').strip()
+        if not value:
+            return ''
+        for fmt in ('%H:%M', '%I:%M %p'):
+            try:
+                return datetime.strptime(value.upper(), fmt).strftime('%H:%M')
+            except Exception:
+                pass
+        return value
+
+    def format_appointment_time(value):
+        value = str(value or '').strip()
+        if not value:
+            return 'No time set'
+        try:
+            return datetime.strptime(value, '%H:%M').strftime('%I:%M %p').lstrip('0')
+        except Exception:
+            return value
+
+    app.jinja_env.globals['format_appointment_time'] = format_appointment_time
+
+    def generate_patient_number(branch):
+        prefix = f"{branch.code}-{datetime.now().strftime('%Y%m%d')}"
+        count = Patient.query.filter(
+            Patient.branch_id == branch.id,
+            Patient.patient_number.like(f'{prefix}-%')
+        ).count() + 1
+        return f'{prefix}-{count:04d}'
+
+    def patient_form_values(patient=None):
+        return {
+            'full_name': request.form.get('full_name', patient.full_name if patient else '').strip(),
+            'birthdate': request.form.get('birthdate', patient.birthdate if patient else '').strip(),
+            'gender': request.form.get('gender', patient.gender if patient else '').strip(),
+            'contact_number': request.form.get('contact_number', patient.contact_number if patient else '').strip(),
+            'email': request.form.get('email', patient.email if patient else '').strip(),
+            'address': request.form.get('address', patient.address if patient else '').strip(),
+            'emergency_contact_name': request.form.get('emergency_contact_name', patient.emergency_contact_name if patient else '').strip(),
+            'emergency_contact_number': request.form.get('emergency_contact_number', patient.emergency_contact_number if patient else '').strip(),
+        }
+
+    def infer_staff_and_equipment(label, category=''):
+        text_value = f'{label} {category}'.lower()
+        roles = []
+        equipment = []
+        if any(word in text_value for word in ['x-ray', 'xray', 'ultrasound', 'radiology', 'vascular']):
+            roles.extend(['Registered Radiologic Technologists', 'Radiologists'])
+            equipment.append('Ultrasound Machine' if 'ultrasound' in text_value else 'X-ray System/Machine')
+        if any(word in text_value for word in ['cbc', 'blood', 'urine', 'stool', 'chem', 'laboratory', 'hematology', 'serology', 'microscopy', 'immunology', 'drug test', 'fbs', 'creatinine']):
+            roles.extend(['Registered Medical Technologists', 'Laboratory Technicians'])
+            equipment.extend(['Automated Hematology Analyzer', 'Automated Clinical Chemistry Analyzer'])
+        if any(word in text_value for word in ['ecg', 'electrocardiography', 'cardio', 'heart']):
+            roles.extend(['General Physicians', 'Internal Medicine Physicians'])
+            equipment.append('Electrocardiograph (ECG) Machine')
+        if any(word in text_value for word in ['consult', 'check-up', 'checkup', 'hypertension', 'diabetes', 'asthma', 'fever', 'cough', 'headache', 'clearance', 'sore throat', 'dizziness', 'abdominal']):
+            roles.extend(['General Physicians', 'Internal Medicine Physicians'])
+        if not roles:
+            roles.append('General Physicians')
+        return {'roles': sorted(set(roles)), 'equipment': sorted(set(equipment))}
+
+    def service_type_for_name(service_name):
+        text_value = service_name.lower()
+        if any(word in text_value for word in ['x-ray', 'xray', 'ultrasound', 'vascular']):
+            return 'Imaging'
+        if any(word in text_value for word in ['cbc', 'blood', 'urine', 'stool', 'chem', 'laboratory', 'hematology', 'serology', 'microscopy', 'drug']):
+            return 'Laboratory'
+        if any(word in text_value for word in ['ecg', 'cardio']):
+            return 'Cardiology'
+        if 'annual' in text_value or 'ape' in text_value:
+            return 'Annual Physical Examination'
+        return 'Check-up'
+
+    def department_for_service(service_name):
+        service_type = service_type_for_name(service_name)
+        return {
+            'Imaging': 'Radiology',
+            'Laboratory': 'Laboratory',
+            'Cardiology': 'Cardiology',
+            'Annual Physical Examination': 'Annual Physical Examination',
+        }.get(service_type, 'Clinic')
+
+    def appointment_slot_conflict(branch_id, appointment_date, appointment_time, exclude_id=None):
+        if not branch_id or not appointment_date or not appointment_time:
+            return False
+        query = Appointment.query.filter(
+            Appointment.branch_id == branch_id,
+            Appointment.appointment_date == appointment_date,
+            Appointment.appointment_time == appointment_time,
+            Appointment.status.in_(['Pending', 'Confirmed'])
+        )
+        if exclude_id:
+            query = query.filter(Appointment.id != exclude_id)
+        return query.first() is not None
+
+    def consultation_reason_options():
+        return [
+            'Headache', 'Fever', 'Cough and colds', 'Sore throat', 'Dizziness',
+            'Body weakness or fatigue', 'Abdominal pain', 'Urinary tract infection symptoms',
+            'Gastrointestinal complaints', 'Skin conditions and allergies',
+            'Routine medical consultation and health clearance', 'Follow-up consultation',
+            'Hypertension monitoring', 'Diabetes mellitus monitoring', 'Preventive health check-up',
+        ]
+
+    def reason_recommendations():
+        return {reason: infer_staff_and_equipment(reason)['roles'] for reason in consultation_reason_options()}
+
+    def keyword_recommendations():
+        return {
+            'lab': ['Registered Medical Technologists', 'Laboratory Technicians'],
+            'blood': ['Registered Medical Technologists', 'Laboratory Technicians'],
+            'urine': ['Registered Medical Technologists', 'Laboratory Technicians'],
+            'xray': ['Registered Radiologic Technologists', 'Radiologists'],
+            'x-ray': ['Registered Radiologic Technologists', 'Radiologists'],
+            'ultrasound': ['Registered Radiologic Technologists', 'Radiologists'],
+            'ecg': ['General Physicians', 'Internal Medicine Physicians'],
+            'heart': ['General Physicians', 'Internal Medicine Physicians'],
+        }
+
+    def ensure_branch_service_settings(branch_id):
+        for service in MedicalService.query.all():
+            setting = BranchServiceSetting.query.filter_by(branch_id=branch_id, service_id=service.id).first()
+            if not setting:
+                db.session.add(BranchServiceSetting(branch_id=branch_id, service_id=service.id, is_available=True))
+        db.session.commit()
+
+    def ensure_branch_package_settings(branch_id):
+        for package in ServicePackage.query.all():
+            setting = BranchPackageSetting.query.filter_by(branch_id=branch_id, package_id=package.id).first()
+            if not setting:
+                db.session.add(BranchPackageSetting(branch_id=branch_id, package_id=package.id, is_available=True))
+        db.session.commit()
+
+    def import_services_from_upload():
+        path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_services_scraped.csv')
+        imported = 0
+        if os.path.exists(path):
+            df = pd.read_csv(path).fillna('')
+            for _, row in df.iterrows():
+                name = str(row.get('service_name', '')).strip()
+                if not name or MedicalService.query.filter_by(service_name=name).first():
+                    continue
+                category = str(row.get('category', '')).strip() or 'Services'
+                section = str(row.get('section', '')).strip()
+                mapping = infer_staff_and_equipment(name, f'{category} {section}')
+                db.session.add(MedicalService(
+                    source_page=str(row.get('source_page', 'services')).strip() or 'services',
+                    category=category,
+                    section=section,
+                    service_name=name,
+                    price_php=str(row.get('price_php', '')).strip(),
+                    required_roles=join_items(mapping['roles']),
+                    required_equipment=join_items(mapping['equipment']),
+                    is_active=True,
+                ))
+                imported += 1
+        if imported == 0 and not MedicalService.query.first():
+            for name in SERVICE_CATALOG:
+                mapping = infer_staff_and_equipment(name)
+                db.session.add(MedicalService(
+                    source_page='default',
+                    category='Clinic Services',
+                    section='Clinic Services',
+                    service_name=name,
+                    required_roles=join_items(mapping['roles']),
+                    required_equipment=join_items(mapping['equipment']),
+                    is_active=True,
+                ))
+                imported += 1
+        db.session.commit()
+        for branch in Branch.query.filter_by(is_active=True).all():
+            ensure_branch_service_settings(branch.id)
+        return imported
+
+    def import_packages_from_upload():
+        path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_packages_scraped.csv')
+        imported = 0
+        if os.path.exists(path):
+            df = pd.read_csv(path).fillna('')
+            grouped = {}
+            for _, row in df.iterrows():
+                package_name = str(row.get('package_name', '')).strip()
+                included = str(row.get('included_service', '')).strip()
+                if package_name:
+                    grouped.setdefault(package_name, [])
+                    if included:
+                        grouped[package_name].append(included)
+            for package_name, items in grouped.items():
+                if ServicePackage.query.filter_by(package_name=package_name).first():
+                    continue
+                package = ServicePackage(package_name=package_name, source_page='packages', is_active=True)
+                db.session.add(package)
+                db.session.flush()
+                for idx, item in enumerate(items):
+                    service = MedicalService.query.filter_by(service_name=item).first()
+                    db.session.add(ServicePackageItem(package_id=package.id, service_id=service.id if service else None, item_name=item, item_order=idx))
+                imported += 1
+        db.session.commit()
+        for branch in Branch.query.filter_by(is_active=True).all():
+            ensure_branch_package_settings(branch.id)
+        return imported
+
+    def service_catalog_for_branch(branch_id):
+        ensure_branch_service_settings(branch_id)
+        settings = (
+            BranchServiceSetting.query
+            .join(MedicalService)
+            .filter(BranchServiceSetting.branch_id == branch_id, BranchServiceSetting.is_available.is_(True), MedicalService.is_active.is_(True))
+            .order_by(MedicalService.category.asc(), MedicalService.service_name.asc())
+            .all()
+        )
+        groups = {}
+        recommendations = {}
+        flat = []
+        for setting in settings:
+            service = setting.service
+            option = {
+                'label': service.service_name,
+                'value': service.service_name,
+                'category': service.category,
+                'section': service.section or '',
+                'price_php': setting.custom_price_php or service.price_php or '',
+            }
+            groups.setdefault(service.category, []).append(option)
+            flat.append(option)
+            recommendations[service.service_name] = {
+                'roles': service.role_items() or infer_staff_and_equipment(service.service_name, service.category)['roles'],
+                'equipment': service.equipment_items(),
+            }
+        return flat, groups, recommendations
+
+    def package_catalog_for_branch(branch_id, service_recommendations=None):
+        ensure_branch_package_settings(branch_id)
+        service_recommendations = service_recommendations or {}
+        settings = (
+            BranchPackageSetting.query
+            .join(ServicePackage)
+            .filter(BranchPackageSetting.branch_id == branch_id, BranchPackageSetting.is_available.is_(True), ServicePackage.is_active.is_(True))
+            .order_by(ServicePackage.package_name.asc())
+            .all()
+        )
+        options = []
+        recommendations = {}
+        for setting in settings:
+            package = setting.package
+            roles = []
+            equipment = []
+            for item in sorted(package.items, key=lambda item: item.item_order):
+                mapped = service_recommendations.get(item.item_name)
+                if not mapped and item.service:
+                    mapped = {'roles': item.service.role_items(), 'equipment': item.service.equipment_items()}
+                if not mapped:
+                    mapped = infer_staff_and_equipment(item.item_name)
+                roles.extend(mapped.get('roles', []))
+                equipment.extend(mapped.get('equipment', []))
+            options.append({
+                'label': package.package_name,
+                'value': package.package_name,
+                'item_count': len(package.items),
+                'price_php': setting.custom_price_php or package.price_php or '',
+            })
+            recommendations[package.package_name] = {'roles': sorted(set(roles)) or ['General Physicians'], 'equipment': sorted(set(equipment))}
+        return options, recommendations
+
+    def package_requirements(package):
+        roles = []
+        equipment = []
+        for item in sorted(package.items, key=lambda item: item.item_order):
+            if item.service:
+                roles.extend(item.service.role_items())
+                equipment.extend(item.service.equipment_items())
+            else:
+                mapped = infer_staff_and_equipment(item.item_name)
+                roles.extend(mapped['roles'])
+                equipment.extend(mapped['equipment'])
+        return {'roles': sorted(set(roles)), 'equipment': sorted(set(equipment))}
+
+    def appointment_recommendations(selected_services, selected_packages, selected_reasons, other_reason, service_recommendations, package_recommendations):
+        roles = []
+        equipment = []
+        notes = []
+        for service in selected_services:
+            mapped = service_recommendations.get(service) or infer_staff_and_equipment(service)
+            roles.extend(mapped.get('roles', []))
+            equipment.extend(mapped.get('equipment', []))
+        for package in selected_packages:
+            mapped = package_recommendations.get(package) or {'roles': ['General Physicians'], 'equipment': []}
+            roles.extend(mapped.get('roles', []))
+            equipment.extend(mapped.get('equipment', []))
+        reasons = reason_recommendations()
+        for reason in selected_reasons:
+            roles.extend(reasons.get(reason, []))
+        lower_reason = (other_reason or '').lower()
+        for keyword, mapped_roles in keyword_recommendations().items():
+            if keyword in lower_reason:
+                roles.extend(mapped_roles)
+        if not roles:
+            roles.append('General Physicians')
+            notes.append('No exact service mapping was found; general physician review is recommended.')
+        return sorted(set(roles)), sorted(set(equipment)), notes
+
+    def build_dashboard_context(records, staff_members, branch=None, include_forecast=False):
         total_consultations = len(records)
 
         monthly_counts = Counter()
@@ -1609,8 +2102,9 @@ def create_app():
             if pd.notna(d) and d.year == reference_year and d.month == reference_month:
                 reference_month_counts[record.diagnosis] += 1
 
-        # Generate forecast
-        if records:
+        # Generate the Random Forest forecast only on explicit refresh events.
+        # Normal dashboard/resource/prediction views must stay fast and read cached/fallback data.
+        if records and include_forecast:
             df = pd.DataFrame([{
                 'consultation_date': r.consultation_date,
                 'age_group': r.age_group,
@@ -1764,10 +2258,10 @@ def create_app():
             if cached is not None:
                 return cached
 
-        branch = None if branch_id is None else (Branch.query.get(branch_id) or ensure_default_branch())
+        branch = None if branch_id is None else (db.session.get(Branch, branch_id) or ensure_default_branch())
         records = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id).all()
         staff = scoped_query(StaffMember.query.filter_by(is_active=True), StaffMember, branch_id=branch_id).all()
-        summary = build_dashboard_context(records, staff, branch=branch)
+        summary = build_dashboard_context(records, staff, branch=branch, include_forecast=force_refresh)
         if branch_id is None:
             summary['branch_name'] = 'All Branches'
             summary['branch_code'] = ALL_BRANCHES_SCOPE.upper()
@@ -1788,6 +2282,11 @@ def create_app():
             'settings', 'resources',
             'branches', 'create_branch', 'edit_branch', 'toggle_branch', 'select_branch',
             'create_user', 'assign_user_branch',
+            'patients', 'create_patient', 'patient_detail', 'edit_patient',
+            'archive_patient', 'restore_patient', 'create_patient_consultation',
+            'appointments', 'create_appointment', 'update_appointment_status', 'complete_appointment',
+            'services', 'create_service', 'edit_service', 'delete_service', 'import_services', 'update_branch_service',
+            'packages', 'create_package', 'edit_package', 'delete_package', 'import_packages', 'update_branch_package',
         }
         if request.endpoint in protected_endpoints and 'user_id' not in session:
             return redirect(url_for('login'))
@@ -1795,6 +2294,7 @@ def create_app():
     @app.context_processor
     def inject_branch_context():
         try:
+            current_user = db.session.get(User, session.get('user_id')) if session.get('user_id') else None
             if can_view_all_branches():
                 branch_options = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
             else:
@@ -1805,6 +2305,10 @@ def create_app():
                 'selected_branch_value': ALL_BRANCHES_SCOPE if selected_branch_scope() is None else str(selected_branch_scope()),
                 'branch_options': branch_options,
                 'can_view_all_branches': can_view_all_branches(),
+                'can_manage_services': session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin',
+                'current_user_name': current_user.username if current_user else None,
+                'current_user_role_label': (session.get('role') or '').replace('_', ' ').title(),
+                'current_access_label': 'All branches' if can_view_all_branches() else branch_scope_label(),
             }
         except Exception:
             return {
@@ -1813,6 +2317,10 @@ def create_app():
                 'selected_branch_value': '',
                 'branch_options': [],
                 'can_view_all_branches': False,
+                'can_manage_services': False,
+                'current_user_name': None,
+                'current_user_role_label': '',
+                'current_access_label': DEFAULT_BRANCH_NAME,
             }
 
     @app.route('/login', methods=['GET', 'POST'])
@@ -2006,7 +2514,89 @@ def create_app():
         values = patient_portal_values()
 
         if request.method == 'POST':
-            flash('Appointment request storage is not available in this backend version. The booking form loaded, but the appointment was not saved.', 'warning')
+            appointment_date = parse_iso_date(values['appointment_date'])
+            appointment_time = normalize_appointment_time(values['appointment_time'])
+            age = calculate_age_from_birthdate(values['birthdate'], appointment_date or datetime.now().date())
+            if not values['full_name']:
+                flash('Full name is required.', 'error')
+            elif not values['birthdate'] or age is None:
+                flash('Please enter a valid birthdate.', 'error')
+            elif not values['gender']:
+                flash('Please select gender.', 'error')
+            elif appointment_date is None or appointment_date < datetime.now().date():
+                flash('Please choose a valid appointment date.', 'error')
+            elif not appointment_time:
+                flash('Please choose an appointment time.', 'error')
+            elif not values['selected_services'] and not values['selected_packages']:
+                flash('Please select at least one service or package.', 'error')
+            elif appointment_slot_conflict(branch.id, values['appointment_date'], appointment_time):
+                flash('That appointment slot is already taken for this branch.', 'error')
+            else:
+                patient = Patient.query.filter(
+                    Patient.branch_id == branch.id,
+                    or_(
+                        Patient.email == values['email'],
+                        Patient.contact_number == values['contact_number'],
+                    )
+                ).first() if (values['email'] or values['contact_number']) else None
+                if patient is None:
+                    patient = Patient(
+                        branch_id=branch.id,
+                        patient_number=generate_patient_number(branch),
+                        full_name=values['full_name'],
+                        birthdate=values['birthdate'],
+                        age=age,
+                        age_group=age_group_from_age(age),
+                        gender=values['gender'],
+                        contact_number=values['contact_number'],
+                        email=values['email'],
+                        address=values['address'],
+                        is_active=True,
+                    )
+                    db.session.add(patient)
+                    db.session.flush()
+                else:
+                    patient.full_name = values['full_name']
+                    patient.birthdate = values['birthdate']
+                    patient.age = age
+                    patient.age_group = age_group_from_age(age)
+                    patient.gender = values['gender']
+                    patient.contact_number = values['contact_number']
+                    patient.email = values['email']
+                    patient.address = values['address']
+                    patient.is_active = True
+                    patient.updated_at = datetime.now()
+                roles, equipment, notes = appointment_recommendations(
+                    values['selected_services'],
+                    values['selected_packages'],
+                    values['consultation_reasons'],
+                    values['other_reason'],
+                    service_recommendations,
+                    package_recommendations,
+                )
+                appointment = Appointment(
+                    branch_id=branch.id,
+                    patient_id=patient.id,
+                    appointment_date=values['appointment_date'],
+                    appointment_time=appointment_time,
+                    selected_services=join_items(values['selected_services']),
+                    selected_packages=join_items(values['selected_packages']),
+                    consultation_reasons=join_items(values['consultation_reasons']),
+                    other_reason=values['other_reason'],
+                    recommended_roles=join_items(roles),
+                    recommended_equipment=join_items(equipment),
+                    recommendation_notes=join_items(notes),
+                    status='Pending',
+                )
+                db.session.add(appointment)
+                try:
+                    db.session.commit()
+                except IntegrityError:
+                    db.session.rollback()
+                    flash('That appointment slot was just taken. Please choose another time.', 'error')
+                else:
+                    remove_cached_dashboard_summary(branch.id)
+                    return render_template('patient_portal/success.html', branch=branch, patient=patient, appointment=appointment)
 
         return render_template(
             'patient_portal/index.html',
@@ -2065,6 +2655,8 @@ def create_app():
         for branch in Branch.query.order_by(Branch.is_main.desc(), Branch.name.asc()).all():
             branch_rows.append({
                 'branch': branch,
+                'patients': Patient.query.filter_by(branch_id=branch.id).count(),
+                'appointments': Appointment.query.filter_by(branch_id=branch.id).count(),
                 'consultations': ConsultationRecord.query.filter_by(branch_id=branch.id).count(),
                 'staff': StaffMember.query.filter_by(branch_id=branch.id, is_active=True).count(),
                 'users': User.query.filter_by(branch_id=branch.id).count(),
@@ -2258,6 +2850,651 @@ def create_app():
         flash('Branch status updated.', 'success')
         return redirect(url_for('branches'))
 
+    @app.route('/patients')
+    def patients():
+        page = request.args.get('page', 1, type=int)
+        search_query = request.args.get('q', '').strip()
+        selected_age_group = request.args.get('age_group', '').strip()
+        selected_gender = request.args.get('gender', '').strip()
+        selected_status = request.args.get('status', 'active').strip() or 'active'
+        query = scoped_query(Patient.query, Patient)
+        if search_query:
+            like = f'%{search_query}%'
+            query = query.filter(
+                or_(
+                    Patient.patient_number.ilike(like),
+                    Patient.full_name.ilike(like),
+                    Patient.contact_number.ilike(like),
+                    Patient.email.ilike(like),
+                )
+            )
+        if selected_age_group:
+            query = query.filter(Patient.age_group == selected_age_group)
+        if selected_gender:
+            query = query.filter(Patient.gender == selected_gender)
+        if selected_status == 'active':
+            query = query.filter(Patient.is_active.is_(True))
+        elif selected_status == 'inactive':
+            query = query.filter(Patient.is_active.is_(False))
+        patients_page = query.order_by(Patient.is_active.desc(), Patient.updated_at.desc(), Patient.full_name.asc()).paginate(page=page, per_page=10, error_out=False)
+        count_query = scoped_query(Patient.query, Patient)
+        return render_template(
+            'patients/index.html',
+            patients=patients_page,
+            active_count=count_query.filter(Patient.is_active.is_(True)).count(),
+            inactive_count=count_query.filter(Patient.is_active.is_(False)).count(),
+            search_query=search_query,
+            selected_age_group=selected_age_group,
+            selected_gender=selected_gender,
+            selected_status=selected_status,
+            age_group_options=['Child', 'Adult', 'Senior'],
+            gender_options=['Female', 'Male'],
+            all_branches_view=selected_branch_scope() is None,
+            current_date=datetime.now().strftime('%Y-%m-%d'),
+            current_time=datetime.now().strftime('%H:%M'),
+        )
+
+    @app.route('/patients/new', methods=['GET', 'POST'])
+    def create_patient():
+        redirect_response = require_specific_branch('patients')
+        if redirect_response:
+            return redirect_response
+        if request.method == 'POST':
+            branch = current_branch()
+            values = patient_form_values()
+            age = calculate_age_from_birthdate(values['birthdate'])
+            if not values['full_name'] or not values['birthdate'] or not values['gender']:
+                flash('Full name, birthdate, and gender are required.', 'error')
+                return redirect(url_for('create_patient'))
+            if age is None:
+                flash('Please enter a valid birthdate.', 'error')
+                return redirect(url_for('create_patient'))
+            patient = Patient(
+                branch_id=branch.id,
+                patient_number=generate_patient_number(branch),
+                full_name=values['full_name'],
+                birthdate=values['birthdate'],
+                age=age,
+                age_group=age_group_from_age(age),
+                gender=values['gender'],
+                contact_number=values['contact_number'],
+                email=values['email'],
+                address=values['address'],
+                emergency_contact_name=values['emergency_contact_name'],
+                emergency_contact_number=values['emergency_contact_number'],
+                is_active=True,
+            )
+            db.session.add(patient)
+            db.session.commit()
+            flash('Patient record added successfully.', 'success')
+            return redirect(url_for('patient_detail', patient_id=patient.id))
+        return render_template('patients/form.html', patient=None, gender_options=['Female', 'Male'], current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/patients/<int:patient_id>')
+    def patient_detail(patient_id):
+        query = Patient.query.filter_by(id=patient_id)
+        if selected_branch_scope() is not None:
+            query = query.filter(Patient.branch_id == current_branch_id())
+        patient = query.first_or_404()
+        return render_template(
+            'patients/detail.html',
+            patient=patient,
+            patient_appointments=Appointment.query.filter_by(patient_id=patient.id).order_by(Appointment.appointment_date.desc(), Appointment.appointment_time.desc()).limit(10).all(),
+            linked_consultations=ConsultationRecord.query.filter_by(patient_id=patient.id).order_by(ConsultationRecord.consultation_date.desc()).limit(10).all(),
+            consultation_count=ConsultationRecord.query.filter_by(patient_id=patient.id).count(),
+            all_branches_view=selected_branch_scope() is None,
+            current_date=datetime.now().strftime('%Y-%m-%d'),
+            current_time=datetime.now().strftime('%H:%M'),
+        )
+
+    @app.route('/patients/<int:patient_id>/edit', methods=['GET', 'POST'])
+    def edit_patient(patient_id):
+        redirect_response = require_specific_branch('patients')
+        if redirect_response:
+            return redirect_response
+        patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
+        if request.method == 'POST':
+            values = patient_form_values(patient)
+            age = calculate_age_from_birthdate(values['birthdate'])
+            if age is None:
+                flash('Please enter a valid birthdate.', 'error')
+                return redirect(url_for('edit_patient', patient_id=patient.id))
+            patient.full_name = values['full_name']
+            patient.birthdate = values['birthdate']
+            patient.age = age
+            patient.age_group = age_group_from_age(age)
+            patient.gender = values['gender']
+            patient.contact_number = values['contact_number']
+            patient.email = values['email']
+            patient.address = values['address']
+            patient.emergency_contact_name = values['emergency_contact_name']
+            patient.emergency_contact_number = values['emergency_contact_number']
+            patient.updated_at = datetime.now()
+            db.session.commit()
+            flash('Patient record updated successfully.', 'success')
+            return redirect(url_for('patient_detail', patient_id=patient.id))
+        return render_template('patients/form.html', patient=patient, gender_options=['Female', 'Male'], current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/patients/<int:patient_id>/archive', methods=['POST'])
+    def archive_patient(patient_id):
+        redirect_response = require_specific_branch('patients')
+        if redirect_response:
+            return redirect_response
+        patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
+        patient.is_active = False
+        patient.updated_at = datetime.now()
+        db.session.commit()
+        flash('Patient record archived.', 'success')
+        return redirect(url_for('patients'))
+
+    @app.route('/patients/<int:patient_id>/restore', methods=['POST'])
+    def restore_patient(patient_id):
+        redirect_response = require_specific_branch('patients')
+        if redirect_response:
+            return redirect_response
+        patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
+        patient.is_active = True
+        patient.updated_at = datetime.now()
+        db.session.commit()
+        flash('Patient record reactivated.', 'success')
+        return redirect(url_for('patients'))
+
+    @app.route('/patients/<int:patient_id>/consultations/new', methods=['GET', 'POST'])
+    def create_patient_consultation(patient_id):
+        redirect_response = require_specific_branch('patients')
+        if redirect_response:
+            return redirect_response
+        patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
+        if request.method == 'POST':
+            consultation_date = request.form.get('consultation_date', datetime.now().strftime('%Y-%m-%d')).strip()
+            completed_date = parse_iso_date(consultation_date)
+            age = calculate_age_from_birthdate(patient.birthdate, completed_date)
+            if completed_date is None or age is None:
+                flash('Please enter a valid consultation date.', 'error')
+                return redirect(url_for('create_patient_consultation', patient_id=patient.id))
+            record = ConsultationRecord(
+                branch_id=current_branch_id(),
+                patient_id=patient.id,
+                patient_age=age,
+                consultation_date=consultation_date,
+                age_group=age_group_from_age(age),
+                gender=patient.gender,
+                diagnosis=request.form.get('diagnosis', '').strip() or 'General Consultation',
+                department=request.form.get('department', '').strip() or 'Clinic',
+                physician=request.form.get('physician', '').strip() or 'Clinic Staff',
+                consultation_type=request.form.get('consultation_type', '').strip() or 'Check-up',
+            )
+            db.session.add(record)
+            db.session.commit()
+            remove_cached_dashboard_summary(current_branch_id())
+            flash('Consultation record added for patient.', 'success')
+            return redirect(url_for('patient_detail', patient_id=patient.id))
+        return render_template('patients/consultation_form.html', patient=patient, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'), today=datetime.now().strftime('%Y-%m-%d'))
+
+    @app.route('/appointments')
+    def appointments():
+        page = request.args.get('page', 1, type=int)
+        selected_status = request.args.get('status', '').strip()
+        selected_date = request.args.get('date', '').strip()
+        query = scoped_query(Appointment.query, Appointment)
+        if selected_status:
+            query = query.filter(Appointment.status == selected_status)
+        if selected_date:
+            query = query.filter(Appointment.appointment_date == selected_date)
+        appointments_page = query.order_by(Appointment.appointment_date.desc(), Appointment.appointment_time.desc(), Appointment.created_at.desc()).paginate(page=page, per_page=10, error_out=False)
+        return render_template(
+            'appointments/index.html',
+            appointments=appointments_page,
+            status_options=['Pending', 'Confirmed', 'Cancelled', 'Completed'],
+            selected_status=selected_status,
+            selected_date=selected_date,
+            all_branches_view=selected_branch_scope() is None,
+            current_date=datetime.now().strftime('%Y-%m-%d'),
+            current_time=datetime.now().strftime('%H:%M'),
+        )
+
+    @app.route('/appointments/new', methods=['GET', 'POST'])
+    def create_appointment():
+        redirect_response = require_specific_branch('appointments')
+        if redirect_response:
+            return redirect_response
+        selected_patient = None
+        if request.args.get('patient_id'):
+            selected_patient = Patient.query.filter_by(id=request.args.get('patient_id', type=int), branch_id=current_branch_id(), is_active=True).first()
+        active_patients = Patient.query.filter_by(branch_id=current_branch_id(), is_active=True).order_by(Patient.full_name.asc()).all()
+        import_services_from_upload()
+        import_packages_from_upload()
+        service_options, service_groups, service_recommendations = service_catalog_for_branch(current_branch_id())
+        package_options, package_recommendations = package_catalog_for_branch(current_branch_id(), service_recommendations)
+
+        if request.method == 'POST':
+            patient = selected_patient
+            if patient is None:
+                patient = Patient.query.filter_by(id=request.form.get('patient_id', type=int), branch_id=current_branch_id(), is_active=True).first()
+            appointment_date = request.form.get('appointment_date', '').strip()
+            appointment_time = normalize_appointment_time(request.form.get('appointment_time', ''))
+            selected_services = request.form.getlist('selected_services')
+            selected_packages = request.form.getlist('selected_packages')
+            selected_reasons = request.form.getlist('consultation_reasons')
+            other_reason = request.form.get('other_reason', '').strip()
+            if patient is None:
+                flash('Please select an active patient.', 'error')
+                return redirect(url_for('create_appointment'))
+            if parse_iso_date(appointment_date) is None or not appointment_time:
+                flash('Please select a valid appointment date and time.', 'error')
+                return redirect(url_for('create_appointment', patient_id=patient.id))
+            if appointment_slot_conflict(current_branch_id(), appointment_date, appointment_time):
+                flash('That appointment slot is already taken for this branch.', 'error')
+                return redirect(url_for('create_appointment', patient_id=patient.id))
+            roles, equipment, notes = appointment_recommendations(selected_services, selected_packages, selected_reasons, other_reason, service_recommendations, package_recommendations)
+            appointment = Appointment(
+                branch_id=current_branch_id(),
+                patient_id=patient.id,
+                appointment_date=appointment_date,
+                appointment_time=appointment_time,
+                selected_services=join_items(selected_services),
+                selected_packages=join_items(selected_packages),
+                consultation_reasons=join_items(selected_reasons),
+                other_reason=other_reason,
+                recommended_roles=join_items(roles),
+                recommended_equipment=join_items(equipment),
+                recommendation_notes=join_items(notes),
+                status='Pending',
+            )
+            db.session.add(appointment)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash('That appointment slot was just taken. Please choose another time.', 'error')
+                return redirect(url_for('create_appointment', patient_id=patient.id))
+            remove_cached_dashboard_summary(current_branch_id())
+            flash('Appointment booked with staff recommendation.', 'success')
+            return redirect(url_for('appointments'))
+
+        return render_template(
+            'appointments/form.html',
+            selected_patient=selected_patient,
+            active_patients=active_patients,
+            service_options=service_options,
+            service_groups=service_groups,
+            package_options=package_options,
+            consultation_reason_options=consultation_reason_options(),
+            service_recommendations=service_recommendations,
+            package_recommendations=package_recommendations,
+            reason_recommendations=reason_recommendations(),
+            keyword_recommendations=keyword_recommendations(),
+            today=datetime.now().strftime('%Y-%m-%d'),
+            current_date=datetime.now().strftime('%Y-%m-%d'),
+            current_time=datetime.now().strftime('%H:%M'),
+        )
+
+    @app.route('/appointments/<int:appointment_id>/status', methods=['POST'])
+    def update_appointment_status(appointment_id):
+        redirect_response = require_specific_branch('appointments')
+        if redirect_response:
+            return redirect_response
+        appointment = Appointment.query.filter_by(id=appointment_id, branch_id=current_branch_id()).first_or_404()
+        new_status = request.form.get('status', appointment.status).strip()
+        if new_status not in ['Pending', 'Confirmed', 'Cancelled', 'Completed']:
+            flash('Invalid appointment status.', 'error')
+            return redirect(url_for('appointments'))
+        if new_status in ['Pending', 'Confirmed'] and appointment_slot_conflict(appointment.branch_id, appointment.appointment_date, appointment.appointment_time, exclude_id=appointment.id):
+            flash('That active appointment slot conflicts with another appointment.', 'error')
+            return redirect(url_for('appointments'))
+        appointment.status = new_status
+        appointment.updated_at = datetime.now()
+        db.session.commit()
+        remove_cached_dashboard_summary(current_branch_id())
+        flash('Appointment status updated.', 'success')
+        return redirect(url_for('appointments'))
+
+    @app.route('/appointments/<int:appointment_id>/complete', methods=['GET', 'POST'])
+    def complete_appointment(appointment_id):
+        redirect_response = require_specific_branch('appointments')
+        if redirect_response:
+            return redirect_response
+        appointment = Appointment.query.filter_by(id=appointment_id, branch_id=current_branch_id()).first_or_404()
+        patient = appointment.patient
+        services = appointment.service_items()
+        for package_name in appointment.package_items():
+            package = ServicePackage.query.filter_by(package_name=package_name).first()
+            if package:
+                services.extend([item.item_name for item in sorted(package.items, key=lambda item: item.item_order)])
+        if not services:
+            services = appointment.reason_items() or ['General Physician Consultation']
+        services = list(dict.fromkeys(services))
+        service_roles = {}
+        service_departments = {}
+        service_types = {}
+        for service_name in services:
+            service = MedicalService.query.filter_by(service_name=service_name).first()
+            service_roles[service_name] = service.role_items() if service else infer_staff_and_equipment(service_name)['roles']
+            service_departments[service_name] = department_for_service(service_name)
+            service_types[service_name] = service_type_for_name(service_name)
+        if request.method == 'POST':
+            completed_date_value = request.form.get('completed_date', appointment.appointment_date).strip()
+            completed_date = parse_iso_date(completed_date_value)
+            patient_age = calculate_age_from_birthdate(patient.birthdate, completed_date)
+            if completed_date is None or patient_age is None:
+                flash('Please enter a valid completed date.', 'error')
+                return redirect(url_for('complete_appointment', appointment_id=appointment.id))
+            for idx, service_name in enumerate(services):
+                assigned_staff = request.form.get(f'assigned_staff_{idx}', '').strip()
+                final_diagnosis = request.form.get(f'final_diagnosis_{idx}', service_name).strip() or service_name
+                notes = request.form.get(f'service_notes_{idx}', '').strip()
+                record = ConsultationRecord(
+                    branch_id=current_branch_id(),
+                    patient_id=patient.id,
+                    patient_age=patient_age,
+                    consultation_date=completed_date_value,
+                    age_group=age_group_from_age(patient_age),
+                    gender=patient.gender,
+                    diagnosis=final_diagnosis,
+                    department=service_departments[service_name],
+                    physician=assigned_staff,
+                    consultation_type=service_types[service_name],
+                )
+                db.session.add(record)
+                db.session.flush()
+                db.session.add(AppointmentServiceResult(
+                    appointment_id=appointment.id,
+                    consultation_record_id=record.id,
+                    service_name=service_name,
+                    assigned_staff=assigned_staff,
+                    final_diagnosis=final_diagnosis,
+                    service_notes=notes,
+                ))
+            appointment.status = 'Completed'
+            appointment.converted_to_records = True
+            appointment.completion_notes = request.form.get('completion_notes', '').strip()
+            appointment.completed_at = datetime.now()
+            appointment.updated_at = datetime.now()
+            db.session.commit()
+            remove_cached_dashboard_summary(current_branch_id())
+            flash(f'Appointment completed and {len(services)} consultation record(s) were created.', 'success')
+            return redirect(url_for('appointments'))
+        return render_template(
+            'appointments/complete.html',
+            appointment=appointment,
+            patient=patient,
+            services=services,
+            service_roles=service_roles,
+            service_departments=service_departments,
+            service_types=service_types,
+            default_diagnosis=(appointment.reason_items()[0] if appointment.reason_items() else services[0]),
+            staff_members=StaffMember.query.filter_by(branch_id=current_branch_id(), is_active=True).order_by(StaffMember.role.asc(), StaffMember.name.asc()).all(),
+            completed_date=appointment.appointment_date,
+            current_date=datetime.now().strftime('%Y-%m-%d'),
+            current_time=datetime.now().strftime('%H:%M'),
+        )
+
+    @app.route('/services')
+    def services():
+        import_services_from_upload()
+        page = request.args.get('page', 1, type=int)
+        search_query = request.args.get('q', '').strip()
+        selected_category = request.args.get('category', '').strip()
+        is_superadmin = session.get('role') in MAIN_ADMIN_ROLES
+        branch = current_branch()
+        if is_superadmin and selected_branch_scope() is None:
+            mode = 'global'
+            query = MedicalService.query
+            if search_query:
+                like = f'%{search_query}%'
+                query = query.filter(or_(MedicalService.service_name.ilike(like), MedicalService.section.ilike(like), MedicalService.category.ilike(like)))
+            if selected_category:
+                query = query.filter(MedicalService.category == selected_category)
+            services_page = query.order_by(MedicalService.category.asc(), MedicalService.service_name.asc()).paginate(page=page, per_page=15, error_out=False)
+        else:
+            mode = 'branch'
+            ensure_branch_service_settings(current_branch_id())
+            query = BranchServiceSetting.query.join(MedicalService).filter(BranchServiceSetting.branch_id == current_branch_id())
+            if search_query:
+                like = f'%{search_query}%'
+                query = query.filter(or_(MedicalService.service_name.ilike(like), MedicalService.section.ilike(like), MedicalService.category.ilike(like)))
+            if selected_category:
+                query = query.filter(MedicalService.category == selected_category)
+            services_page = query.order_by(MedicalService.category.asc(), MedicalService.service_name.asc()).paginate(page=page, per_page=15, error_out=False)
+        categories = [row[0] for row in db.session.query(MedicalService.category).distinct().order_by(MedicalService.category.asc()).all()]
+        return render_template('services/index.html', services=services_page, mode=mode, branch=branch, is_superadmin=is_superadmin, categories=categories, search_query=search_query, selected_category=selected_category, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/services/new', methods=['GET', 'POST'])
+    def create_service():
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        if request.method == 'POST':
+            name = request.form.get('service_name', '').strip()
+            if not name:
+                flash('Service name is required.', 'error')
+                return redirect(url_for('create_service'))
+            roles = request.form.getlist('required_roles') + [item.strip() for item in request.form.get('custom_roles', '').split(',') if item.strip()]
+            equipment = request.form.getlist('required_equipment') + [item.strip() for item in request.form.get('custom_equipment', '').split(',') if item.strip()]
+            service = MedicalService(
+                category=request.form.get('category', '').strip() or 'Services',
+                section=request.form.get('section', '').strip(),
+                service_name=name,
+                price_php=request.form.get('price_php', '').strip(),
+                source_page=request.form.get('source_page', 'manual').strip() or 'manual',
+                required_roles=join_items(roles),
+                required_equipment=join_items(equipment),
+                is_active=bool(request.form.get('is_active')),
+            )
+            db.session.add(service)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash('Service already exists.', 'error')
+                return redirect(url_for('create_service'))
+            for branch in Branch.query.filter_by(is_active=True).all():
+                ensure_branch_service_settings(branch.id)
+            flash('Service added successfully.', 'success')
+            return redirect(url_for('services'))
+        categories = [row[0] for row in db.session.query(MedicalService.category).distinct().order_by(MedicalService.category.asc()).all()]
+        return render_template('services/form.html', service=None, categories=categories, role_options=[item['role'] for item in FACILITY_STAFF_COMPLEMENT], equipment_options=EQUIPMENT_INVENTORY, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/services/<int:service_id>/edit', methods=['GET', 'POST'])
+    def edit_service(service_id):
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        service = MedicalService.query.get_or_404(service_id)
+        if request.method == 'POST':
+            roles = request.form.getlist('required_roles') + [item.strip() for item in request.form.get('custom_roles', '').split(',') if item.strip()]
+            equipment = request.form.getlist('required_equipment') + [item.strip() for item in request.form.get('custom_equipment', '').split(',') if item.strip()]
+            service.category = request.form.get('category', '').strip() or 'Services'
+            service.section = request.form.get('section', '').strip()
+            service.service_name = request.form.get('service_name', '').strip()
+            service.price_php = request.form.get('price_php', '').strip()
+            service.source_page = request.form.get('source_page', 'manual').strip() or 'manual'
+            service.required_roles = join_items(roles)
+            service.required_equipment = join_items(equipment)
+            service.is_active = bool(request.form.get('is_active'))
+            service.updated_at = datetime.now()
+            db.session.commit()
+            flash('Service updated successfully.', 'success')
+            return redirect(url_for('services'))
+        categories = [row[0] for row in db.session.query(MedicalService.category).distinct().order_by(MedicalService.category.asc()).all()]
+        return render_template('services/form.html', service=service, categories=categories, role_options=[item['role'] for item in FACILITY_STAFF_COMPLEMENT], equipment_options=EQUIPMENT_INVENTORY, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/services/<int:service_id>/delete', methods=['POST'])
+    def delete_service(service_id):
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        service = MedicalService.query.get_or_404(service_id)
+        has_package_reference = ServicePackageItem.query.filter_by(service_id=service.id).first() is not None
+        has_appointment_reference = Appointment.query.filter(Appointment.selected_services.ilike(f'%{service.service_name}%')).first() is not None
+        if has_package_reference or has_appointment_reference:
+            service.is_active = False
+            BranchServiceSetting.query.filter_by(service_id=service.id).update({'is_available': False})
+            flash('Service is already referenced by packages or appointments, so it was marked inactive instead of permanently deleted.', 'warning')
+        else:
+            BranchServiceSetting.query.filter_by(service_id=service.id).delete()
+            db.session.delete(service)
+            flash('Service deleted successfully.', 'success')
+        db.session.commit()
+        return redirect(url_for('services'))
+
+    @app.route('/services/import', methods=['POST'])
+    def import_services():
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        imported = import_services_from_upload()
+        flash(f'Synced {imported} service(s) from the scraped catalog.', 'success')
+        return redirect(url_for('services'))
+
+    @app.route('/services/<int:service_id>/branch', methods=['POST'])
+    def update_branch_service(service_id):
+        redirect_response = require_specific_branch('services')
+        if redirect_response:
+            return redirect_response
+        service = MedicalService.query.get_or_404(service_id)
+        setting = BranchServiceSetting.query.filter_by(branch_id=current_branch_id(), service_id=service.id).first()
+        if not setting:
+            setting = BranchServiceSetting(branch_id=current_branch_id(), service_id=service.id)
+            db.session.add(setting)
+        setting.is_available = bool(request.form.get('is_available')) and service.is_active
+        setting.custom_price_php = request.form.get('custom_price_php', '').strip()
+        setting.branch_notes = request.form.get('branch_notes', '').strip()
+        setting.updated_at = datetime.now()
+        db.session.commit()
+        flash('Branch service setting updated.', 'success')
+        return redirect(url_for('services', page=request.form.get('page', 1), q=request.form.get('q', ''), category=request.form.get('category', '')))
+
+    @app.route('/packages')
+    def packages():
+        import_services_from_upload()
+        import_packages_from_upload()
+        page = request.args.get('page', 1, type=int)
+        search_query = request.args.get('q', '').strip()
+        is_superadmin = session.get('role') in MAIN_ADMIN_ROLES
+        branch = current_branch()
+        if is_superadmin and selected_branch_scope() is None:
+            mode = 'global'
+            query = ServicePackage.query
+            if search_query:
+                query = query.filter(ServicePackage.package_name.ilike(f'%{search_query}%'))
+            packages_page = query.order_by(ServicePackage.package_name.asc()).paginate(page=page, per_page=15, error_out=False)
+        else:
+            mode = 'branch'
+            ensure_branch_package_settings(current_branch_id())
+            query = BranchPackageSetting.query.join(ServicePackage).filter(BranchPackageSetting.branch_id == current_branch_id())
+            if search_query:
+                query = query.filter(ServicePackage.package_name.ilike(f'%{search_query}%'))
+            packages_page = query.order_by(ServicePackage.package_name.asc()).paginate(page=page, per_page=15, error_out=False)
+        return render_template('packages/index.html', packages=packages_page, mode=mode, branch=branch, is_superadmin=is_superadmin, package_requirements=package_requirements, search_query=search_query, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/packages/new', methods=['GET', 'POST'])
+    def create_package():
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        if request.method == 'POST':
+            name = request.form.get('package_name', '').strip()
+            items = [line.strip() for line in request.form.get('included_services', '').splitlines() if line.strip()]
+            if not name or not items:
+                flash('Package name and included services are required.', 'error')
+                return redirect(url_for('create_package'))
+            package = ServicePackage(
+                package_name=name,
+                price_php=request.form.get('price_php', '').strip(),
+                source_page=request.form.get('source_page', 'manual').strip() or 'manual',
+                is_active=bool(request.form.get('is_active')),
+            )
+            db.session.add(package)
+            try:
+                db.session.flush()
+                for idx, item_name in enumerate(items):
+                    service = MedicalService.query.filter_by(service_name=item_name).first()
+                    db.session.add(ServicePackageItem(package_id=package.id, service_id=service.id if service else None, item_name=item_name, item_order=idx))
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash('Package already exists.', 'error')
+                return redirect(url_for('create_package'))
+            for branch in Branch.query.filter_by(is_active=True).all():
+                ensure_branch_package_settings(branch.id)
+            flash('Package added successfully.', 'success')
+            return redirect(url_for('packages'))
+        return render_template('packages/form.html', package=None, item_text='', current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/packages/<int:package_id>/edit', methods=['GET', 'POST'])
+    def edit_package(package_id):
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        package = ServicePackage.query.get_or_404(package_id)
+        if request.method == 'POST':
+            items = [line.strip() for line in request.form.get('included_services', '').splitlines() if line.strip()]
+            if not items:
+                flash('At least one included service is required.', 'error')
+                return redirect(url_for('edit_package', package_id=package.id))
+            package.package_name = request.form.get('package_name', '').strip()
+            package.price_php = request.form.get('price_php', '').strip()
+            package.source_page = request.form.get('source_page', 'manual').strip() or 'manual'
+            package.is_active = bool(request.form.get('is_active'))
+            package.updated_at = datetime.now()
+            ServicePackageItem.query.filter_by(package_id=package.id).delete()
+            for idx, item_name in enumerate(items):
+                service = MedicalService.query.filter_by(service_name=item_name).first()
+                db.session.add(ServicePackageItem(package_id=package.id, service_id=service.id if service else None, item_name=item_name, item_order=idx))
+            db.session.commit()
+            flash('Package updated successfully.', 'success')
+            return redirect(url_for('packages'))
+        item_text = '\n'.join(item.item_name for item in sorted(package.items, key=lambda item: item.item_order))
+        return render_template('packages/form.html', package=package, item_text=item_text, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+
+    @app.route('/packages/<int:package_id>/delete', methods=['POST'])
+    def delete_package(package_id):
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        package = ServicePackage.query.get_or_404(package_id)
+        has_appointment_reference = Appointment.query.filter(Appointment.selected_packages.ilike(f'%{package.package_name}%')).first() is not None
+        if has_appointment_reference:
+            package.is_active = False
+            BranchPackageSetting.query.filter_by(package_id=package.id).update({'is_available': False})
+            flash('Package is already referenced by appointments, so it was marked inactive instead of permanently deleted.', 'warning')
+        else:
+            BranchPackageSetting.query.filter_by(package_id=package.id).delete()
+            ServicePackageItem.query.filter_by(package_id=package.id).delete()
+            db.session.delete(package)
+            flash('Package deleted successfully.', 'success')
+        db.session.commit()
+        return redirect(url_for('packages'))
+
+    @app.route('/packages/import', methods=['POST'])
+    def import_packages():
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        import_services_from_upload()
+        imported = import_packages_from_upload()
+        flash(f'Synced {imported} package(s) from the scraped catalog.', 'success')
+        return redirect(url_for('packages'))
+
+    @app.route('/packages/<int:package_id>/branch', methods=['POST'])
+    def update_branch_package(package_id):
+        redirect_response = require_specific_branch('packages')
+        if redirect_response:
+            return redirect_response
+        package = ServicePackage.query.get_or_404(package_id)
+        setting = BranchPackageSetting.query.filter_by(branch_id=current_branch_id(), package_id=package.id).first()
+        if not setting:
+            setting = BranchPackageSetting(branch_id=current_branch_id(), package_id=package.id)
+            db.session.add(setting)
+        setting.is_available = bool(request.form.get('is_available')) and package.is_active
+        setting.custom_price_php = request.form.get('custom_price_php', '').strip()
+        setting.branch_notes = request.form.get('branch_notes', '').strip()
+        setting.updated_at = datetime.now()
+        db.session.commit()
+        flash('Branch package setting updated.', 'success')
+        return redirect(url_for('packages', page=request.form.get('page', 1), q=request.form.get('q', '')))
+
     @app.route('/dashboard')
     def dashboard():
         summary = get_dashboard_summary()
@@ -2301,7 +3538,7 @@ def create_app():
             return redirect_response
         deleted_count = ConsultationRecord.query.filter_by(branch_id=current_branch_id()).delete()
         db.session.commit()
-        get_dashboard_summary(force_refresh=True)
+        remove_cached_dashboard_summary(current_branch_id())
         flash(f'Cleared {deleted_count} consultation records for the current branch.', 'success')
         return redirect(url_for('records'))
 
@@ -2400,7 +3637,7 @@ def create_app():
                     'consultation_type': r.consultation_type,
                 } for r in records])
                 try:
-                    _, metrics, _, _ = train_and_evaluate_model(df)
+                    _, metrics, _, _ = train_and_evaluate_model(df, fast=True)
                     report_path = os.path.join(app.config['UPLOAD_FOLDER'], 'training_report.txt')
                     with open(report_path, 'w', encoding='utf-8') as handle:
                         handle.write('Smart Healthcare Clinic Management - Enhanced Training Report\n')
@@ -2420,7 +3657,7 @@ def create_app():
             else:
                 flash('No records to train model.', 'warning')
 
-            get_dashboard_summary(force_refresh=True)
+            remove_cached_dashboard_summary(current_branch_id())
             flash(f'Data uploaded and model retrained successfully. Added {added_count} new records; skipped {skipped_count} duplicates.', 'success')
             return redirect(url_for('predict'))
 
@@ -2475,7 +3712,7 @@ def create_app():
         } for r in records])
 
         try:
-            _, metrics, _, _ = train_and_evaluate_model(df)
+            _, metrics, _, _ = train_and_evaluate_model(df, fast=True)
             report_path = os.path.join(app.config['UPLOAD_FOLDER'], 'training_report.txt')
             with open(report_path, 'w', encoding='utf-8') as handle:
                 handle.write('Smart Healthcare Clinic Management - Enhanced Training Report\n')
@@ -2548,7 +3785,7 @@ def create_app():
                 deleted_at=None,
             ))
         db.session.commit()
-        get_dashboard_summary(force_refresh=True)
+        remove_cached_dashboard_summary(current_branch_id())
         flash('Loaded the official 22-person clinic staff complement.', 'success')
         return redirect(url_for('staff'))
 
@@ -2608,7 +3845,7 @@ def create_app():
         staff_member.is_active = False
         staff_member.deleted_at = datetime.now()
         db.session.commit()
-        get_dashboard_summary(force_refresh=True)
+        remove_cached_dashboard_summary(current_branch_id())
         flash('Staff member removed from active roster (soft deleted).', 'success')
         return redirect(url_for('staff'))
 
@@ -2621,7 +3858,7 @@ def create_app():
         staff_member.is_active = True
         staff_member.deleted_at = None
         db.session.commit()
-        get_dashboard_summary(force_refresh=True)
+        remove_cached_dashboard_summary(current_branch_id())
         flash('Staff member restored to active roster.', 'success')
         return redirect(url_for('staff'))
 
@@ -3154,17 +4391,41 @@ def migrate_branch_schema(app):
                 )
                 conn.execute(text(f"CREATE INDEX IF NOT EXISTS idx_{table_name}_branch_id ON {table_name}(branch_id)"))
 
+def migrate_operational_schema(app):
+    with app.app_context():
+        with db.engine.begin() as conn:
+            result = conn.execute(text("PRAGMA table_info(consultation_record)"))
+            columns = {row[1] for row in result.fetchall()}
+            if 'patient_id' not in columns:
+                conn.execute(text("ALTER TABLE consultation_record ADD COLUMN patient_id INTEGER"))
+            if 'patient_age' not in columns:
+                conn.execute(text("ALTER TABLE consultation_record ADD COLUMN patient_age INTEGER"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_consultation_record_patient_id ON consultation_record(patient_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_appointment_date ON appointment(appointment_date)"))
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_active_appointment_slot "
+                "ON appointment(branch_id, appointment_date, appointment_time) "
+                "WHERE status IN ('Pending', 'Confirmed') AND appointment_time IS NOT NULL AND appointment_time != ''"
+            ))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_patient_branch_id ON patient(branch_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_appointment_branch_id ON appointment(branch_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_appointment_patient_id ON appointment(patient_id)"))
+
 def init_db(app=None):
     app = app or flask_app
     with app.app_context():
         db.create_all()
         migrate_staff_member_schema(app)
         migrate_branch_schema(app)
+        db.create_all()
+        migrate_operational_schema(app)
         default_branch = Branch.query.filter_by(code=DEFAULT_BRANCH_CODE).first()
         if not User.query.filter_by(username='admin').first():
             db.session.add(User(username='admin', password='admin123', role='administrator', branch_id=default_branch.id))
         if not User.query.filter_by(username='staff').first():
             db.session.add(User(username='staff', password='staff123', role='staff', branch_id=default_branch.id))
+        if not User.query.filter_by(username='superadmin').first():
+            db.session.add(User(username='superadmin', password='superadmin123', role='superadmin', branch_id=default_branch.id))
         if not StaffMember.query.first():
             for person in build_facility_staff_roster():
                 db.session.add(StaffMember(
@@ -3178,9 +4439,9 @@ def init_db(app=None):
         db.session.commit()
 
 flask_app = create_app()
+init_db(flask_app)
 
-if __name__ == '__main__':
-    init_db(flask_app)
-    flask_app.run(debug=True)
 
 app = flask_app
+if __name__ == "__main__":
+    app.run(debug=False, use_reloader=False)
