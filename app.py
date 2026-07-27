@@ -1837,6 +1837,194 @@ def create_app():
         session.clear()
         return redirect(url_for('login'))
 
+    @app.route('/patient-portal', methods=['GET', 'POST'])
+    def patient_portal():
+        today = datetime.now().strftime('%Y-%m-%d')
+        branch_options = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
+        if not branch_options:
+            branch_options = [ensure_default_branch()]
+
+        requested_branch_id = request.form.get('branch_id') or request.args.get('branch_id')
+        branch = None
+        if requested_branch_id:
+            try:
+                branch = Branch.query.filter_by(id=int(requested_branch_id), is_active=True).first()
+            except (TypeError, ValueError):
+                branch = None
+        branch = branch or branch_options[0]
+
+        def patient_portal_values():
+            return {
+                'appointment_date': request.form.get('appointment_date', today).strip(),
+                'appointment_time': request.form.get('appointment_time', '').strip(),
+                'full_name': request.form.get('full_name', '').strip(),
+                'birthdate': request.form.get('birthdate', '').strip(),
+                'gender': request.form.get('gender', '').strip(),
+                'contact_number': request.form.get('contact_number', '').strip(),
+                'email': request.form.get('email', '').strip(),
+                'address': request.form.get('address', '').strip(),
+                'selected_packages': request.form.getlist('selected_packages'),
+                'selected_services': request.form.getlist('selected_services'),
+                'consultation_reasons': request.form.getlist('consultation_reasons'),
+                'other_reason': request.form.get('other_reason', '').strip(),
+            }
+
+        def infer_staff_and_equipment(label, category=''):
+            text_value = f'{label} {category}'.lower()
+            roles = []
+            equipment = []
+            if any(word in text_value for word in ['x-ray', 'xray', 'ultrasound', 'radiology', 'vascular']):
+                roles.extend(['Registered Radiologic Technologists', 'Radiologists'])
+                if 'ultrasound' in text_value:
+                    equipment.append('Ultrasound Machine')
+                else:
+                    equipment.append('X-ray System/Machine')
+            if any(word in text_value for word in ['cbc', 'blood', 'urine', 'stool', 'chem', 'laboratory', 'hematology', 'serology', 'microscopy', 'immunology', 'drug test']):
+                roles.extend(['Registered Medical Technologists', 'Laboratory Technicians'])
+                equipment.extend(['Automated Hematology Analyzer', 'Automated Clinical Chemistry Analyzer'])
+            if any(word in text_value for word in ['ecg', 'electrocardiography', 'cardio']):
+                roles.extend(['General Physicians', 'Internal Medicine Physicians'])
+                equipment.append('Electrocardiograph (ECG) Machine')
+            if any(word in text_value for word in ['consult', 'check-up', 'checkup', 'hypertension', 'diabetes', 'asthma', 'fever', 'cough', 'headache', 'clearance']):
+                roles.extend(['General Physicians', 'Internal Medicine Physicians'])
+            if not roles:
+                roles.append('General Physicians')
+            return {
+                'roles': sorted(set(roles)),
+                'equipment': sorted(set(equipment)),
+            }
+
+        def load_service_options():
+            service_path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_services_scraped.csv')
+            groups = {}
+            recommendations = {}
+            if os.path.exists(service_path):
+                try:
+                    service_df = pd.read_csv(service_path).fillna('')
+                    for _, row in service_df.iterrows():
+                        label = str(row.get('service_name', '')).strip()
+                        if not label:
+                            continue
+                        category = str(row.get('category', '')).strip() or 'Services'
+                        section = str(row.get('section', '')).strip()
+                        price_php = str(row.get('price_php', '')).strip()
+                        option = {
+                            'label': label,
+                            'value': label,
+                            'category': category,
+                            'section': section,
+                            'price_php': price_php,
+                        }
+                        groups.setdefault(category, []).append(option)
+                        recommendations[label] = infer_staff_and_equipment(label, f'{category} {section}')
+                except Exception:
+                    groups = {}
+                    recommendations = {}
+            if not groups:
+                for service_name in SERVICE_CATALOG:
+                    option = {
+                        'label': service_name,
+                        'value': service_name,
+                        'category': 'Clinic Services',
+                        'section': 'Clinic Services',
+                        'price_php': '',
+                    }
+                    groups.setdefault('Clinic Services', []).append(option)
+                    recommendations[service_name] = infer_staff_and_equipment(service_name)
+            return groups, recommendations
+
+        def load_package_options(service_recommendations):
+            package_path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_packages_scraped.csv')
+            package_items = {}
+            recommendations = {}
+            if os.path.exists(package_path):
+                try:
+                    package_df = pd.read_csv(package_path).fillna('')
+                    for _, row in package_df.iterrows():
+                        package_name = str(row.get('package_name', '')).strip()
+                        included_service = str(row.get('included_service', '')).strip()
+                        if not package_name:
+                            continue
+                        package_items.setdefault(package_name, [])
+                        if included_service:
+                            package_items[package_name].append(included_service)
+                except Exception:
+                    package_items = {}
+            options = []
+            for package_name, included_services in sorted(package_items.items()):
+                roles = []
+                equipment = []
+                for included_service in included_services:
+                    mapped = service_recommendations.get(included_service) or infer_staff_and_equipment(included_service)
+                    roles.extend(mapped.get('roles', []))
+                    equipment.extend(mapped.get('equipment', []))
+                options.append({
+                    'label': package_name,
+                    'value': package_name,
+                    'item_count': len(included_services),
+                    'price_php': '',
+                })
+                recommendations[package_name] = {
+                    'roles': sorted(set(roles)) or ['General Physicians'],
+                    'equipment': sorted(set(equipment)),
+                }
+            return options, recommendations
+
+        service_groups, service_recommendations = load_service_options()
+        package_options, package_recommendations = load_package_options(service_recommendations)
+        consultation_reason_options = [
+            'Headache',
+            'Fever',
+            'Cough and colds',
+            'Sore throat',
+            'Dizziness',
+            'Body weakness or fatigue',
+            'Abdominal pain',
+            'Urinary tract infection symptoms',
+            'Gastrointestinal complaints',
+            'Skin conditions and allergies',
+            'Routine medical consultation and health clearance',
+            'Follow-up consultation',
+            'Hypertension monitoring',
+            'Diabetes mellitus monitoring',
+            'Preventive health check-up',
+        ]
+        reason_recommendations = {
+            reason: infer_staff_and_equipment(reason)['roles']
+            for reason in consultation_reason_options
+        }
+        keyword_recommendations = {
+            'lab': ['Registered Medical Technologists', 'Laboratory Technicians'],
+            'blood': ['Registered Medical Technologists', 'Laboratory Technicians'],
+            'urine': ['Registered Medical Technologists', 'Laboratory Technicians'],
+            'xray': ['Registered Radiologic Technologists', 'Radiologists'],
+            'x-ray': ['Registered Radiologic Technologists', 'Radiologists'],
+            'ultrasound': ['Registered Radiologic Technologists', 'Radiologists'],
+            'ecg': ['General Physicians', 'Internal Medicine Physicians'],
+            'heart': ['General Physicians', 'Internal Medicine Physicians'],
+        }
+        values = patient_portal_values()
+
+        if request.method == 'POST':
+            flash('Appointment request storage is not available in this backend version. The booking form loaded, but the appointment was not saved.', 'warning')
+
+        return render_template(
+            'patient_portal/index.html',
+            branch=branch,
+            branch_options=branch_options,
+            values=values,
+            gender_options=['Female', 'Male'],
+            service_groups=service_groups,
+            package_options=package_options,
+            consultation_reason_options=consultation_reason_options,
+            service_recommendations=service_recommendations,
+            package_recommendations=package_recommendations,
+            reason_recommendations=reason_recommendations,
+            keyword_recommendations=keyword_recommendations,
+            today=today,
+            current_date=today,
+        )
+
     @app.route('/branches/select', methods=['POST'])
     def select_branch():
         requested_scope = request.form.get('branch_scope', '').strip()
