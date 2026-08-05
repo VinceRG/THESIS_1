@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Profile - Accudetek Health Diagnostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="patient-public-body">
+  <header class="patient-public-header">
+    <a class="patient-public-brand" href="{{ url_for('patient_portal') }}">
+      <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
+      <span><strong>Accudetek Health Diagnostics</strong><small>Patient Portal</small></span>
+    </a>
+    <nav class="patient-public-nav" aria-label="Patient portal navigation">
+      <a href="{{ url_for('patient_portal') }}">Book Appointment</a>
+      <a href="{{ url_for('patient_logout') }}">Sign Out</a>
+      <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
+    </nav>
+  </header>
+
+  <main class="patient-profile-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+
+      <section class="patient-profile-card">
+        <span class="patient-kicker">My Profile</span>
+        <div class="patient-profile-heading">
+          <div><h1>{{ patient.full_name }}</h1><p>Patient number: <strong>{{ patient.patient_number }}</strong></p><span class="patient-profile-caption">Your personal details and appointment history are kept in one place.</span></div>
+          <a class="patient-secondary-action" href="{{ url_for('patient_profile') }}">Switch Profile</a>
+        </div>
+        <dl class="patient-profile-details">
+          <dt>Birthdate</dt><dd>{{ patient.birthdate or 'Not provided' }}</dd>
+          <dt>Contact number</dt><dd>{{ patient.contact_number or 'Not provided' }}</dd>
+          <dt>Email</dt><dd>{{ patient.email or 'Not provided' }}</dd>
+        </dl>
+      </section>
+
+      <section class="patient-profile-card">
+        <div class="patient-profile-heading"><div><h2>Manage Profile</h2><p>Keep your contact and emergency details current.</p></div></div>
+        <form method="post" class="patient-profile-form">
+          <input type="hidden" name="action" value="update_profile">
+          <label>Contact Number<input name="contact_number" value="{{ patient.contact_number or '' }}" maxlength="60"></label>
+          <label>Email Address<input type="email" value="{{ patient.email or '' }}" maxlength="140" readonly aria-describedby="email-help"><small id="email-help">Email changes require verification. Please contact the clinic for assistance.</small></label>
+          <label class="patient-form-wide">Address<input name="address" value="{{ patient.address or '' }}" maxlength="255"></label>
+          <label>Emergency Contact Name<input name="emergency_contact_name" value="{{ patient.emergency_contact_name or '' }}" maxlength="140"></label>
+          <label>Emergency Contact Number<input name="emergency_contact_number" value="{{ patient.emergency_contact_number or '' }}" maxlength="60"></label>
+          <button type="submit">Save Profile Changes</button>
+        </form>
+      </section>
+
+      <section class="patient-profile-card patient-history-card">
+        <div class="patient-profile-heading"><div><h2>Appointment Status</h2><p>Upcoming appointments and their current clinic status.</p></div><a class="patient-secondary-action" href="{{ url_for('patient_portal') }}">Book Appointment</a></div>
+        <div class="patient-history-list">
+          {% for appointment in upcoming_appointments %}
+            <article class="patient-history-item">
+              <div><strong>{{ appointment.appointment_date }}{% if appointment.appointment_time %} at {{ format_appointment_time(appointment.appointment_time) }}{% endif %}</strong><span>{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</span></div>
+              <span class="patient-status-badge patient-status-{{ appointment.status|lower }}">{{ appointment.status }}</span>
+              <div class="patient-history-services"><b>Requested:</b> {{ appointment.service_items()|join(', ') or appointment.package_items()|join(', ') or 'Consultation request' }}</div>
+            </article>
+          {% else %}
+            <div class="patient-empty-state">You have no pending or confirmed appointments. You can book online using the button above.</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="patient-profile-card patient-history-card">
+        <div class="patient-profile-heading"><div><h2>Appointment History</h2><p>{{ appointments|length }} appointment{{ '' if appointments|length == 1 else 's' }} found</p></div></div>
+        <div class="patient-history-list">
+          {% for appointment in appointments %}
+            <article class="patient-history-item">
+              <div><strong>{{ appointment.appointment_date }}{% if appointment.appointment_time %} at {{ format_appointment_time(appointment.appointment_time) }}{% endif %}</strong><span>{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</span></div>
+              <span class="patient-status-badge patient-status-{{ appointment.status|lower }}">{{ appointment.status }}</span>
+              <div class="patient-history-services"><b>Services:</b> {{ appointment.service_items()|join(', ') or appointment.package_items()|join(', ') or 'Consultation request' }}</div>
+            </article>
+          {% else %}
+            <div class="patient-empty-state">No appointments have been recorded for this profile yet.</div>
+          {% endfor %}
+        </div>
+      </section>
+  </main>
+</body>
+</html>

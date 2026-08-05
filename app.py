@@ -1,11 +1,16 @@
 import json
 import os
+import re
+import secrets
+import smtplib
 import traceback
 from collections import Counter
 from datetime import datetime, timedelta
+from email.message import EmailMessage
 
 import pandas as pd
 import numpy as np
+from dotenv import load_dotenv
 from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, text
@@ -14,6 +19,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # -------------------------------------------------------------
 # Constants
@@ -159,8 +165,21 @@ class Patient(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     branch = db.relationship('Branch', backref='patients')
 
+class PatientAccount(db.Model):
+    """Credentials for the patient self-service portal; separate from staff users."""
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), unique=True, nullable=False)
+    # Kept for compatibility with the original database schema; email is the login identity.
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(140), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    patient = db.relationship('Patient', backref=db.backref('portal_account', uselist=False))
+
 class Appointment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    appointment_code = db.Column(db.String(24), unique=True, nullable=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
     appointment_date = db.Column(db.String(20), nullable=False)
@@ -178,6 +197,9 @@ class Appointment(db.Model):
     completed_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    tracking_otp_hash = db.Column(db.String(255), nullable=True)
+    tracking_otp_expires_at = db.Column(db.DateTime, nullable=True)
+    reminder_sent_at = db.Column(db.DateTime, nullable=True)
     branch = db.relationship('Branch', backref='appointments')
     patient = db.relationship('Patient', backref='appointments')
 
@@ -630,6 +652,8 @@ def build_forecasting_training_frame(df):
     merged['year'] = merged['period_start'].dt.year
     merged['month'] = merged['period_start'].dt.month
     merged['season'] = (merged['month'] - 1) // 3 + 1
+    merged['month_sin'] = np.sin(2 * np.pi * merged['month'] / 12)
+    merged['month_cos'] = np.cos(2 * np.pi * merged['month'] / 12)
     merged['time_index'] = (merged['year'] - merged['year'].min()) * 12 + merged['month']
     segment_columns = ['diagnosis', 'age_group', 'gender']
     merged = merged.sort_values(segment_columns + ['period']).reset_index(drop=True)
@@ -690,6 +714,39 @@ def _model_verdict(metrics):
         return 'Needs more data, but better than baseline'
     return 'Not acceptable yet'
 
+def _predict_consultation_counts(model, features):
+    """Blend count- and log-scale forests for stable sparse-count forecasts."""
+    count_predictions = np.maximum(0, model.predict(features))
+    log_model = getattr(model, 'log_scale_model', None)
+    if log_model is None:
+        return count_predictions
+    log_predictions = np.maximum(0, np.expm1(log_model.predict(features)))
+    # Count-scale predictions retain accuracy for busy segments; log-scale
+    # predictions reduce overestimation in the many sparse segments.
+    return (0.75 * count_predictions) + (0.25 * log_predictions)
+
+def _period_time_series_splits(frame, max_splits=3):
+    """Return expanding-window splits that never divide a calendar month.
+
+    Each monthly diagnosis/demographic segment is a row in the training frame.
+    Splitting raw row positions can therefore put observations from the same
+    month on both sides of a fold, which is not a valid forecast evaluation.
+    """
+    periods = np.array(sorted(frame['period'].unique()))
+    if len(periods) < 3:
+        return []
+
+    n_splits = min(max_splits, len(periods) - 1)
+    splits = []
+    for train_period_idx, test_period_idx in TimeSeriesSplit(n_splits=n_splits).split(periods):
+        train_periods = periods[train_period_idx]
+        test_periods = periods[test_period_idx]
+        train_idx = np.flatnonzero(frame['period'].isin(train_periods).to_numpy())
+        test_idx = np.flatnonzero(frame['period'].isin(test_periods).to_numpy())
+        if len(train_idx) and len(test_idx):
+            splits.append((train_idx, test_idx))
+    return splits
+
 def build_non_demographic_training_frame(df):
     """Build one diagnosis-month row per observed month without age or gender features."""
     raw = df.copy()
@@ -717,6 +774,8 @@ def build_non_demographic_training_frame(df):
     merged['year'] = merged['period_start'].dt.year
     merged['month'] = merged['period_start'].dt.month
     merged['season'] = (merged['month'] - 1) // 3 + 1
+    merged['month_sin'] = np.sin(2 * np.pi * merged['month'] / 12)
+    merged['month_cos'] = np.cos(2 * np.pi * merged['month'] / 12)
     merged['time_index'] = (merged['year'] - merged['year'].min()) * 12 + merged['month']
     merged = merged.sort_values(['diagnosis', 'period']).reset_index(drop=True)
 
@@ -755,7 +814,7 @@ def evaluate_model_without_demographics(df, fast=False):
         if col.startswith('diagnosis_')
     ])
     feature_columns = [
-        'month', 'season', 'time_index',
+        'month', 'month_sin', 'month_cos', 'season', 'time_index',
         'lag_1', 'lag_2', 'lag_3', 'lag_6', 'lag_12',
         'rolling_mean_3', 'rolling_mean_6', 'rolling_std_3', 'trend_1',
     ] + diagnosis_feature_columns
@@ -777,27 +836,28 @@ def evaluate_model_without_demographics(df, fast=False):
         'min_samples_leaf': [1, 2],
         'max_features': ['sqrt', 'log2', 0.5]
     }
-    segment_count = max(1, training_df[['diagnosis']].drop_duplicates().shape[0])
-    cv_splits = min(3, max(2, len(train_df) // max(1, segment_count * 3)))
+    tuning_splits = _period_time_series_splits(train_df)
+    if not tuning_splits:
+        raise ValueError('At least three training months are needed for time-series cross-validation')
     if fast:
         best_params = {'n_estimators': 80, 'max_depth': 6, 'min_samples_split': 5, 'min_samples_leaf': 2, 'max_features': 'sqrt'}
         model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
-        model.fit(train_df[feature_columns], train_df['case_count'])
+        model.fit(train_df[feature_columns], np.log1p(train_df['case_count']))
     else:
         random_search = RandomizedSearchCV(
             estimator=RandomForestRegressor(random_state=42),
             param_distributions=param_dist,
             n_iter=8,
-            cv=TimeSeriesSplit(n_splits=cv_splits),
+            cv=tuning_splits,
             scoring='neg_mean_absolute_error',
             n_jobs=1,
             random_state=42,
             verbose=0
         )
-        random_search.fit(train_df[feature_columns], train_df['case_count'])
+        random_search.fit(train_df[feature_columns], np.log1p(train_df['case_count']))
         model = random_search.best_estimator_
 
-    validation_preds = model.predict(validation_df[feature_columns])
+    validation_preds = np.maximum(0, np.expm1(model.predict(validation_df[feature_columns])))
     validation_metrics = _regression_metrics(validation_df['case_count'], validation_preds)
     baseline_metrics = _regression_metrics(validation_df['case_count'], validation_df['lag_1'])
     improvement = None
@@ -834,7 +894,7 @@ def train_and_evaluate_model(df, fast=False):
         if col.startswith('age_group_') or col.startswith('gender_')
     ])
     feature_columns = [
-        'month', 'season', 'time_index',
+        'month', 'month_sin', 'month_cos', 'season', 'time_index',
         'lag_1', 'lag_2', 'lag_3', 'lag_6', 'lag_12',
         'rolling_mean_3', 'rolling_mean_6', 'rolling_std_3', 'trend_1',
     ] + diagnosis_feature_columns + demographic_feature_columns
@@ -861,18 +921,21 @@ def train_and_evaluate_model(df, fast=False):
         'min_samples_leaf': [1, 2],
         'max_features': ['sqrt', 'log2', 0.5]
     }
-    segment_count = max(1, training_df[['diagnosis', 'age_group', 'gender']].drop_duplicates().shape[0])
-    cv_splits = min(3, max(2, len(train_df) // max(1, segment_count * 3)))
+    tuning_splits = _period_time_series_splits(train_df)
+    if not tuning_splits:
+        raise ValueError('At least three training months are needed for time-series cross-validation')
     if fast:
         best_params = {'n_estimators': 80, 'max_depth': 6, 'min_samples_split': 5, 'min_samples_leaf': 2, 'max_features': 'sqrt'}
         tuned_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
         tuned_model.fit(X_train, y_train)
+        log_tuned_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
+        log_tuned_model.fit(X_train, np.log1p(y_train))
     else:
         random_search = RandomizedSearchCV(
             estimator=RandomForestRegressor(random_state=42),
             param_distributions=param_dist,
             n_iter=8,
-            cv=TimeSeriesSplit(n_splits=cv_splits),
+            cv=tuning_splits,
             scoring='neg_mean_absolute_error',
             n_jobs=1,
             random_state=42,
@@ -881,19 +944,26 @@ def train_and_evaluate_model(df, fast=False):
         random_search.fit(X_train, y_train)
         best_params = random_search.best_params_
         tuned_model = random_search.best_estimator_
+        log_tuned_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
+        log_tuned_model.fit(X_train, np.log1p(y_train))
 
-    validation_preds = tuned_model.predict(X_validation)
+    tuned_model.log_scale_model = log_tuned_model
+    validation_preds = _predict_consultation_counts(tuned_model, X_validation)
     validation_metrics = _regression_metrics(y_validation, validation_preds)
     baseline_metrics = _regression_metrics(y_validation, validation_df['lag_1'])
 
     cv_scores = {'r2': [], 'mae': [], 'rmse': []}
-    cv_splits_to_run = 1 if fast else cv_splits
-    for train_idx, test_idx in TimeSeriesSplit(n_splits=cv_splits).split(training_df):
-        fold_train = training_df.iloc[train_idx]
-        fold_test = training_df.iloc[test_idx]
+    validation_splits = _period_time_series_splits(train_df)
+    cv_splits_to_run = 1 if fast else len(validation_splits)
+    for train_idx, test_idx in validation_splits:
+        fold_train = train_df.iloc[train_idx]
+        fold_test = train_df.iloc[test_idx]
         model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
         model.fit(fold_train[feature_columns], fold_train['case_count'])
-        preds = model.predict(fold_test[feature_columns])
+        log_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
+        log_model.fit(fold_train[feature_columns], np.log1p(fold_train['case_count']))
+        model.log_scale_model = log_model
+        preds = _predict_consultation_counts(model, fold_test[feature_columns])
         fold_metrics = _regression_metrics(fold_test['case_count'], preds)
         if fold_metrics['r2'] is not None:
             cv_scores['r2'].append(fold_metrics['r2'])
@@ -905,9 +975,12 @@ def train_and_evaluate_model(df, fast=False):
 
     final_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
     final_model.fit(training_df[feature_columns], training_df['case_count'])
+    final_log_model = RandomForestRegressor(**best_params, random_state=42, n_jobs=1)
+    final_log_model.fit(training_df[feature_columns], np.log1p(training_df['case_count']))
+    final_model.log_scale_model = final_log_model
     training_metrics = _regression_metrics(
         training_df['case_count'],
-        final_model.predict(training_df[feature_columns])
+        _predict_consultation_counts(final_model, training_df[feature_columns])
     )
 
     improvement = None
@@ -988,6 +1061,8 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
         recent_6 = [lag_value(i) for i in range(1, 7)]
         row = {
             'month': target_month,
+            'month_sin': float(np.sin(2 * np.pi * target_month / 12)),
+            'month_cos': float(np.cos(2 * np.pi * target_month / 12)),
             'season': (target_month - 1) // 3 + 1,
             'time_index': int((target_period.year - training_df['year'].min()) * 12 + target_period.month),
             'lag_1': lag_1,
@@ -1013,7 +1088,7 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
         next_rows.append(row)
 
     pred_df = pd.DataFrame(next_rows)
-    preds = model.predict(pred_df[feature_columns])
+    preds = _predict_consultation_counts(model, pred_df[feature_columns])
     pred_df['predicted_cases'] = [max(0, round(value)) for value in preds]
 
     diagnosis_totals = (
@@ -1588,16 +1663,70 @@ def _build_report_pdf(payload, logo_path=None):
 # Flask application
 # -------------------------------------------------------------
 def create_app():
+    # Load local secrets before any configuration values are read. The .env file is
+    # intentionally ignored by Git and should never be committed.
+    load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
     app = Flask(__name__, template_folder='templates', static_folder='static')
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///clinic.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+    app.config['SMTP_HOST'] = os.getenv('SMTP_HOST', '')
+    app.config['SMTP_PORT'] = int(os.getenv('SMTP_PORT', '587'))
+    app.config['SMTP_USERNAME'] = os.getenv('SMTP_USERNAME', '')
+    app.config['SMTP_PASSWORD'] = os.getenv('SMTP_PASSWORD', '')
+    app.config['SMTP_FROM'] = os.getenv('SMTP_FROM', os.getenv('SMTP_USERNAME', ''))
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     db.init_app(app)
     settings_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'app_settings.json')
     dashboard_cache_version = 6
+
+    def send_patient_verification_email(recipient, code):
+        """Deliver a short-lived sign-up code using the configured SMTP provider."""
+        if not all([app.config['SMTP_HOST'], app.config['SMTP_FROM']]):
+            raise RuntimeError('Email delivery is not configured. Set SMTP_HOST, SMTP_FROM, SMTP_USERNAME, and SMTP_PASSWORD.')
+        message = EmailMessage()
+        message['Subject'] = 'Your Accudetek patient portal verification code'
+        message['From'] = app.config['SMTP_FROM']
+        message['To'] = recipient
+        message.set_content(
+            f'Your Accudetek patient portal verification code is: {code}\n\n'
+            'It expires in 10 minutes. Do not share this code with anyone.'
+        )
+        with smtplib.SMTP(app.config['SMTP_HOST'], app.config['SMTP_PORT'], timeout=20) as smtp:
+            smtp.starttls()
+            if app.config['SMTP_USERNAME']:
+                smtp.login(app.config['SMTP_USERNAME'], app.config['SMTP_PASSWORD'])
+            smtp.send_message(message)
+
+    def send_appointment_email(recipient, subject, message_text):
+        """Send transactional appointment messages without exposing SMTP details."""
+        if not recipient:
+            return False
+        try:
+            if not all([app.config['SMTP_HOST'], app.config['SMTP_FROM']]):
+                raise RuntimeError('Email delivery is not configured.')
+            message = EmailMessage()
+            message['Subject'] = subject
+            message['From'] = app.config['SMTP_FROM']
+            message['To'] = recipient
+            message.set_content(message_text)
+            with smtplib.SMTP(app.config['SMTP_HOST'], app.config['SMTP_PORT'], timeout=20) as smtp:
+                smtp.starttls()
+                if app.config['SMTP_USERNAME']:
+                    smtp.login(app.config['SMTP_USERNAME'], app.config['SMTP_PASSWORD'])
+                smtp.send_message(message)
+            return True
+        except Exception:
+            app.logger.exception('Appointment email could not be sent')
+            return False
+
+    def new_appointment_code():
+        while True:
+            code = f"APT-{secrets.token_hex(4).upper()}"
+            if not Appointment.query.filter_by(appointment_code=code).first():
+                return code
 
     def branch_cache_file_path(branch_id):
         cache_key = branch_id if branch_id is not None else ALL_BRANCHES_SCOPE
@@ -2345,8 +2474,221 @@ def create_app():
         session.clear()
         return redirect(url_for('login'))
 
+    @app.route('/')
+    def landing_page():
+        return render_template('landing.html')
+
+    @app.route('/patient-register', methods=['GET', 'POST'])
+    def patient_register():
+        branch_options = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
+        if not branch_options:
+            branch_options = [ensure_default_branch()]
+        guest_booking_patient = db.session.get(Patient, session.get('guest_booking_patient_id'))
+        if guest_booking_patient and not guest_booking_patient.is_active:
+            guest_booking_patient = None
+        if request.method == 'POST':
+            values = {key: request.form.get(key, '').strip() for key in (
+                'patient_number', 'full_name', 'birthdate', 'gender', 'contact_number',
+                'email', 'password', 'password_confirmation', 'branch_id',
+            )}
+            try:
+                branch = Branch.query.filter_by(id=int(values['branch_id']), is_active=True).first()
+            except (TypeError, ValueError):
+                branch = None
+            age = calculate_age_from_birthdate(values['birthdate'])
+            values['email'] = values['email'].lower()
+            existing_account = PatientAccount.query.filter_by(email=values['email']).first()
+            patient = None
+            if values['patient_number']:
+                patient = Patient.query.filter_by(patient_number=values['patient_number'].upper(), is_active=True).first()
+                if patient and patient.birthdate != values['birthdate']:
+                    patient = None
+            if not branch:
+                flash('Please choose a clinic branch.', 'error')
+            elif not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', values['email']):
+                flash('Please enter a valid email address.', 'error')
+            elif existing_account:
+                flash('An account already exists for this email address.', 'error')
+            elif len(values['password']) < 8:
+                flash('Password must contain at least 8 characters.', 'error')
+            elif values['password'] != values['password_confirmation']:
+                flash('Passwords do not match.', 'error')
+            elif values['patient_number'] and patient is None:
+                flash('The patient number and birthdate do not match an active record.', 'error')
+            elif not values['patient_number'] and (not values['full_name'] or age is None or not values['gender']):
+                flash('Full name, valid birthdate, and gender are required to create a patient record.', 'error')
+            elif patient and patient.portal_account:
+                flash('This patient record already has a portal account.', 'error')
+            else:
+                code = f'{secrets.randbelow(1_000_000):06d}'
+                registration_values = {
+                    key: value for key, value in values.items()
+                    if key not in {'password', 'password_confirmation'}
+                }
+                session['pending_patient_registration'] = {
+                    'values': registration_values,
+                    'existing_patient_id': patient.id if patient else None,
+                    'password_hash': generate_password_hash(values['password']),
+                    'code_hash': generate_password_hash(code),
+                    'expires_at': (datetime.now() + timedelta(minutes=10)).isoformat(),
+                }
+                try:
+                    send_patient_verification_email(values['email'], code)
+                except Exception as exc:
+                    session.pop('pending_patient_registration', None)
+                    flash(f'We could not send your verification code: {exc}', 'error')
+                    return render_template('patient_portal/register.html', branch_options=branch_options, values=values, guest_booking_patient=guest_booking_patient)
+                flash('A six-digit verification code was sent to your email address.', 'success')
+                return redirect(url_for('patient_verify_email'))
+            return render_template('patient_portal/register.html', branch_options=branch_options, values=values, guest_booking_patient=guest_booking_patient)
+        if guest_booking_patient:
+            values = {
+                'patient_number': guest_booking_patient.patient_number,
+                'branch_id': str(guest_booking_patient.branch_id or branch_options[0].id),
+                'full_name': guest_booking_patient.full_name,
+                'birthdate': guest_booking_patient.birthdate,
+                'gender': guest_booking_patient.gender,
+                'contact_number': guest_booking_patient.contact_number or '',
+                'email': guest_booking_patient.email or '',
+            }
+            return render_template('patient_portal/register.html', branch_options=branch_options, values=values, guest_booking_patient=guest_booking_patient)
+        return render_template('patient_portal/register.html', branch_options=branch_options, values={}, guest_booking_patient=None)
+
+    @app.route('/patient-verify-email', methods=['GET', 'POST'])
+    def patient_verify_email():
+        pending = session.get('pending_patient_registration')
+        if not pending:
+            flash('Start by creating your patient account.', 'error')
+            return redirect(url_for('patient_register'))
+        if request.method == 'POST':
+            try:
+                expired = datetime.fromisoformat(pending['expires_at']) < datetime.now()
+            except (KeyError, TypeError, ValueError):
+                expired = True
+            code = request.form.get('code', '').strip()
+            if expired:
+                session.pop('pending_patient_registration', None)
+                session.pop('guest_booking_patient_id', None)
+                flash('That verification code has expired. Please register again.', 'error')
+                return redirect(url_for('patient_register'))
+            if not check_password_hash(pending.get('code_hash', ''), code):
+                flash('That verification code is invalid.', 'error')
+            else:
+                values = pending['values']
+                patient = db.session.get(Patient, pending.get('existing_patient_id')) if pending.get('existing_patient_id') else None
+                if PatientAccount.query.filter_by(email=values['email']).first() or (patient and patient.portal_account):
+                    session.pop('pending_patient_registration', None)
+                    flash('An account is already associated with those details.', 'error')
+                    return redirect(url_for('patient_login'))
+                if patient is None:
+                    branch = db.session.get(Branch, int(values['branch_id']))
+                    age = calculate_age_from_birthdate(values['birthdate'])
+                    patient = Patient(branch_id=branch.id, patient_number=generate_patient_number(branch), full_name=values['full_name'], birthdate=values['birthdate'], age=age, age_group=age_group_from_age(age), gender=values['gender'], contact_number=values['contact_number'], email=values['email'], is_active=True)
+                    db.session.add(patient)
+                    db.session.flush()
+                account = PatientAccount(patient_id=patient.id, username=values['email'], email=values['email'], password_hash=pending['password_hash'], email_verified=True)
+                db.session.add(account)
+                db.session.commit()
+                session.pop('pending_patient_registration', None)
+                session['patient_account_id'] = account.id
+                session['patient_portal_patient_id'] = patient.id
+                flash('Your email is verified and your account is ready.', 'success')
+                return redirect(url_for('patient_profile'))
+        return render_template('patient_portal/verify_email.html', email=pending['values']['email'])
+
+    @app.route('/patient-login', methods=['GET', 'POST'])
+    def patient_login():
+        if request.method == 'POST':
+            email = request.form.get('email', '').strip().lower()
+            account = PatientAccount.query.filter_by(email=email).first()
+            if account and account.email_verified and check_password_hash(account.password_hash, request.form.get('password', '')) and account.patient.is_active:
+                session['patient_account_id'] = account.id
+                session['patient_portal_patient_id'] = account.patient_id
+                flash(f'Welcome back, {account.patient.full_name}.', 'success')
+                return redirect(url_for('patient_profile'))
+            flash('Invalid email address or password.', 'error')
+        return render_template('patient_portal/login.html')
+
+    @app.route('/patient-logout')
+    def patient_logout():
+        session.pop('patient_account_id', None)
+        session.pop('patient_portal_patient_id', None)
+        flash('You have been signed out of the patient portal.', 'success')
+        return redirect(url_for('patient_login'))
+
+    @app.route('/track-appointment', methods=['GET', 'POST'])
+    def track_appointment():
+        """Guest-safe appointment lookup protected by a short-lived email OTP."""
+        values = {
+            'appointment_code': request.values.get('appointment_code', '').strip().upper(),
+            'email': request.values.get('email', '').strip().lower(),
+        }
+        appointment = None
+        if values['appointment_code']:
+            appointment = Appointment.query.filter_by(appointment_code=values['appointment_code']).first()
+        if appointment and (appointment.patient.email or '').strip().lower() != values['email']:
+            appointment = None
+
+        if request.method == 'POST':
+            action = request.form.get('action', 'send_otp')
+            if appointment is None:
+                flash('We could not find an appointment with that ID and email address.', 'error')
+            elif action == 'send_otp':
+                code = f'{secrets.randbelow(1_000_000):06d}'
+                appointment.tracking_otp_hash = generate_password_hash(code)
+                appointment.tracking_otp_expires_at = datetime.now() + timedelta(minutes=10)
+                db.session.commit()
+                sent = send_appointment_email(
+                    appointment.patient.email,
+                    f'Your Accudetek appointment tracking code — {appointment.appointment_code}',
+                    f'Your one-time appointment tracking code is: {code}\n\nIt expires in 10 minutes. Do not share this code with anyone.',
+                )
+                if sent:
+                    flash('A six-digit tracking code has been sent to your email address.', 'success')
+                else:
+                    flash('We could not send the tracking code. Please contact the clinic for assistance.', 'error')
+            elif action == 'verify_otp':
+                otp = request.form.get('otp', '').strip()
+                valid = (
+                    appointment.tracking_otp_hash and appointment.tracking_otp_expires_at
+                    and appointment.tracking_otp_expires_at >= datetime.now()
+                    and check_password_hash(appointment.tracking_otp_hash, otp)
+                )
+                if valid:
+                    appointment.tracking_otp_hash = None
+                    appointment.tracking_otp_expires_at = None
+                    db.session.commit()
+                    return render_template('patient_portal/track_appointment.html', values=values, appointment=appointment, verified=True)
+                flash('That tracking code is invalid or has expired.', 'error')
+
+        return render_template('patient_portal/track_appointment.html', values=values, appointment=appointment, verified=False)
+
+    @app.cli.command('send-appointment-reminders')
+    def send_appointment_reminders():
+        """Send one reminder email for confirmed appointments taking place tomorrow."""
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        appointments = Appointment.query.filter_by(
+            appointment_date=tomorrow, status='Confirmed', reminder_sent_at=None
+        ).all()
+        sent_count = 0
+        for appointment in appointments:
+            if send_appointment_email(
+                appointment.patient.email,
+                f'Reminder: your Accudetek appointment is tomorrow — {appointment.appointment_code}',
+                f'Hello {appointment.patient.full_name},\n\nThis is a reminder that your appointment is tomorrow.\n\n'
+                f'Appointment ID: {appointment.appointment_code}\n'
+                f'Schedule: {appointment.appointment_date} at {format_appointment_time(appointment.appointment_time)}\n'
+                f'Branch: {appointment.branch.name if appointment.branch else "Accudetek"}',
+            ):
+                appointment.reminder_sent_at = datetime.now()
+                sent_count += 1
+        db.session.commit()
+        print(f'Sent {sent_count} appointment reminder(s).')
+
     @app.route('/patient-portal', methods=['GET', 'POST'])
     def patient_portal():
+        account = PatientAccount.query.filter_by(id=session.get('patient_account_id'), email_verified=True).first()
+        portal_patient = account.patient if account and account.patient.is_active else None
         today = datetime.now().strftime('%Y-%m-%d')
         branch_options = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
         if not branch_options:
@@ -2365,12 +2707,12 @@ def create_app():
             return {
                 'appointment_date': request.form.get('appointment_date', today).strip(),
                 'appointment_time': request.form.get('appointment_time', '').strip(),
-                'full_name': request.form.get('full_name', '').strip(),
-                'birthdate': request.form.get('birthdate', '').strip(),
-                'gender': request.form.get('gender', '').strip(),
-                'contact_number': request.form.get('contact_number', '').strip(),
-                'email': request.form.get('email', '').strip(),
-                'address': request.form.get('address', '').strip(),
+                'full_name': request.form.get('full_name', portal_patient.full_name if portal_patient else '').strip(),
+                'birthdate': request.form.get('birthdate', portal_patient.birthdate if portal_patient else '').strip(),
+                'gender': request.form.get('gender', portal_patient.gender if portal_patient else '').strip(),
+                'contact_number': request.form.get('contact_number', portal_patient.contact_number if portal_patient else '').strip(),
+                'email': request.form.get('email', (portal_patient.email or account.email) if portal_patient else '').strip().lower(),
+                'address': request.form.get('address', portal_patient.address if portal_patient else '').strip(),
                 'selected_packages': request.form.getlist('selected_packages'),
                 'selected_services': request.form.getlist('selected_services'),
                 'consultation_reasons': request.form.getlist('consultation_reasons'),
@@ -2523,6 +2865,8 @@ def create_app():
                 flash('Please enter a valid birthdate.', 'error')
             elif not values['gender']:
                 flash('Please select gender.', 'error')
+            elif not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', values['email']):
+                flash('Please enter a valid email address so we can send your appointment confirmation.', 'error')
             elif appointment_date is None or appointment_date < datetime.now().date():
                 flash('Please choose a valid appointment date.', 'error')
             elif not appointment_time:
@@ -2532,26 +2876,17 @@ def create_app():
             elif appointment_slot_conflict(branch.id, values['appointment_date'], appointment_time):
                 flash('That appointment slot is already taken for this branch.', 'error')
             else:
-                patient = Patient.query.filter(
-                    Patient.branch_id == branch.id,
-                    or_(
-                        Patient.email == values['email'],
-                        Patient.contact_number == values['contact_number'],
-                    )
-                ).first() if (values['email'] or values['contact_number']) else None
+                patient = portal_patient
+                if patient is None:
+                    patient = Patient.query.filter_by(email=values['email'], is_active=True).order_by(Patient.id.asc()).first()
                 if patient is None:
                     patient = Patient(
                         branch_id=branch.id,
                         patient_number=generate_patient_number(branch),
-                        full_name=values['full_name'],
-                        birthdate=values['birthdate'],
-                        age=age,
-                        age_group=age_group_from_age(age),
-                        gender=values['gender'],
-                        contact_number=values['contact_number'],
-                        email=values['email'],
-                        address=values['address'],
-                        is_active=True,
+                        full_name=values['full_name'], birthdate=values['birthdate'], age=age,
+                        age_group=age_group_from_age(age), gender=values['gender'],
+                        contact_number=values['contact_number'], email=values['email'],
+                        address=values['address'], is_active=True,
                     )
                     db.session.add(patient)
                     db.session.flush()
@@ -2575,6 +2910,7 @@ def create_app():
                     package_recommendations,
                 )
                 appointment = Appointment(
+                    appointment_code=new_appointment_code(),
                     branch_id=branch.id,
                     patient_id=patient.id,
                     appointment_date=values['appointment_date'],
@@ -2596,7 +2932,19 @@ def create_app():
                     flash('That appointment slot was just taken. Please choose another time.', 'error')
                 else:
                     remove_cached_dashboard_summary(branch.id)
-                    return render_template('patient_portal/success.html', branch=branch, patient=patient, appointment=appointment)
+                    if account:
+                        session['patient_portal_patient_id'] = patient.id
+                    else:
+                        session['guest_booking_patient_id'] = patient.id
+                    email_sent = send_appointment_email(
+                        patient.email,
+                        f'Accudetek appointment request received — {appointment.appointment_code}',
+                        f'Hello {patient.full_name},\n\nYour appointment request has been received.\n\n'
+                        f'Appointment ID: {appointment.appointment_code}\nBranch: {branch.name}\n'
+                        f'Schedule: {appointment.appointment_date} at {format_appointment_time(appointment.appointment_time)}\n'
+                        'Status: Pending clinic confirmation\n\nKeep your Appointment ID. You can use it with your email to request a one-time code and track this appointment online.',
+                    )
+                    return render_template('patient_portal/success.html', branch=branch, patient=patient, appointment=appointment, email_sent=email_sent, is_guest=account is None)
 
         return render_template(
             'patient_portal/index.html',
@@ -2613,6 +2961,51 @@ def create_app():
             keyword_recommendations=keyword_recommendations,
             today=today,
             current_date=today,
+        )
+
+    @app.route('/patient-profile', methods=['GET', 'POST'])
+    def patient_profile():
+        """Patient self-service profile, appointment booking entry point, and status view."""
+        account = PatientAccount.query.filter_by(id=session.get('patient_account_id')).first()
+        if account is None or not account.patient.is_active:
+            session.pop('patient_account_id', None)
+            session.pop('patient_portal_patient_id', None)
+            flash('Please sign in to access your patient portal.', 'error')
+            return redirect(url_for('patient_login'))
+        patient = account.patient
+        patient_id = patient.id
+
+        if request.method == 'POST':
+            action = request.form.get('action', 'lookup')
+            if action == 'update_profile':
+                patient.contact_number = request.form.get('contact_number', '').strip()
+                patient.address = request.form.get('address', '').strip()
+                patient.emergency_contact_name = request.form.get('emergency_contact_name', '').strip()
+                patient.emergency_contact_number = request.form.get('emergency_contact_number', '').strip()
+                patient.updated_at = datetime.now()
+                db.session.commit()
+                flash('Your profile details have been updated.', 'success')
+                return redirect(url_for('patient_profile'))
+
+        appointments = []
+        if patient:
+            appointments = Appointment.query.filter_by(patient_id=patient.id).order_by(
+                Appointment.appointment_date.desc(),
+                Appointment.appointment_time.desc(),
+            ).all()
+        upcoming_appointments = []
+        if patient:
+            upcoming_appointments = Appointment.query.filter(
+                Appointment.patient_id == patient.id,
+                Appointment.appointment_date >= datetime.now().strftime('%Y-%m-%d'),
+                Appointment.status.in_(['Pending', 'Confirmed']),
+            ).order_by(Appointment.appointment_date.asc(), Appointment.appointment_time.asc()).all()
+
+        return render_template(
+            'patient_portal/profile.html',
+            patient=patient,
+            appointments=appointments,
+            upcoming_appointments=upcoming_appointments,
         )
 
     @app.route('/branches/select', methods=['POST'])
@@ -3088,6 +3481,7 @@ def create_app():
                 return redirect(url_for('create_appointment', patient_id=patient.id))
             roles, equipment, notes = appointment_recommendations(selected_services, selected_packages, selected_reasons, other_reason, service_recommendations, package_recommendations)
             appointment = Appointment(
+                appointment_code=new_appointment_code(),
                 branch_id=current_branch_id(),
                 patient_id=patient.id,
                 appointment_date=appointment_date,
@@ -3142,9 +3536,20 @@ def create_app():
         if new_status in ['Pending', 'Confirmed'] and appointment_slot_conflict(appointment.branch_id, appointment.appointment_date, appointment.appointment_time, exclude_id=appointment.id):
             flash('That active appointment slot conflicts with another appointment.', 'error')
             return redirect(url_for('appointments'))
+        previous_status = appointment.status
         appointment.status = new_status
         appointment.updated_at = datetime.now()
         db.session.commit()
+        if new_status == 'Confirmed' and previous_status != 'Confirmed':
+            send_appointment_email(
+                appointment.patient.email,
+                f'Accudetek appointment confirmed — {appointment.appointment_code}',
+                f'Hello {appointment.patient.full_name},\n\nYour appointment has been confirmed.\n\n'
+                f'Appointment ID: {appointment.appointment_code}\n'
+                f'Schedule: {appointment.appointment_date} at {format_appointment_time(appointment.appointment_time)}\n'
+                f'Branch: {appointment.branch.name if appointment.branch else "Accudetek"}\n\n'
+                'We will send a reminder one day before your appointment.',
+            )
         remove_cached_dashboard_summary(current_branch_id())
         flash('Appointment status updated.', 'success')
         return redirect(url_for('appointments'))
@@ -4394,6 +4799,30 @@ def migrate_branch_schema(app):
 def migrate_operational_schema(app):
     with app.app_context():
         with db.engine.begin() as conn:
+            account_result = conn.execute(text("PRAGMA table_info(patient_account)"))
+            account_columns = {row[1] for row in account_result.fetchall()}
+            if 'email' not in account_columns:
+                conn.execute(text("ALTER TABLE patient_account ADD COLUMN email VARCHAR(140)"))
+                conn.execute(text("UPDATE patient_account SET email = 'legacy-' || id || '@gmail.com' WHERE email IS NULL"))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_patient_account_email ON patient_account(email)"))
+            if 'email_verified' not in account_columns:
+                conn.execute(text("ALTER TABLE patient_account ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 0"))
+            appointment_result = conn.execute(text("PRAGMA table_info(appointment)"))
+            appointment_columns = {row[1] for row in appointment_result.fetchall()}
+            if 'appointment_code' not in appointment_columns:
+                conn.execute(text("ALTER TABLE appointment ADD COLUMN appointment_code VARCHAR(24)"))
+                rows = conn.execute(text("SELECT id FROM appointment WHERE appointment_code IS NULL")).fetchall()
+                for row in rows:
+                    conn.execute(text("UPDATE appointment SET appointment_code = :code WHERE id = :id"), {
+                        'code': f"APT-LEGACY-{row[0]:06d}", 'id': row[0]
+                    })
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_appointment_code ON appointment(appointment_code)"))
+            if 'tracking_otp_hash' not in appointment_columns:
+                conn.execute(text("ALTER TABLE appointment ADD COLUMN tracking_otp_hash VARCHAR(255)"))
+            if 'tracking_otp_expires_at' not in appointment_columns:
+                conn.execute(text("ALTER TABLE appointment ADD COLUMN tracking_otp_expires_at DATETIME"))
+            if 'reminder_sent_at' not in appointment_columns:
+                conn.execute(text("ALTER TABLE appointment ADD COLUMN reminder_sent_at DATETIME"))
             result = conn.execute(text("PRAGMA table_info(consultation_record)"))
             columns = {row[1] for row in result.fetchall()}
             if 'patient_id' not in columns:
@@ -4444,4 +4873,4 @@ init_db(flask_app)
 
 app = flask_app
 if __name__ == "__main__":
-    app.run(debug=False, use_reloader=False)
+    app.run(debug=True, use_reloader=True)

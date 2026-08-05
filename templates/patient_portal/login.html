@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patient Sign In - Accudetek Health Diagnostics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="patient-public-body">
+  <header class="patient-public-header"><a class="patient-public-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo"><span><strong>Accudetek Health Diagnostics</strong><small>Patient Portal</small></span></a><a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a></header>
+  <main class="patient-profile-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    <section class="patient-profile-card patient-lookup-card">
+      <span class="patient-kicker">Patient Portal</span><h1>Sign in to your account</h1><p>View your profile, appointment status, and appointment history.</p>
+      <form method="post" class="patient-auth-form"><label>Email Address<input type="email" name="email" required autofocus autocomplete="email" placeholder="you@example.com"></label><label>Password<input type="password" name="password" required autocomplete="current-password"></label><button type="submit">Sign In Securely</button></form>
+      <p class="patient-auth-footer">New patient? <a href="{{ url_for('patient_register') }}">Create an account</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

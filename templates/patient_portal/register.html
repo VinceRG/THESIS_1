@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create Patient Account - Accudetek Health Diagnostics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="patient-public-body">
+  <header class="patient-public-header"><a class="patient-public-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo"><span><strong>Accudetek Health Diagnostics</strong><small>Patient Portal</small></span></a><a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a></header>
+  <main class="patient-profile-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    <section class="patient-profile-card">
+      <span class="patient-kicker">Patient Portal</span><h1>Create your account</h1><p>Already have a patient number? Enter it to link your existing appointment history. Otherwise, leave it blank and we’ll create your patient profile.</p>
+      <form method="post" class="patient-profile-form">
+        {% if guest_booking_patient %}
+        <input type="hidden" name="patient_number" value="{{ values.get('patient_number', '') }}">
+        <input type="hidden" name="branch_id" value="{{ values.get('branch_id', '') }}">
+        <input type="hidden" name="full_name" value="{{ values.get('full_name', '') }}">
+        <input type="hidden" name="birthdate" value="{{ values.get('birthdate', '') }}">
+        <input type="hidden" name="gender" value="{{ values.get('gender', '') }}">
+        <input type="hidden" name="contact_number" value="{{ values.get('contact_number', '') }}">
+        <input type="hidden" name="email" value="{{ values.get('email', '') }}">
+        <div class="patient-form-wide patient-registration-summary"><strong>Use your booking details</strong><span>{{ values.get('full_name') }} · {{ values.get('email') }}</span><small>We will verify this email before activating your account.</small></div>
+        {% else %}
+        <label>Existing Patient Number (optional)<input name="patient_number" value="{{ values.get('patient_number', '') }}" placeholder="e.g. PAT-0001"></label>
+        <label>Clinic Branch<select name="branch_id" required>{% for branch in branch_options %}<option value="{{ branch.id }}" {% if values.get('branch_id') == branch.id|string %}selected{% endif %}>{{ branch.name }}</option>{% endfor %}</select></label>
+        <label>Full Name<input name="full_name" value="{{ values.get('full_name', '') }}" required></label>
+        <label>Birthdate<input type="date" name="birthdate" value="{{ values.get('birthdate', '') }}" required></label>
+        <label>Gender<select name="gender" required><option value="">Select gender</option><option value="Female" {% if values.get('gender') == 'Female' %}selected{% endif %}>Female</option><option value="Male" {% if values.get('gender') == 'Male' %}selected{% endif %}>Male</option></select></label>
+        <label>Contact Number<input name="contact_number" value="{{ values.get('contact_number', '') }}"></label>
+        <label>Email Address<input type="email" name="email" value="{{ values.get('email', '') }}" required autocomplete="email" placeholder="you@example.com"></label>
+        {% endif %}
+        <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+        <label>Confirm Password<input type="password" name="password_confirmation" required minlength="8" autocomplete="new-password"></label>
+        <button type="submit">Create Account</button>
+      </form>
+      <p class="patient-auth-footer">Already have an account? <a href="{{ url_for('patient_login') }}">Sign in</a>.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -18,7 +18,10 @@
         <small>{{ branch.name }}</small>
       </span>
     </a>
-    <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
+    <nav class="patient-public-nav" aria-label="Patient portal navigation">
+      {% if session.get('patient_account_id') %}<a href="{{ url_for('patient_profile') }}">My Profile</a><a href="{{ url_for('patient_logout') }}">Sign Out</a>{% else %}<a href="{{ url_for('patient_login') }}">Patient Sign In</a><a href="{{ url_for('patient_register') }}">Create Account</a>{% endif %}
+      <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
+    </nav>
   </header>
 
   <main class="patient-success-main">
@@ -29,6 +32,8 @@
       <p>Your appointment request has been saved and is now pending clinic confirmation.</p>
 
       <dl class="patient-success-details">
+        <dt>Appointment ID</dt>
+        <dd><strong>{{ appointment.appointment_code }}</strong></dd>
         <dt>Patient Number</dt>
         <dd>{{ patient.patient_number }}</dd>
         <dt>Branch</dt>
@@ -38,6 +43,12 @@
         <dt>Status</dt>
         <dd>{{ appointment.status }}</dd>
       </dl>
+
+      {% if email_sent %}
+      <div class="patient-email-notice">A confirmation email with your Appointment ID has been sent to {{ patient.email }}.</div>
+      {% else %}
+      <div class="patient-email-notice patient-email-notice-warning">Your appointment was saved, but the confirmation email could not be sent. Please keep your Appointment ID: {{ appointment.appointment_code }}.</div>
+      {% endif %}
 
       <div class="patient-success-block">
         <h2>Requested Packages</h2>
@@ -73,6 +84,12 @@
       </div>
 
       <div class="patient-success-actions">
+        {% if is_guest %}
+        <a class="patient-secondary-action" href="{{ url_for('track_appointment', appointment_code=appointment.appointment_code, email=patient.email) }}">Track Appointment</a>
+        <a class="patient-secondary-action" href="{{ url_for('patient_register') }}">Create an account for easier booking</a>
+        {% else %}
+        <a class="patient-secondary-action" href="{{ url_for('patient_profile') }}">View Appointment History</a>
+        {% endif %}
         <a href="{{ url_for('patient_portal', branch_id=branch.id) }}">Book Another Appointment</a>
       </div>
     </section>

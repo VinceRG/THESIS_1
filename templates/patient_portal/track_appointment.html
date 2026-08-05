@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Track Appointment - Accudetek Health Diagnostics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="patient-public-body">
+  <header class="patient-public-header"><a class="patient-public-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo"><span><strong>Accudetek Health Diagnostics</strong><small>Guest Appointment Tracking</small></span></a><nav class="patient-public-nav"><a href="{{ url_for('patient_portal') }}">Book Appointment</a><a href="{{ url_for('patient_login') }}">Patient Sign In</a></nav></header>
+  <main class="patient-profile-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    <section class="patient-profile-card patient-lookup-card">
+      <span class="patient-kicker">Guest access</span><h1>Track your appointment</h1><p>Enter the Appointment ID from your confirmation email and verify your email with a one-time code.</p>
+      {% if verified and appointment %}
+        <dl class="patient-success-details patient-track-details"><dt>Appointment ID</dt><dd>{{ appointment.appointment_code }}</dd><dt>Status</dt><dd><span class="patient-status-badge patient-status-{{ appointment.status|lower }}">{{ appointment.status }}</span></dd><dt>Schedule</dt><dd>{{ appointment.appointment_date }}{% if appointment.appointment_time %} at {{ format_appointment_time(appointment.appointment_time) }}{% endif %}</dd><dt>Branch</dt><dd>{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</dd><dt>Requested service</dt><dd>{{ appointment.service_items()|join(', ') or appointment.package_items()|join(', ') or 'Consultation request' }}</dd></dl>
+      {% else %}
+        <form method="post" class="patient-auth-form">
+          <input type="hidden" name="action" value="send_otp">
+          <label>Appointment ID<input name="appointment_code" value="{{ values.appointment_code }}" required placeholder="APT-XXXXXXXX" autocomplete="off"></label>
+          <label>Email Address<input type="email" name="email" value="{{ values.email }}" required autocomplete="email"></label>
+          <button type="submit">Send one-time code</button>
+        </form>
+        {% if appointment %}
+        <form method="post" class="patient-auth-form patient-otp-form"><input type="hidden" name="action" value="verify_otp"><input type="hidden" name="appointment_code" value="{{ values.appointment_code }}"><input type="hidden" name="email" value="{{ values.email }}"><label>Six-digit code<input name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><button type="submit">View appointment</button></form>
+        {% endif %}
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

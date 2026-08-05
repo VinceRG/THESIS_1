@@ -18,7 +18,10 @@
         <small>{{ branch.name }}</small>
       </span>
     </a>
-    <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
+    <nav class="patient-public-nav" aria-label="Patient portal navigation">
+      {% if session.get('patient_account_id') %}<a href="{{ url_for('patient_profile') }}">My Profile</a><a href="{{ url_for('patient_logout') }}">Sign Out</a>{% else %}<a href="{{ url_for('track_appointment') }}">Track Appointment</a><a href="{{ url_for('patient_login') }}">Patient Sign In</a>{% endif %}
+      <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
+    </nav>
   </header>
 
   <main class="patient-public-main">
@@ -40,6 +43,7 @@
             <h1>Book a clinic visit</h1>
             <p>Choose your branch, schedule, patient details, and requested diagnostic services in one form.</p>
           </div>
+          <div class="patient-booking-expectations" aria-label="Booking expectations"><span><b>About 3 minutes</b> to complete</span><span><b>No payment</b> required online</span><span><b>Confirmation</b> is sent by email</span></div>
           <div class="patient-trust-strip" aria-label="Clinic highlights">
             <span>Fast and reliable results</span>
             <span>Multi-specialty clinic and diagnostic laboratory</span>
@@ -225,7 +229,7 @@
             </div>
           </div>
           <div class="patient-booking-actions">
-            <span class="patient-status-badge">Pending clinic confirmation</span>
+            <span class="patient-status-badge">Pending clinic confirmation</span><span class="patient-completion-note" data-public-completion-note>Complete the required details to submit.</span>
             <button type="submit">Submit Appointment Request</button>
           </div>
         </section>
@@ -328,7 +332,7 @@
     }
 
     function updateProgress() {
-      const scheduleDone = Array.from(document.querySelectorAll('[data-public-schedule-input]')).some(input => input.value.trim());
+      const scheduleDone = Array.from(document.querySelectorAll('[data-public-schedule-input]')).every(input => input.value.trim());
       const patientBasics = Array.from(document.querySelectorAll('[data-public-patient-input]')).every(input => input.value.trim());
       const contactDone = Array.from(document.querySelectorAll('[data-public-contact-input]')).some(input => input.value.trim());
       const patientDone = patientBasics && contactDone;
@@ -353,6 +357,13 @@
         }
       });
       if (!activeFound) document.querySelector('[data-public-progress="review"]')?.classList.add('is-active');
+      const completionNote = document.querySelector('[data-public-completion-note]');
+      if (completionNote) {
+        completionNote.textContent = steps.review
+          ? 'Everything looks ready for clinic review.'
+          : 'Complete the required details to submit.';
+        completionNote.classList.toggle('is-ready', steps.review);
+      }
     }
 
     function updateRecommendationPreview() {

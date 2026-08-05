@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accudetek Health Diagnostics | Care You Can Trust</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="clinic-home-body">
+  <header class="clinic-home-header">
+    <a class="clinic-home-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek Health Diagnostics logo"><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></a>
+    <button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button>
+    <nav class="clinic-home-nav" id="clinic-navigation" aria-label="Clinic navigation"><a href="#services">Services</a><a href="#about">About us</a><a href="#visit">Visit us</a><a href="{{ url_for('track_appointment') }}">Track appointment</a></nav>
+    <div class="clinic-home-actions"><a href="{{ url_for('track_appointment') }}">Track appointment</a><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
+  </header>
+
+  <main>
+    <section class="clinic-hero">
+      <div class="clinic-hero-content">
+        <span class="clinic-eyebrow">Care and diagnostics for every Filipino</span>
+        <h1>Your health is our <em>top priority.</em></h1>
+        <p>Trusted consultations, laboratory tests, imaging, and preventive care with fast, reliable results in Pasig City.</p>
+        <div class="clinic-hero-actions"><a class="clinic-book-button clinic-book-button-large" href="{{ url_for('patient_portal') }}">Book an appointment <span>→</span></a><a class="clinic-text-button" href="#services">Explore services</a></div>
+        <div class="clinic-hero-trust"><span><b>Established</b> 2019</span><span><b>Open early</b> from 6:00 AM</span><span><b>Care promise</b> Fast and reliable results</span></div>
+      </div>
+      <div class="clinic-hero-visual" aria-hidden="true"><img src="{{ url_for('static', filename='Screenshot 2026-07-09 000115.png') }}" alt=""><div class="clinic-hero-photo-wash"></div><div class="clinic-hero-pulse">Open for care<br><strong>7 days a week</strong></div></div>
+    </section>
+
+    <section class="clinic-intro" id="about"><span class="clinic-section-label">Why choose Accudetek</span><h2>Accurate care, delivered with urgency and compassion.</h2><p>Accudetek Health Diagnostics is a multi-specialty clinic and diagnostic laboratory committed to accessible, affordable, high-quality healthcare. Our team combines dedicated medical professionals with modern laboratory and diagnostic equipment.</p><div class="clinic-values"><span>Top quality healthcare</span><span>Affordable services</span><span>Fast medical results</span><span>Wide range of packages</span></div></section>
+
+    <section class="clinic-services" id="services"><div class="clinic-section-heading"><div><span class="clinic-section-label">Find the care you need</span><h2>Comprehensive services, all in one clinic.</h2></div><a class="clinic-text-button" href="{{ url_for('patient_portal') }}">Book a service <span>→</span></a></div><div class="clinic-service-grid"><article><span class="clinic-service-icon">01</span><h3>Laboratory</h3><p>Hematology, clinical chemistry, microscopy, immunology, serology, and more.</p></article><article><span class="clinic-service-icon">02</span><h3>Imaging</h3><p>X-ray, ultrasound, ECG, 2D echo, and duplex scan services.</p></article><article><span class="clinic-service-icon">03</span><h3>Consultations</h3><p>Face-to-face and online doctor consultations for your health concerns.</p></article><article><span class="clinic-service-icon">04</span><h3>Preventive care</h3><p>Vaccines, annual checkups, pre-employment examinations, and care packages.</p></article></div></section>
+
+    <section class="clinic-booking-banner"><div><span class="clinic-section-label">Simple appointment booking</span><h2>Book as a guest. Create an account only when you want to.</h2><p>Receive your confirmation by email, use your Appointment ID to track its status, or create an account later to keep your booking history in one place.</p><div class="clinic-booking-steps" aria-label="How online booking works"><span><b>1</b> Send request</span><span><b>2</b> Receive Appointment ID</span><span><b>3</b> Track confirmation</span></div></div><div class="clinic-banner-actions"><a class="clinic-book-button clinic-book-button-large" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a><a href="{{ url_for('track_appointment') }}">Track an appointment</a></div></section>
+
+    <section class="clinic-visit" id="visit"><div class="clinic-visit-card"><span class="clinic-section-label">Visit our clinic</span><h2>Here when you need us.</h2><address>Ground Floor, J Building, #12 M.H. del Pilar Street<br>San Nicolas, Pasig City 1600</address><a class="clinic-direction-link" href="https://www.google.com/maps/search/?api=1&query=Accudetek+Health+Diagnostics+Pasig" target="_blank" rel="noopener">Get directions <span>↗</span></a></div><div class="clinic-hours-card"><h3>Clinic hours</h3><div><span>Monday - Saturday</span><strong>6:00 AM - 5:00 PM</strong></div><div><span>Sunday</span><strong>6:00 AM - 12:00 NN</strong></div><hr><h3>Contact us</h3><a href="tel:09173238391">0917-323-8391</a><a href="tel:09535132333">0953-513-2333</a><a href="mailto:accudetekhealthdiagnostics@gmail.com">accudetekhealthdiagnostics@gmail.com</a></div></section>
+  </main>
+  <footer class="clinic-home-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>#PasyenteAngUnaMaagapNaResulta</p><a href="{{ url_for('login') }}">Staff portal</a></footer>
+  <script>
+    const menuToggle = document.querySelector('.clinic-menu-toggle');
+    const homeHeader = document.querySelector('.clinic-home-header');
+    menuToggle?.addEventListener('click', () => {
+      const isOpen = homeHeader.classList.toggle('is-menu-open');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.querySelectorAll('.clinic-home-nav a').forEach(link => link.addEventListener('click', () => {
+      homeHeader.classList.remove('is-menu-open');
+      menuToggle?.setAttribute('aria-expanded', 'false');
+    }));
+  </script>
+</body>
+</html>
