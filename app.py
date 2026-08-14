@@ -85,6 +85,12 @@ FACILITY_STAFF_ROSTER = [
     {'name': 'Dr. Sofia Mercado', 'role': 'Radiologists'},
 ]
 
+# Forecasting constants
+RARE_DIAGNOSIS_BUCKET = 'Other Services/Cases'
+MIN_DIAGNOSIS_RECORDS_FOR_RF = 50
+MIN_MODELED_DIAGNOSES_FOR_RF = 10
+REQUIRE_COMPLETE_TRAINING_YEARS = True
+
 # Resource planning constants
 ROOM_COUNT = 5
 AVG_CONSULTATION_MINUTES = 20
@@ -120,6 +126,21 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(40), default='staff')
     branch = db.relationship('Branch', backref='users')
+
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    actor = db.Column(db.String(120), nullable=True)
+    role = db.Column(db.String(40), nullable=True)
+    action = db.Column(db.String(80), nullable=False)
+    entity_type = db.Column(db.String(80), nullable=False)
+    entity_id = db.Column(db.String(80), nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    ip_address = db.Column(db.String(80), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    branch = db.relationship('Branch', backref='audit_logs')
+    user = db.relationship('User', backref='audit_logs')
 
 class ConsultationRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -636,6 +657,10 @@ def build_forecasting_training_frame(df):
     if raw.empty:
         return pd.DataFrame()
 
+    raw, year_filtering = filter_to_complete_training_years(raw)
+    if raw.empty:
+        return pd.DataFrame()
+    raw, diagnosis_grouping = apply_rare_diagnosis_grouping(raw)
     raw['period'] = raw['consultation_date'].dt.to_period('M')
     diagnoses = sorted(raw['diagnosis'].unique())
     age_groups = sorted(raw['age_group'].unique())
@@ -688,7 +713,76 @@ def build_forecasting_training_frame(df):
     gender_dummies = pd.get_dummies(merged['gender'], prefix='gender', dtype=int)
     merged = pd.concat([merged, diagnosis_dummies, age_dummies, gender_dummies], axis=1)
     merged.attrs['diagnosis_encoder'] = le
+    merged.attrs['diagnosis_grouping'] = diagnosis_grouping
+    merged.attrs['year_filtering'] = year_filtering
     return merged
+
+def filter_to_complete_training_years(raw):
+    """Use only years with all 12 months so seasonal features are trained on full cycles."""
+    if not REQUIRE_COMPLETE_TRAINING_YEARS or raw.empty:
+        years = sorted(raw['consultation_date'].dt.year.dropna().astype(int).unique().tolist())
+        return raw, {
+            'complete_year_rule': False,
+            'original_years': years,
+            'used_years': years,
+            'excluded_years': [],
+            'excluded_record_count': 0,
+        }
+
+    working = raw.copy()
+    working['training_year'] = working['consultation_date'].dt.year
+    working['training_month'] = working['consultation_date'].dt.month
+    months_by_year = working.groupby('training_year')['training_month'].nunique()
+    original_years = sorted(int(year) for year in months_by_year.index.tolist())
+    complete_years = sorted(int(year) for year, month_count in months_by_year.items() if int(month_count) == 12)
+
+    if not complete_years:
+        return raw, {
+            'complete_year_rule': True,
+            'original_years': original_years,
+            'used_years': original_years,
+            'excluded_years': [],
+            'excluded_record_count': 0,
+            'fallback_reason': 'No complete 12-month year was available, so all available records were retained.',
+        }
+
+    filtered = working[working['training_year'].isin(complete_years)].drop(columns=['training_year', 'training_month'])
+    excluded_record_count = int(len(raw) - len(filtered))
+    excluded_years = [year for year in original_years if year not in complete_years]
+    return filtered, {
+        'complete_year_rule': True,
+        'original_years': original_years,
+        'used_years': complete_years,
+        'excluded_years': excluded_years,
+        'excluded_record_count': excluded_record_count,
+    }
+
+def apply_rare_diagnosis_grouping(raw):
+    """Group sparse diagnosis labels so the segmented RF learns stable patterns."""
+    counts = raw['diagnosis'].value_counts()
+    if counts.empty:
+        return raw, {
+            'minimum_records': MIN_DIAGNOSIS_RECORDS_FOR_RF,
+            'original_diagnosis_count': 0,
+            'modeled_diagnosis_count': 0,
+            'grouped_diagnosis_count': 0,
+        }
+
+    keep = set(counts[counts >= MIN_DIAGNOSIS_RECORDS_FOR_RF].index)
+    if len(keep) < MIN_MODELED_DIAGNOSES_FOR_RF:
+        keep = set(counts.head(MIN_MODELED_DIAGNOSES_FOR_RF).index)
+    grouped_count = int((~raw['diagnosis'].isin(keep)).sum())
+    if grouped_count:
+        raw = raw.copy()
+        raw['diagnosis'] = raw['diagnosis'].where(raw['diagnosis'].isin(keep), RARE_DIAGNOSIS_BUCKET)
+
+    return raw, {
+        'minimum_records': MIN_DIAGNOSIS_RECORDS_FOR_RF,
+        'original_diagnosis_count': int(len(counts)),
+        'modeled_diagnosis_count': int(raw['diagnosis'].nunique()),
+        'grouped_diagnosis_count': int(len(counts) - len(keep)),
+        'grouped_record_count': grouped_count,
+    }
 
 def _safe_r2(y_true, preds):
     if len(y_true) < 2 or np.isclose(np.var(y_true), 0):
@@ -760,6 +854,10 @@ def build_non_demographic_training_frame(df):
     if raw.empty:
         return pd.DataFrame()
 
+    raw, year_filtering = filter_to_complete_training_years(raw)
+    if raw.empty:
+        return pd.DataFrame()
+    raw, diagnosis_grouping = apply_rare_diagnosis_grouping(raw)
     raw['period'] = raw['consultation_date'].dt.to_period('M')
     diagnoses = sorted(raw['diagnosis'].unique())
     periods = pd.period_range(raw['period'].min(), raw['period'].max(), freq='M')
@@ -802,7 +900,10 @@ def build_non_demographic_training_frame(df):
     ]
     merged[history_columns] = merged[history_columns].fillna(0)
     diagnosis_dummies = pd.get_dummies(merged['diagnosis'], prefix='diagnosis', dtype=int)
-    return pd.concat([merged, diagnosis_dummies], axis=1)
+    merged = pd.concat([merged, diagnosis_dummies], axis=1)
+    merged.attrs['diagnosis_grouping'] = diagnosis_grouping
+    merged.attrs['year_filtering'] = year_filtering
+    return merged
 
 def evaluate_model_without_demographics(df, fast=False):
     training_df = build_non_demographic_training_frame(df)
@@ -884,6 +985,8 @@ def train_and_evaluate_model(df, fast=False):
         raise ValueError('Insufficient data for model training')
 
     diagnosis_encoder = training_df.attrs.get('diagnosis_encoder')
+    diagnosis_grouping = training_df.attrs.get('diagnosis_grouping') or {}
+    year_filtering = training_df.attrs.get('year_filtering') or {}
     label_mapping = {i: name for i, name in enumerate(diagnosis_encoder.classes_)}
     diagnosis_feature_columns = sorted([
         col for col in training_df.columns
@@ -993,6 +1096,17 @@ def train_and_evaluate_model(df, fast=False):
         'diagnosis_count': int(training_df['diagnosis'].nunique()),
         'age_group_count': int(training_df['age_group'].nunique()),
         'gender_count': int(training_df['gender'].nunique()),
+        'complete_year_rule': year_filtering.get('complete_year_rule'),
+        'original_training_years': year_filtering.get('original_years'),
+        'used_training_years': year_filtering.get('used_years'),
+        'excluded_training_years': year_filtering.get('excluded_years'),
+        'excluded_year_record_count': year_filtering.get('excluded_record_count'),
+        'complete_year_fallback_reason': year_filtering.get('fallback_reason'),
+        'diagnosis_grouping_minimum_records': diagnosis_grouping.get('minimum_records'),
+        'original_diagnosis_count': diagnosis_grouping.get('original_diagnosis_count'),
+        'modeled_diagnosis_count': diagnosis_grouping.get('modeled_diagnosis_count'),
+        'grouped_diagnosis_count': diagnosis_grouping.get('grouped_diagnosis_count'),
+        'grouped_record_count': diagnosis_grouping.get('grouped_record_count'),
         'data_period_start': str(unique_periods[0]),
         'data_period_end': str(unique_periods[-1]),
         'r2_score': validation_metrics['r2'],
@@ -1158,6 +1272,23 @@ def write_training_report(report_path, metrics):
         handle.write(f"Training Frame Rows: {metrics.get('total_training_rows', 'N/A')}\n\n")
         handle.write(f"Diagnosis-Age Group-Gender Segments: {metrics.get('total_segments', 'N/A')}\n\n")
         handle.write(f"Diagnoses Covered: {metrics.get('diagnosis_count', 'N/A')}\n\n")
+        if metrics.get('complete_year_rule') is not None:
+            handle.write('Complete-Year Training Rule\n\n')
+            handle.write('Only calendar years with all 12 months are used for model training so monthly and quarterly seasonality are learned from complete yearly cycles.\n')
+            handle.write(f"Original Years Found: {', '.join(map(str, metrics.get('original_training_years') or [])) or 'N/A'}\n")
+            handle.write(f"Years Used for Training: {', '.join(map(str, metrics.get('used_training_years') or [])) or 'N/A'}\n")
+            handle.write(f"Years Excluded from Training: {', '.join(map(str, metrics.get('excluded_training_years') or [])) or 'None'}\n")
+            handle.write(f"Records Excluded by Incomplete-Year Rule: {metrics.get('excluded_year_record_count', 0)}\n")
+            if metrics.get('complete_year_fallback_reason'):
+                handle.write(f"Fallback Note: {metrics.get('complete_year_fallback_reason')}\n")
+            handle.write('\n')
+        if metrics.get('grouped_diagnosis_count') is not None:
+            handle.write('Rare Diagnosis Handling\n\n')
+            handle.write(f"Original Diagnosis Labels: {metrics.get('original_diagnosis_count', 'N/A')}\n")
+            handle.write(f"Modeled Diagnosis Labels: {metrics.get('modeled_diagnosis_count', 'N/A')}\n")
+            handle.write(f"Minimum Records per Separate Diagnosis: {metrics.get('diagnosis_grouping_minimum_records', 'N/A')}\n")
+            handle.write(f"Rare Diagnosis Labels Grouped as {RARE_DIAGNOSIS_BUCKET}: {metrics.get('grouped_diagnosis_count', 'N/A')}\n")
+            handle.write(f"Consultation Records in Rare Diagnosis Group: {metrics.get('grouped_record_count', 'N/A')}\n\n")
         handle.write(f"Age Groups Covered: {metrics.get('age_group_count', 'N/A')}\n\n")
         handle.write(f"Gender Categories Covered: {metrics.get('gender_count', 'N/A')}\n\n")
         handle.write('Training Granularity: Diagnosis x Age Group x Gender x Month\n\n')
@@ -1176,6 +1307,8 @@ def write_training_report(report_path, metrics):
             handle.write(f'{feature}\n')
         handle.write('\n')
         handle.write('The consultation records were transformed into monthly consultation counts for each diagnosis-age group-gender segment. ')
+        handle.write('Before feature engineering, records from incomplete calendar years were excluded from the model training frame to preserve full 12-month seasonal cycles. ')
+        handle.write('Rare diagnoses with limited historical records were grouped into an Other Services/Cases category to reduce sparse-label noise while retaining the demographic prediction structure. ')
         handle.write('Feature engineering was then performed by generating lag values, rolling averages, seasonal indicators, and trend features to enable the Random Forest model to learn recurring consultation patterns and temporal behavior.\n')
 
         handle.write('\n3. Model Validation Method\n')
@@ -1419,7 +1552,7 @@ def _build_report_pdf(payload, logo_path=None):
             _pdf_text(x + 340, y + 4, 'Value', 10, '1 1 1', 'F2'),
         ])
         row_y = y - 24
-        for section in sections[:7]:
+        for section in sections[:10]:
             metric_lines = wrap_words(section.get('metric', ''), 48)
             value_lines = wrap_words(section.get('value', ''), 30)
             line_count = max(len(metric_lines), len(value_lines))
@@ -1499,7 +1632,7 @@ def _build_report_pdf(payload, logo_path=None):
         if not rows:
             commands.append(_pdf_text(x, y - 24, 'No rows available.', 9, muted))
             return
-        keys = list(rows[0].keys())[:4]
+        keys = list(rows[0].keys())[:6]
         col_w = w / len(keys)
         header_y = y - 28
         commands.append(f'{primary} rg {x} {header_y - 8} {w} 22 re f')
@@ -1549,7 +1682,7 @@ def _build_report_pdf(payload, logo_path=None):
         if not rows:
             commands.append(_pdf_text(x, y - 24, 'No rows available.', 9, muted))
             return
-        keys = list(rows[0].keys())[:2]
+        keys = list(rows[0].keys())[:5]
         col_w = w / max(1, len(keys))
         header_y = y - 30
         table_top = header_y + 14
@@ -1558,7 +1691,7 @@ def _build_report_pdf(payload, logo_path=None):
             commands.append(_pdf_text(x + idx * col_w + 8, header_y, str(key).replace('_', ' ').title(), 9, '1 1 1', 'F2'))
         row_y = header_y - 24
         for row in rows[:12]:
-            wrapped = [wrap_words(row.get(key, ''), 32) for key in keys]
+            wrapped = [wrap_words(row.get(key, ''), 14) for key in keys]
             line_count = max(len(lines) for lines in wrapped)
             row_height = 12 * line_count + 8
             commands.append(f'{border} RG {x} {row_y + 8} m {x + w} {row_y + 8} l S')
@@ -1680,7 +1813,58 @@ def create_app():
 
     db.init_app(app)
     settings_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'app_settings.json')
-    dashboard_cache_version = 6
+    dashboard_cache_version = 10
+
+    def is_password_hash(value):
+        value = value or ''
+        return value.startswith(('scrypt:', 'pbkdf2:', 'argon2:'))
+
+    def verify_user_password(user, submitted_password):
+        if not user or submitted_password is None:
+            return False
+        stored_password = user.password or ''
+        if is_password_hash(stored_password):
+            return check_password_hash(stored_password, submitted_password)
+        if stored_password == submitted_password:
+            user.password = generate_password_hash(submitted_password)
+            db.session.commit()
+            return True
+        return False
+
+    def csrf_token():
+        token = session.get('_csrf_token')
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session['_csrf_token'] = token
+        return token
+
+    app.jinja_env.globals['csrf_token'] = csrf_token
+
+    def validate_csrf_token():
+        expected = session.get('_csrf_token')
+        submitted = request.form.get('_csrf_token') or request.headers.get('X-CSRFToken')
+        return bool(expected and submitted and secrets.compare_digest(expected, submitted))
+
+    def log_audit(action, entity_type, entity_id=None, details=None, branch_id='current'):
+        try:
+            resolved_branch_id = current_branch_id() if branch_id == 'current' else branch_id
+        except Exception:
+            resolved_branch_id = session.get('branch_id')
+        try:
+            payload = details if isinstance(details, str) else json.dumps(details or {}, default=str)
+        except Exception:
+            payload = str(details)
+        db.session.add(AuditLog(
+            branch_id=resolved_branch_id,
+            user_id=session.get('user_id'),
+            actor=session.get('username'),
+            role=session.get('role'),
+            action=action,
+            entity_type=entity_type,
+            entity_id=str(entity_id) if entity_id is not None else None,
+            details=payload,
+            ip_address=request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip(),
+        ))
 
     def send_patient_verification_email(recipient, code):
         """Deliver a short-lived sign-up code using the configured SMTP provider."""
@@ -2184,6 +2368,359 @@ def create_app():
             notes.append('No exact service mapping was found; general physician review is recommended.')
         return sorted(set(roles)), sorted(set(equipment)), notes
 
+    def build_daily_staff_prediction(branch, actual_staff_by_role, staff_capacity_per_month):
+        """Forecast role demand for the current 7 days and the next 7 days."""
+        today = datetime.now().date()
+        target_dates = [today + timedelta(days=offset) for offset in range(14)]
+        daily_capacity_per_staff = max(1, int(np.ceil(max(1, staff_capacity_per_month) / 22)))
+
+        record_query = ConsultationRecord.query
+        appointment_query = Appointment.query
+        if branch is not None:
+            record_query = record_query.filter(ConsultationRecord.branch_id == branch.id)
+            appointment_query = appointment_query.filter(Appointment.branch_id == branch.id)
+
+        role_date_counts = Counter()
+        observed_roles = set(actual_staff_by_role.keys())
+        for record in record_query.all():
+            consultation_date = parse_iso_date(record.consultation_date)
+            if not consultation_date:
+                continue
+            mapped_roles = infer_staff_and_equipment(record.diagnosis).get('roles') or ['General Physicians']
+            for role in mapped_roles:
+                observed_roles.add(role)
+                role_date_counts[(consultation_date, role)] += 1
+
+        appointment_date_counts = Counter()
+        for appointment in appointment_query.filter(Appointment.status.in_(['Pending', 'Confirmed', 'Completed'])).all():
+            appointment_date = parse_iso_date(appointment.appointment_date)
+            if not appointment_date:
+                continue
+            for role in appointment.role_items() or ['General Physicians']:
+                observed_roles.add(role)
+                appointment_date_counts[(appointment_date, role)] += 1
+
+        if not observed_roles:
+            observed_roles.add('General Physicians')
+
+        historical_dates = sorted({date for date, _role in role_date_counts.keys()})
+        rows = []
+        model_method = 'Historical weekday average'
+        can_train_model = len(historical_dates) >= 30 and len(role_date_counts) >= 30
+
+        if can_train_model:
+            min_date = min(historical_dates)
+            max_date = max(historical_dates)
+            train_dates = pd.date_range(min_date, max_date, freq='D').date
+            train_rows = []
+            for date_value in train_dates:
+                for role in sorted(observed_roles):
+                    train_rows.append({
+                        'date': date_value,
+                        'role': role,
+                        'day_of_week': date_value.weekday(),
+                        'month': date_value.month,
+                        'day': date_value.day,
+                        'week_of_year': int(date_value.strftime('%U')),
+                        'is_weekend': 1 if date_value.weekday() >= 5 else 0,
+                        'time_index': (date_value - min_date).days,
+                        'scheduled_appointments': int(appointment_date_counts.get((date_value, role), 0)),
+                        'target': int(role_date_counts.get((date_value, role), 0)),
+                    })
+            train_df = pd.DataFrame(train_rows)
+            role_dummies = pd.get_dummies(train_df['role'], prefix='role', dtype=int)
+            feature_df = pd.concat([train_df.drop(columns=['date', 'role', 'target']), role_dummies], axis=1)
+            target = train_df['target']
+
+            model = RandomForestRegressor(
+                n_estimators=120,
+                max_depth=6,
+                min_samples_leaf=2,
+                random_state=42,
+                n_jobs=1,
+            )
+            model.fit(feature_df, target)
+            feature_columns = feature_df.columns.tolist()
+            model_method = 'Random Forest daily role-demand forecast'
+
+            predict_rows = []
+            for date_value in target_dates:
+                for role in sorted(observed_roles):
+                    predict_rows.append({
+                        'date': date_value,
+                        'role': role,
+                        'day_of_week': date_value.weekday(),
+                        'month': date_value.month,
+                        'day': date_value.day,
+                        'week_of_year': int(date_value.strftime('%U')),
+                        'is_weekend': 1 if date_value.weekday() >= 5 else 0,
+                        'time_index': (date_value - min_date).days,
+                        'scheduled_appointments': int(appointment_date_counts.get((date_value, role), 0)),
+                    })
+            predict_df = pd.DataFrame(predict_rows)
+            predict_features = pd.concat([
+                predict_df.drop(columns=['date', 'role']),
+                pd.get_dummies(predict_df['role'], prefix='role', dtype=int)
+            ], axis=1)
+            predict_features = predict_features.reindex(columns=feature_columns, fill_value=0)
+            predictions = model.predict(predict_features)
+            for idx, prediction in enumerate(predictions):
+                date_value = predict_df.iloc[idx]['date']
+                role = predict_df.iloc[idx]['role']
+                scheduled = int(appointment_date_counts.get((date_value, role), 0))
+                predicted_patients = max(int(round(max(0, prediction))), scheduled)
+                if predicted_patients <= 0:
+                    continue
+                available = int(actual_staff_by_role.get(role, 0))
+                required = int(np.ceil(predicted_patients / daily_capacity_per_staff))
+                rows.append({
+                    'date': date_value.strftime('%Y-%m-%d'),
+                    'day_name': date_value.strftime('%a'),
+                    'staff_role': role,
+                    'predicted_patients': predicted_patients,
+                    'scheduled_appointments': scheduled,
+                    'required_staff': required,
+                    'available_staff': available,
+                })
+        else:
+            weekday_role_totals = Counter()
+            weekday_role_days = Counter()
+            if historical_dates:
+                for date_value in historical_dates:
+                    for role in observed_roles:
+                        weekday_role_totals[(date_value.weekday(), role)] += int(role_date_counts.get((date_value, role), 0))
+                        weekday_role_days[(date_value.weekday(), role)] += 1
+            for date_value in target_dates:
+                for role in sorted(observed_roles):
+                    scheduled = int(appointment_date_counts.get((date_value, role), 0))
+                    day_count = weekday_role_days.get((date_value.weekday(), role), 0)
+                    average_demand = weekday_role_totals.get((date_value.weekday(), role), 0) / day_count if day_count else 0
+                    predicted_patients = max(int(round(average_demand)), scheduled)
+                    if predicted_patients <= 0:
+                        continue
+                    available = int(actual_staff_by_role.get(role, 0))
+                    required = int(np.ceil(predicted_patients / daily_capacity_per_staff))
+                    rows.append({
+                        'date': date_value.strftime('%Y-%m-%d'),
+                        'day_name': date_value.strftime('%a'),
+                        'staff_role': role,
+                        'predicted_patients': predicted_patients,
+                        'scheduled_appointments': scheduled,
+                        'required_staff': required,
+                        'available_staff': available,
+                    })
+
+        for row in rows:
+            if row['required_staff'] > row['available_staff']:
+                row['status'] = 'Needs Staff'
+                row['status_class'] = 'high'
+            elif row['available_staff'] and row['required_staff'] >= max(1, int(np.ceil(row['available_staff'] * 0.75))):
+                row['status'] = 'Monitor'
+                row['status_class'] = 'moderate'
+            else:
+                row['status'] = 'Sufficient'
+                row['status_class'] = 'healthy'
+
+        rows = sorted(rows, key=lambda item: (item['date'], -item['required_staff'], item['staff_role']))
+        current_end = today + timedelta(days=6)
+        current_week_rows = [row for row in rows if today <= parse_iso_date(row['date']) <= current_end]
+        next_week_rows = [row for row in rows if current_end < parse_iso_date(row['date']) <= today + timedelta(days=13)]
+        alert_rows = [row for row in rows if row.get('status_class') == 'high']
+
+        def summarize_daily_rows(source_rows):
+            grouped = {}
+            for row in source_rows:
+                item = grouped.setdefault(row['date'], {
+                    'date': row['date'],
+                    'day_name': row['day_name'],
+                    'predicted_patients': 0,
+                    'scheduled_appointments': 0,
+                    'required_staff_total': 0,
+                    'available_staff_total': 0,
+                    'role_summary': [],
+                    'status': 'Sufficient',
+                    'status_class': 'healthy',
+                })
+                item['predicted_patients'] += int(row.get('predicted_patients', 0))
+                item['scheduled_appointments'] += int(row.get('scheduled_appointments', 0))
+                item['required_staff_total'] += int(row.get('required_staff', 0))
+                item['available_staff_total'] += int(row.get('available_staff', 0))
+                item['role_summary'].append(
+                    f"{row['staff_role']}: {row['required_staff']} needed, {row['available_staff']} available"
+                )
+                if row.get('status_class') == 'high':
+                    item['status'] = 'Needs Staff'
+                    item['status_class'] = 'high'
+                elif row.get('status_class') == 'moderate' and item['status_class'] != 'high':
+                    item['status'] = 'Monitor'
+                    item['status_class'] = 'moderate'
+
+            summaries = []
+            for item in grouped.values():
+                item['role_summary_text'] = '; '.join(item['role_summary'])
+                item['short_role_summary'] = ', '.join(
+                    summary.replace(' needed, ', '/').replace(' available', '')
+                    for summary in item['role_summary'][:3]
+                )
+                if len(item['role_summary']) > 3:
+                    item['short_role_summary'] += f", +{len(item['role_summary']) - 3} more"
+                summaries.append(item)
+            return sorted(summaries, key=lambda item: item['date'])
+
+        chart_roles = sorted({row['staff_role'] for row in rows})
+        chart_labels = [date_value.strftime('%b %d') for date_value in target_dates]
+        chart = {
+            'labels': chart_labels,
+            'datasets': [
+                {
+                    'label': role,
+                    'data': [
+                        sum(
+                            int(row['required_staff'])
+                            for row in rows
+                            if row['staff_role'] == role and row['date'] == date_value.strftime('%Y-%m-%d')
+                        )
+                        for date_value in target_dates
+                    ],
+                }
+                for role in chart_roles
+            ]
+        }
+
+        return {
+            'method': model_method,
+            'daily_capacity_per_staff': daily_capacity_per_staff,
+            'current_period': f"{today.strftime('%b %d, %Y')} - {current_end.strftime('%b %d, %Y')}",
+            'next_period': f"{(current_end + timedelta(days=1)).strftime('%b %d, %Y')} - {(today + timedelta(days=13)).strftime('%b %d, %Y')}",
+            'rows': rows,
+            'current_week_rows': current_week_rows,
+            'next_week_rows': next_week_rows,
+            'current_week_summary': summarize_daily_rows(current_week_rows),
+            'next_week_summary': summarize_daily_rows(next_week_rows),
+            'alert_rows': alert_rows,
+            'chart': chart,
+        }
+
+    def build_staff_demand_forecast(predictions, branch, predicted_year, predicted_month, staff_capacity_per_month, actual_staff_by_role):
+        """Translate forecasted cases and scheduled appointments into role demand."""
+        forecast_role_demand = Counter()
+        for item in predictions or []:
+            diagnosis = item.get('diagnosis', '')
+            predicted_count = int(item.get('predicted_next_month') or 0)
+            mapped_roles = infer_staff_and_equipment(diagnosis).get('roles') or ['General Physicians']
+            for role in mapped_roles:
+                forecast_role_demand[role] += predicted_count
+
+        appointment_query = Appointment.query.filter(Appointment.status.in_(['Pending', 'Confirmed']))
+        if branch is not None:
+            appointment_query = appointment_query.filter(Appointment.branch_id == branch.id)
+        appointments = appointment_query.all()
+
+        target_prefix = f'{predicted_year:04d}-{predicted_month:02d}'
+        appointment_role_demand = Counter()
+        daily_role_demand = {}
+        today = datetime.now().date()
+        daily_end = today + timedelta(days=13)
+
+        for appointment in appointments:
+            roles = appointment.role_items() or ['General Physicians']
+            appointment_date = parse_iso_date(appointment.appointment_date)
+            if str(appointment.appointment_date or '').startswith(target_prefix):
+                for role in roles:
+                    appointment_role_demand[role] += 1
+            if appointment_date and today <= appointment_date <= daily_end:
+                date_key = appointment_date.strftime('%Y-%m-%d')
+                daily_role_demand.setdefault(date_key, Counter())
+                for role in roles:
+                    daily_role_demand[date_key][role] += 1
+
+        role_rows = []
+        all_roles = sorted(set(actual_staff_by_role.keys()) | set(forecast_role_demand.keys()) | set(appointment_role_demand.keys()))
+        for role in all_roles:
+            forecast_demand = int(forecast_role_demand.get(role, 0))
+            appointment_demand = int(appointment_role_demand.get(role, 0))
+            planning_demand = max(forecast_demand, appointment_demand)
+            available = int(actual_staff_by_role.get(role, 0))
+            role_capacity = available * staff_capacity_per_month
+            required = int(np.ceil(planning_demand / max(1, staff_capacity_per_month))) if planning_demand else 0
+            gap = max(0, required - available)
+            pressure = planning_demand / max(1, role_capacity)
+            if gap > 0 or pressure > 1:
+                status = 'Needs Staff'
+                status_class = 'high'
+            elif pressure >= 0.75:
+                status = 'Monitor'
+                status_class = 'moderate'
+            else:
+                status = 'Sufficient'
+                status_class = 'healthy'
+            role_rows.append({
+                'staff_role': role,
+                'forecast_demand': forecast_demand,
+                'appointment_demand': appointment_demand,
+                'planning_demand': planning_demand,
+                'available_staff': available,
+                'role_capacity': role_capacity,
+                'estimated_required': required,
+                'gap': gap,
+                'status': status,
+                'status_class': status_class,
+            })
+
+        role_rows = sorted(role_rows, key=lambda row: (row['planning_demand'], row['available_staff']), reverse=True)
+        monthly_chart_rows = [row for row in role_rows if row['planning_demand'] > 0 or row['available_staff'] > 0]
+
+        daily_rows = []
+        for date_key in sorted(daily_role_demand.keys()):
+            for role, scheduled_demand in daily_role_demand[date_key].most_common():
+                available = int(actual_staff_by_role.get(role, 0))
+                if scheduled_demand > available:
+                    status = 'Needs Staff'
+                    status_class = 'high'
+                elif available and scheduled_demand >= max(1, int(np.ceil(available * 0.75))):
+                    status = 'Monitor'
+                    status_class = 'moderate'
+                else:
+                    status = 'Sufficient'
+                    status_class = 'healthy'
+                daily_rows.append({
+                    'date': date_key,
+                    'staff_role': role,
+                    'scheduled_demand': int(scheduled_demand),
+                    'available_staff': available,
+                    'status': status,
+                    'status_class': status_class,
+                })
+
+        daily_labels = sorted(daily_role_demand.keys())
+        daily_roles = sorted({row['staff_role'] for row in daily_rows})
+        daily_chart = {
+            'labels': daily_labels,
+            'datasets': [
+                {
+                    'label': role,
+                    'data': [int(daily_role_demand.get(date_key, Counter()).get(role, 0)) for date_key in daily_labels],
+                }
+                for role in daily_roles
+            ]
+        }
+
+        top_row = next((row for row in role_rows if row['planning_demand'] > 0), None)
+        daily_prediction = build_daily_staff_prediction(branch, actual_staff_by_role, staff_capacity_per_month)
+        return {
+            'top_role': top_row['staff_role'] if top_row else 'No demand yet',
+            'top_role_demand': top_row['planning_demand'] if top_row else 0,
+            'monthly_rows': role_rows,
+            'monthly_chart': {
+                'labels': [row['staff_role'] for row in monthly_chart_rows],
+                'planning_demand': [row['planning_demand'] for row in monthly_chart_rows],
+                'capacity': [row['role_capacity'] for row in monthly_chart_rows],
+            },
+            'daily_rows': daily_rows,
+            'daily_chart': daily_chart,
+            'daily_prediction': daily_prediction,
+        }
+
     def build_dashboard_context(records, staff_members, branch=None, include_forecast=False):
         total_consultations = len(records)
 
@@ -2273,7 +2810,7 @@ def create_app():
                     'predicted_month': predicted_month_label,
                     'trend': 'Stable'
                 }]
-            resource_recommendation = 'Based on enhanced Random Forest with CV tuning and seasonal lags.'
+            resource_recommendation = 'Random Forest consultation forecast translated into staff-role guidance through configured clinic role mappings.'
         else:
             # Naive fallback
             if len(monthly_trend) >= 2:
@@ -2301,7 +2838,7 @@ def create_app():
                     'predicted_month': predicted_month_label,
                     'trend': 'Increasing' if pred_cnt > ref_count else 'Stable'
                 })
-            resource_recommendation = 'Naive fallback (RF unavailable).'
+            resource_recommendation = 'Fallback forecast translated into staff-role guidance because Random Forest metrics are unavailable.'
             rf_metrics = None
             demographic_forecast = {
                 'age_group': [
@@ -2338,6 +2875,14 @@ def create_app():
             resource_forecast_recommendation = 'Current staffing and equipment capacity appears sufficient for forecasted demand.'
 
         actual_staff_by_role = Counter(member.role for member in staff_members)
+        staff_demand_forecast = build_staff_demand_forecast(
+            predictions,
+            branch,
+            predicted_year,
+            predicted_month,
+            staff_capacity_per_month,
+            actual_staff_by_role,
+        )
 
         return {
             'branch_id': branch.id if branch else None,
@@ -2365,6 +2910,7 @@ def create_app():
             'equipment': EQUIPMENT_INVENTORY,
             'facility_staff_complement': FACILITY_STAFF_COMPLEMENT,
             'actual_staff_by_role': dict(actual_staff_by_role),
+            'staff_demand_forecast': staff_demand_forecast,
             'estimated_monthly_capacity': estimated_monthly_capacity,
             'forecast_pressure': forecast_pressure,
             'forecast_pressure_raw': forecast_pressure_raw,
@@ -2402,6 +2948,21 @@ def create_app():
     # -------------------------------------------------------------
     @app.before_request
     def require_login():
+        if request.method == 'POST' and not validate_csrf_token():
+            flash('Security check failed. Please reload the page and try again.', 'error')
+            csrf_fallbacks = {
+                'retrain': 'predict',
+                'clear_records': 'records',
+                'select_branch': 'dashboard',
+                'update_appointment_status': 'appointments',
+                'complete_appointment': 'appointments',
+                'settings': 'settings',
+            }
+            fallback_endpoint = csrf_fallbacks.get(request.endpoint, request.endpoint if request.endpoint and request.endpoint != 'static' else 'dashboard')
+            try:
+                return redirect(request.referrer or url_for(fallback_endpoint))
+            except Exception:
+                return redirect(url_for('dashboard' if session.get('user_id') else 'login'))
         if request.endpoint in {'login', 'static'}:
             return None
         protected_endpoints = {
@@ -2410,6 +2971,7 @@ def create_app():
             'permanent_delete_staff',
             'settings', 'resources',
             'branches', 'create_branch', 'edit_branch', 'toggle_branch', 'select_branch',
+            'audit_logs',
             'create_user', 'assign_user_branch',
             'patients', 'create_patient', 'patient_detail', 'edit_patient',
             'archive_patient', 'restore_patient', 'create_patient_consultation',
@@ -2438,6 +3000,7 @@ def create_app():
                 'current_user_name': current_user.username if current_user else None,
                 'current_user_role_label': (session.get('role') or '').replace('_', ' ').title(),
                 'current_access_label': 'All branches' if can_view_all_branches() else branch_scope_label(),
+                'csrf_token': csrf_token,
             }
         except Exception:
             return {
@@ -2450,20 +3013,24 @@ def create_app():
                 'current_user_name': None,
                 'current_user_role_label': '',
                 'current_access_label': DEFAULT_BRANCH_NAME,
+                'csrf_token': csrf_token,
             }
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
             user = User.query.filter_by(username=request.form['username']).first()
-            if user and user.password == request.form['password']:
+            if user and verify_user_password(user, request.form.get('password')):
                 if not user.branch_id:
                     user.branch_id = ensure_default_branch().id
                     db.session.commit()
                 session['user_id'] = user.id
+                session['username'] = user.username
                 session['role'] = user.role
                 session['branch_id'] = user.branch_id
                 session['selected_branch_id'] = user.branch_id
+                log_audit('login_success', 'User', user.id, {'username': user.username}, branch_id=user.branch_id)
+                db.session.commit()
                 flash(f'Welcome back, {user.username}.', 'success')
                 return redirect(url_for('dashboard'))
             flash('Invalid credentials', 'error')
@@ -2588,6 +3155,7 @@ def create_app():
                     db.session.flush()
                 account = PatientAccount(patient_id=patient.id, username=values['email'], email=values['email'], password_hash=pending['password_hash'], email_verified=True)
                 db.session.add(account)
+                log_audit('patient_account_verified', 'Patient', patient.id, {'email': values['email']}, branch_id=patient.branch_id)
                 db.session.commit()
                 session.pop('pending_patient_registration', None)
                 session['patient_account_id'] = account.id
@@ -2926,6 +3494,8 @@ def create_app():
                 )
                 db.session.add(appointment)
                 try:
+                    db.session.flush()
+                    log_audit('patient_portal_booking', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'patient_id': patient.id, 'date': appointment.appointment_date, 'time': appointment.appointment_time}, branch_id=branch.id)
                     db.session.commit()
                 except IntegrityError:
                     db.session.rollback()
@@ -2983,6 +3553,7 @@ def create_app():
                 patient.emergency_contact_name = request.form.get('emergency_contact_name', '').strip()
                 patient.emergency_contact_number = request.form.get('emergency_contact_number', '').strip()
                 patient.updated_at = datetime.now()
+                log_audit('patient_profile_update', 'Patient', patient.id, {'email': patient.email}, branch_id=patient.branch_id)
                 db.session.commit()
                 flash('Your profile details have been updated.', 'success')
                 return redirect(url_for('patient_profile'))
@@ -3065,6 +3636,35 @@ def create_app():
             current_time=datetime.now().strftime('%H:%M'),
         )
 
+    @app.route('/audit-logs')
+    def audit_logs():
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+        page = request.args.get('page', 1, type=int)
+        selected_action = request.args.get('action', '').strip()
+        query = AuditLog.query
+        if selected_branch_scope() is not None:
+            query = query.filter(AuditLog.branch_id == current_branch_id())
+        if selected_action:
+            query = query.filter(AuditLog.action == selected_action)
+        logs_page = query.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).paginate(page=page, per_page=20, error_out=False)
+        action_options = [
+            row[0] for row in db.session.query(AuditLog.action)
+            .distinct()
+            .order_by(AuditLog.action.asc())
+            .all()
+        ]
+        return render_template(
+            'audit_logs/index.html',
+            logs=logs_page,
+            action_options=action_options,
+            selected_action=selected_action,
+            all_branches_view=selected_branch_scope() is None,
+            current_date=datetime.now().strftime('%Y-%m-%d'),
+            current_time=datetime.now().strftime('%H:%M'),
+        )
+
     @app.route('/branches/users/new', methods=['GET', 'POST'])
     def create_user():
         redirect_response = require_main_admin()
@@ -3096,12 +3696,15 @@ def create_app():
                 flash('Username already exists.', 'error')
                 return redirect(url_for('create_user'))
 
-            db.session.add(User(
+            user = User(
                 username=username,
-                password=password,
+                password=generate_password_hash(password),
                 role=role,
                 branch_id=branch.id,
-            ))
+            )
+            db.session.add(user)
+            db.session.flush()
+            log_audit('create_user', 'User', user.id, {'username': username, 'role': role, 'branch_id': branch.id}, branch_id=branch.id)
             db.session.commit()
             flash('User added successfully.', 'success')
             return redirect(url_for('branches'))
@@ -3141,6 +3744,7 @@ def create_app():
 
         user.branch_id = branch.id
         user.role = role
+        log_audit('assign_user_branch', 'User', user.id, {'username': user.username, 'role': role, 'branch_id': branch.id}, branch_id=branch.id)
         db.session.commit()
         if user.id == session.get('user_id'):
             session['branch_id'] = branch.id
@@ -3178,6 +3782,8 @@ def create_app():
                 is_active=True,
             )
             db.session.add(branch)
+            db.session.flush()
+            log_audit('create_branch', 'Branch', branch.id, {'name': branch.name, 'code': branch.code}, branch_id=branch.id)
             db.session.commit()
             flash('Branch added successfully.', 'success')
             return redirect(url_for('branches'))
@@ -3214,6 +3820,7 @@ def create_app():
             branch.address = address
             branch.email = email
             branch.contact_number = contact_number
+            log_audit('edit_branch', 'Branch', branch.id, {'name': branch.name, 'code': branch.code}, branch_id=branch.id)
             db.session.commit()
             get_dashboard_summary(force_refresh=True, branch_id=branch.id)
             flash('Branch updated successfully.', 'success')
@@ -3237,6 +3844,7 @@ def create_app():
             flash('The main branch cannot be deactivated.', 'error')
             return redirect(url_for('branches'))
         branch.is_active = not branch.is_active
+        log_audit('toggle_branch', 'Branch', branch.id, {'name': branch.name, 'is_active': branch.is_active}, branch_id=branch.id)
         db.session.commit()
         if session.get('selected_branch_id') == branch.id and not branch.is_active:
             session['selected_branch_id'] = session.get('branch_id') or ensure_default_branch().id
@@ -3318,6 +3926,8 @@ def create_app():
                 is_active=True,
             )
             db.session.add(patient)
+            db.session.flush()
+            log_audit('create_patient', 'Patient', patient.id, {'patient_number': patient.patient_number, 'full_name': patient.full_name})
             db.session.commit()
             flash('Patient record added successfully.', 'success')
             return redirect(url_for('patient_detail', patient_id=patient.id))
@@ -3363,6 +3973,7 @@ def create_app():
             patient.emergency_contact_name = values['emergency_contact_name']
             patient.emergency_contact_number = values['emergency_contact_number']
             patient.updated_at = datetime.now()
+            log_audit('edit_patient', 'Patient', patient.id, {'patient_number': patient.patient_number, 'full_name': patient.full_name})
             db.session.commit()
             flash('Patient record updated successfully.', 'success')
             return redirect(url_for('patient_detail', patient_id=patient.id))
@@ -3376,6 +3987,7 @@ def create_app():
         patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
         patient.is_active = False
         patient.updated_at = datetime.now()
+        log_audit('archive_patient', 'Patient', patient.id, {'patient_number': patient.patient_number, 'full_name': patient.full_name})
         db.session.commit()
         flash('Patient record archived.', 'success')
         return redirect(url_for('patients'))
@@ -3388,6 +4000,7 @@ def create_app():
         patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
         patient.is_active = True
         patient.updated_at = datetime.now()
+        log_audit('restore_patient', 'Patient', patient.id, {'patient_number': patient.patient_number, 'full_name': patient.full_name})
         db.session.commit()
         flash('Patient record reactivated.', 'success')
         return redirect(url_for('patients'))
@@ -3418,6 +4031,8 @@ def create_app():
                 consultation_type=request.form.get('consultation_type', '').strip() or 'Check-up',
             )
             db.session.add(record)
+            db.session.flush()
+            log_audit('create_consultation_record', 'ConsultationRecord', record.id, {'patient_id': patient.id, 'diagnosis': record.diagnosis, 'date': record.consultation_date})
             db.session.commit()
             remove_cached_dashboard_summary(current_branch_id())
             flash('Consultation record added for patient.', 'success')
@@ -3497,6 +4112,8 @@ def create_app():
             )
             db.session.add(appointment)
             try:
+                db.session.flush()
+                log_audit('create_appointment', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'patient_id': patient.id, 'date': appointment_date, 'time': appointment_time})
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
@@ -3539,6 +4156,7 @@ def create_app():
         previous_status = appointment.status
         appointment.status = new_status
         appointment.updated_at = datetime.now()
+        log_audit('update_appointment_status', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'from': previous_status, 'to': new_status})
         db.session.commit()
         if new_status == 'Confirmed' and previous_status != 'Confirmed':
             send_appointment_email(
@@ -3602,6 +4220,7 @@ def create_app():
                 )
                 db.session.add(record)
                 db.session.flush()
+                log_audit('create_consultation_record', 'ConsultationRecord', record.id, {'appointment_id': appointment.id, 'patient_id': patient.id, 'diagnosis': final_diagnosis, 'service': service_name})
                 db.session.add(AppointmentServiceResult(
                     appointment_id=appointment.id,
                     consultation_record_id=record.id,
@@ -3615,6 +4234,7 @@ def create_app():
             appointment.completion_notes = request.form.get('completion_notes', '').strip()
             appointment.completed_at = datetime.now()
             appointment.updated_at = datetime.now()
+            log_audit('complete_appointment', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'records_created': len(services)})
             db.session.commit()
             remove_cached_dashboard_summary(current_branch_id())
             flash(f'Appointment completed and {len(services)} consultation record(s) were created.', 'success')
@@ -3688,6 +4308,8 @@ def create_app():
             )
             db.session.add(service)
             try:
+                db.session.flush()
+                log_audit('create_service', 'MedicalService', service.id, {'service_name': service.service_name, 'category': service.category})
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
@@ -3718,6 +4340,7 @@ def create_app():
             service.required_equipment = join_items(equipment)
             service.is_active = bool(request.form.get('is_active'))
             service.updated_at = datetime.now()
+            log_audit('edit_service', 'MedicalService', service.id, {'service_name': service.service_name, 'category': service.category})
             db.session.commit()
             flash('Service updated successfully.', 'success')
             return redirect(url_for('services'))
@@ -3740,6 +4363,7 @@ def create_app():
             BranchServiceSetting.query.filter_by(service_id=service.id).delete()
             db.session.delete(service)
             flash('Service deleted successfully.', 'success')
+        log_audit('delete_service', 'MedicalService', service_id, {'service_name': service.service_name})
         db.session.commit()
         return redirect(url_for('services'))
 
@@ -3749,6 +4373,8 @@ def create_app():
         if redirect_response:
             return redirect_response
         imported = import_services_from_upload()
+        log_audit('import_services', 'MedicalService', None, {'imported_count': imported})
+        db.session.commit()
         flash(f'Synced {imported} service(s) from the scraped catalog.', 'success')
         return redirect(url_for('services'))
 
@@ -3766,6 +4392,7 @@ def create_app():
         setting.custom_price_php = request.form.get('custom_price_php', '').strip()
         setting.branch_notes = request.form.get('branch_notes', '').strip()
         setting.updated_at = datetime.now()
+        log_audit('update_branch_service', 'BranchServiceSetting', service.id, {'service_name': service.service_name, 'is_available': setting.is_available})
         db.session.commit()
         flash('Branch service setting updated.', 'success')
         return redirect(url_for('services', page=request.form.get('page', 1), q=request.form.get('q', ''), category=request.form.get('category', '')))
@@ -3816,6 +4443,7 @@ def create_app():
                 for idx, item_name in enumerate(items):
                     service = MedicalService.query.filter_by(service_name=item_name).first()
                     db.session.add(ServicePackageItem(package_id=package.id, service_id=service.id if service else None, item_name=item_name, item_order=idx))
+                log_audit('create_package', 'ServicePackage', package.id, {'package_name': package.package_name, 'item_count': len(items)})
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
@@ -3847,6 +4475,7 @@ def create_app():
             for idx, item_name in enumerate(items):
                 service = MedicalService.query.filter_by(service_name=item_name).first()
                 db.session.add(ServicePackageItem(package_id=package.id, service_id=service.id if service else None, item_name=item_name, item_order=idx))
+            log_audit('edit_package', 'ServicePackage', package.id, {'package_name': package.package_name, 'item_count': len(items)})
             db.session.commit()
             flash('Package updated successfully.', 'success')
             return redirect(url_for('packages'))
@@ -3869,6 +4498,7 @@ def create_app():
             ServicePackageItem.query.filter_by(package_id=package.id).delete()
             db.session.delete(package)
             flash('Package deleted successfully.', 'success')
+        log_audit('delete_package', 'ServicePackage', package_id, {'package_name': package.package_name})
         db.session.commit()
         return redirect(url_for('packages'))
 
@@ -3879,6 +4509,8 @@ def create_app():
             return redirect_response
         import_services_from_upload()
         imported = import_packages_from_upload()
+        log_audit('import_packages', 'ServicePackage', None, {'imported_count': imported})
+        db.session.commit()
         flash(f'Synced {imported} package(s) from the scraped catalog.', 'success')
         return redirect(url_for('packages'))
 
@@ -3896,6 +4528,7 @@ def create_app():
         setting.custom_price_php = request.form.get('custom_price_php', '').strip()
         setting.branch_notes = request.form.get('branch_notes', '').strip()
         setting.updated_at = datetime.now()
+        log_audit('update_branch_package', 'BranchPackageSetting', package.id, {'package_name': package.package_name, 'is_available': setting.is_available})
         db.session.commit()
         flash('Branch package setting updated.', 'success')
         return redirect(url_for('packages', page=request.form.get('page', 1), q=request.form.get('q', '')))
@@ -3942,6 +4575,7 @@ def create_app():
         if redirect_response:
             return redirect_response
         deleted_count = ConsultationRecord.query.filter_by(branch_id=current_branch_id()).delete()
+        log_audit('clear_consultation_records', 'ConsultationRecord', None, {'deleted_count': deleted_count})
         db.session.commit()
         remove_cached_dashboard_summary(current_branch_id())
         flash(f'Cleared {deleted_count} consultation records for the current branch.', 'success')
@@ -4063,6 +4697,8 @@ def create_app():
                 flash('No records to train model.', 'warning')
 
             remove_cached_dashboard_summary(current_branch_id())
+            log_audit('upload_consultation_data', 'ConsultationRecord', None, {'filename': filename, 'added_count': added_count, 'skipped_count': skipped_count})
+            db.session.commit()
             flash(f'Data uploaded and model retrained successfully. Added {added_count} new records; skipped {skipped_count} duplicates.', 'success')
             return redirect(url_for('predict'))
 
@@ -4132,6 +4768,12 @@ def create_app():
             write_training_report(report_path, metrics)
             session['last_report'] = report_path
             get_dashboard_summary(force_refresh=True)
+            log_audit('retrain_model', 'RandomForestModel', None, {
+                'validation_r2': metrics.get('validation_r2'),
+                'validation_mae': metrics.get('validation_mae'),
+                'validation_rmse': metrics.get('validation_rmse'),
+            })
+            db.session.commit()
             flash('Model retrained successfully using the existing consultation data', 'success')
         except Exception as e:
             traceback.print_exc()
@@ -4189,6 +4831,7 @@ def create_app():
                 is_active=True,
                 deleted_at=None,
             ))
+        log_audit('load_facility_staff_complement', 'StaffMember', None, {'staff_count': len(FACILITY_STAFF_ROSTER)})
         db.session.commit()
         remove_cached_dashboard_summary(current_branch_id())
         flash('Loaded the official 22-person clinic staff complement.', 'success')
@@ -4209,6 +4852,8 @@ def create_app():
                 deleted_at=None,
             )
             db.session.add(new_staff)
+            db.session.flush()
+            log_audit('create_staff', 'StaffMember', new_staff.id, {'name': new_staff.name, 'role': new_staff.role, 'availability': new_staff.availability})
             db.session.commit()
             get_dashboard_summary(force_refresh=True)
             flash('Staff member added successfully.', 'success')
@@ -4230,6 +4875,7 @@ def create_app():
             staff_member.name = request.form.get('name', staff_member.name).strip()
             staff_member.role = request.form.get('role', staff_member.role).strip()
             staff_member.availability = request.form.get('availability', staff_member.availability).strip()
+            log_audit('edit_staff', 'StaffMember', staff_member.id, {'name': staff_member.name, 'role': staff_member.role, 'availability': staff_member.availability})
             db.session.commit()
             get_dashboard_summary(force_refresh=True)
             flash('Staff member updated successfully.', 'success')
@@ -4249,6 +4895,7 @@ def create_app():
         staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
         staff_member.is_active = False
         staff_member.deleted_at = datetime.now()
+        log_audit('delete_staff', 'StaffMember', staff_member.id, {'name': staff_member.name, 'role': staff_member.role, 'type': 'soft_delete'})
         db.session.commit()
         remove_cached_dashboard_summary(current_branch_id())
         flash('Staff member removed from active roster (soft deleted).', 'success')
@@ -4262,6 +4909,7 @@ def create_app():
         staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
         staff_member.is_active = True
         staff_member.deleted_at = None
+        log_audit('restore_staff', 'StaffMember', staff_member.id, {'name': staff_member.name, 'role': staff_member.role})
         db.session.commit()
         remove_cached_dashboard_summary(current_branch_id())
         flash('Staff member restored to active roster.', 'success')
@@ -4273,6 +4921,7 @@ def create_app():
         if redirect_response:
             return redirect_response
         staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
+        log_audit('permanent_delete_staff', 'StaffMember', staff_member.id, {'name': staff_member.name, 'role': staff_member.role})
         db.session.delete(staff_member)
         db.session.commit()
         get_dashboard_summary(force_refresh=True)
@@ -4290,11 +4939,11 @@ def create_app():
         },
         'prediction': {
             'title': 'Prediction Report',
-            'description': 'Forecasted next-month diagnosis demand and model validation metrics.'
+            'description': 'Forecasted next-month consultation demand, demographic forecast details, and model validation metrics.'
         },
         'resource-recommendation': {
             'title': 'Resource Recommendation Report',
-            'description': 'Staffing, room capacity, and service readiness recommendations.'
+            'description': 'Forecast-based staff-role guidance, staffing capacity, and service readiness recommendations.'
         },
     }
 
@@ -4334,10 +4983,46 @@ def create_app():
                     df[col] = 'Unknown'
                 df[col] = df[col].fillna('Unknown').replace('', 'Unknown')
 
+        def report_period_label():
+            if df.empty:
+                return 'No consultation records'
+            return f"{df['consultation_date'].min().strftime('%B %Y')} - {df['consultation_date'].max().strftime('%B %Y')}"
+
+        def monthly_trend_interpretation(monthly_frame):
+            if monthly_frame is None or len(monthly_frame) < 2:
+                return 'Not enough monthly history to determine trend'
+            ordered = monthly_frame.sort_values('month')
+            previous = int(ordered.iloc[-2]['consultations'])
+            latest = int(ordered.iloc[-1]['consultations'])
+            if previous == 0:
+                return 'Latest month has consultations but previous month had none'
+            change_pct = round(((latest - previous) / previous) * 100, 2)
+            if change_pct >= 5:
+                label = 'Increasing'
+            elif change_pct <= -5:
+                label = 'Decreasing'
+            else:
+                label = 'Stable'
+            return f'{label}: latest month changed by {change_pct}% compared with the previous month'
+
+        def quarter_trend_interpretation(quarterly_frame):
+            if quarterly_frame is None or len(quarterly_frame) < 2:
+                return 'Not enough quarterly history to determine trend'
+            ordered = quarterly_frame.sort_values('quarter')
+            previous = int(ordered.iloc[-2]['consultations'])
+            latest = int(ordered.iloc[-1]['consultations'])
+            if previous == 0:
+                return 'Latest quarter has consultations but previous quarter had none'
+            change_pct = round(((latest - previous) / previous) * 100, 2)
+            direction = 'increased' if change_pct > 0 else 'decreased' if change_pct < 0 else 'remained unchanged'
+            return f'Latest quarter {direction} by {abs(change_pct)}% compared with the previous quarter'
+
         if report_key == 'monthly-consultation':
             monthly_rows = []
             average_monthly_consultations = 0
             average_monthly_top_diagnosis_consultations = 0
+            total_months_analyzed = 0
+            trend_interpretation = 'No consultation records available'
             chart_rows = {
                 'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
                 'x_title': 'Month of Year',
@@ -4357,6 +5042,8 @@ def create_app():
                     .sort_values('month', ascending=False)
                 )
                 monthly_rows = monthly.head(12).to_dict('records')
+                total_months_analyzed = int(monthly['month'].nunique())
+                trend_interpretation = monthly_trend_interpretation(monthly)
                 monthly_for_chart = df.assign(
                     year=df['consultation_date'].dt.year,
                     month_number=df['consultation_date'].dt.month
@@ -4383,6 +5070,21 @@ def create_app():
                     )
                     if not top_diagnosis_monthly.empty:
                         average_monthly_top_diagnosis_consultations = round(top_diagnosis_monthly['consultations'].mean(), 2)
+                top_diagnosis_summary = (
+                    df.groupby('diagnosis')
+                    .size()
+                    .reset_index(name='consultations')
+                    .sort_values('consultations', ascending=False)
+                    .head(5)
+                )
+                if not top_diagnosis_summary.empty:
+                    extra_charts.append({
+                        'title': 'Top 5 Consultation Diagnoses',
+                        'type': 'bar',
+                        'labels': top_diagnosis_summary['diagnosis'].tolist(),
+                        'data': top_diagnosis_summary['consultations'].astype(int).tolist(),
+                        'y_title': 'Total Consultations'
+                    })
                 age_monthly = (
                     df.assign(month=df['consultation_date'].dt.strftime('%Y-%m'))
                     .groupby(['age_group', 'month'])
@@ -4427,6 +5129,16 @@ def create_app():
                     })
             sections = [
                 {
+                    'metric': 'Data Period Covered',
+                    'value': report_period_label(),
+                    'explanation': 'Shows the historical consultation period included in this report.'
+                },
+                {
+                    'metric': 'Total Months Analyzed',
+                    'value': total_months_analyzed,
+                    'explanation': 'Number of monthly periods used to calculate the report summaries.'
+                },
+                {
                     'metric': 'Average Monthly Consultations',
                     'value': average_monthly_consultations,
                     'explanation': 'Average number of consultations per month based on the uploaded records.'
@@ -4442,6 +5154,11 @@ def create_app():
                     'explanation': 'Average monthly consultation count for the top diagnosis across uploaded records.'
                 },
                 {
+                    'metric': 'Monthly Trend Interpretation',
+                    'value': trend_interpretation,
+                    'explanation': 'Brief reading of whether the latest monthly consultation volume is increasing, decreasing, or stable.'
+                },
+                {
                     'metric': f'Forecasted Total Cases for the Next Month ({forecast_month_label})',
                     'value': summary.get('predicted_cases_next_month', 0),
                     'explanation': 'The forecasted total consultation demand for the next calendar month. This helps compare recent actual volume with expected upcoming demand.'
@@ -4454,6 +5171,14 @@ def create_app():
         elif report_key == 'quarterly':
             quarterly_rows = []
             average_quarterly_consultations = 0
+            total_quarters_analyzed = 0
+            latest_quarter_label = 'N/A'
+            latest_quarter_total = 0
+            highest_quarter_label = 'N/A'
+            highest_quarter_total = 0
+            lowest_quarter_label = 'N/A'
+            lowest_quarter_total = 0
+            quarter_change = 'Not enough quarterly history'
             chart_rows = {
                 'labels': ['Q1', 'Q2', 'Q3', 'Q4'],
                 'x_title': 'Quarter of Year',
@@ -4469,6 +5194,17 @@ def create_app():
                 )
                 quarterly_rows = quarterly.head(8).to_dict('records')
                 average_quarterly_consultations = round(quarterly['consultations'].mean(), 2)
+                total_quarters_analyzed = int(quarterly['quarter'].nunique())
+                latest_row = quarterly.sort_values('quarter').iloc[-1]
+                highest_row = quarterly.sort_values('consultations', ascending=False).iloc[0]
+                lowest_row = quarterly.sort_values('consultations', ascending=True).iloc[0]
+                latest_quarter_label = latest_row['quarter']
+                latest_quarter_total = int(latest_row['consultations'])
+                highest_quarter_label = highest_row['quarter']
+                highest_quarter_total = int(highest_row['consultations'])
+                lowest_quarter_label = lowest_row['quarter']
+                lowest_quarter_total = int(lowest_row['consultations'])
+                quarter_change = quarter_trend_interpretation(quarterly)
                 quarterly_for_chart = df.assign(
                     year=df['consultation_date'].dt.year,
                     quarter_number=df['consultation_date'].dt.quarter
@@ -4527,19 +5263,39 @@ def create_app():
                     })
             sections = [
                 {
+                    'metric': 'Data Period Covered',
+                    'value': report_period_label(),
+                    'explanation': 'Shows the historical consultation period included in this quarterly report.'
+                },
+                {
+                    'metric': 'Total Quarters Analyzed',
+                    'value': total_quarters_analyzed,
+                    'explanation': 'Number of quarterly periods used for broad demand analysis.'
+                },
+                {
+                    'metric': 'Latest Quarter Total',
+                    'value': f'{latest_quarter_label}: {latest_quarter_total}',
+                    'explanation': 'Most recent quarter volume, useful for current operating context.'
+                },
+                {
                     'metric': 'Average Consultations per Quarter',
                     'value': average_quarterly_consultations,
                     'explanation': 'Average number of consultations per quarter based on uploaded records.'
                 },
                 {
-                    'metric': 'Active Staff',
-                    'value': summary.get('staff_count', 0),
-                    'explanation': 'Number of active staff members currently counted for capacity planning.'
+                    'metric': 'Highest Quarter',
+                    'value': f'{highest_quarter_label}: {highest_quarter_total}',
+                    'explanation': 'Quarter with the highest historical consultation volume.'
                 },
                 {
-                    'metric': 'Capacity Status',
-                    'value': summary.get('capacity_status', 'Unknown'),
-                    'explanation': 'Overall demand-versus-staffing status based on predicted cases and estimated monthly capacity.'
+                    'metric': 'Lowest Quarter',
+                    'value': f'{lowest_quarter_label}: {lowest_quarter_total}',
+                    'explanation': 'Quarter with the lowest historical consultation volume.'
+                },
+                {
+                    'metric': 'Quarter-over-Quarter Change',
+                    'value': quarter_change,
+                    'explanation': 'Compares the latest quarter with the previous quarter to summarize broad demand movement.'
                 },
             ]
             rows = []
@@ -4550,11 +5306,26 @@ def create_app():
             forecast = summary.get('predictions', [])
             metrics = summary.get('rf_metrics') or {}
             demographic_forecast = summary.get('demographic_forecast') or {}
+            predicted_month = summary.get('predicted_month_full_label') or summary.get('predicted_month_label', 'Unknown')
+            validation_start = metrics.get('validation_period_start', 'N/A')
+            validation_end = metrics.get('validation_period_end', 'N/A')
+            validation_period = f'{validation_start} - {validation_end}' if validation_start != 'N/A' or validation_end != 'N/A' else 'Available after retraining'
+            rare_grouping_note = 'Not applied or unavailable'
+            if metrics.get('grouped_diagnosis_count') is not None:
+                rare_grouping_note = (
+                    f"{metrics.get('grouped_diagnosis_count')} rare diagnosis labels grouped as "
+                    f"{RARE_DIAGNOSIS_BUCKET} using minimum {metrics.get('diagnosis_grouping_minimum_records')} records"
+                )
             sections = [
                 {
                     'metric': 'Predicted Month',
-                    'value': summary.get('predicted_month_label', 'Unknown'),
+                    'value': predicted_month,
                     'explanation': 'The future month being forecasted by the model.'
+                },
+                {
+                    'metric': 'Prediction Scope',
+                    'value': 'Monthly consultation volume by diagnosis, age group, and gender',
+                    'explanation': 'Clarifies that Random Forest forecasts demand volume rather than making medical decisions.'
                 },
                 {
                     'metric': 'Predicted Cases Next Month',
@@ -4576,10 +5347,35 @@ def create_app():
                     'value': metrics.get('validation_mae', metrics.get('mae', 'N/A')),
                     'explanation': 'Average prediction error measured in consultation cases per diagnosis-month.'
                 },
+                {
+                    'metric': 'Validation RMSE',
+                    'value': metrics.get('validation_rmse', metrics.get('rmse', 'N/A')),
+                    'explanation': 'Prediction error metric that gives more weight to larger mistakes.'
+                },
+                {
+                    'metric': 'Validation MSE',
+                    'value': metrics.get('validation_mse', metrics.get('mse', 'N/A')),
+                    'explanation': 'Average squared prediction error on the validation months.'
+                },
+                {
+                    'metric': 'Improvement over Baseline',
+                    'value': f"{metrics.get('improvement_vs_baseline_pct', 'N/A')}%",
+                    'explanation': 'How much the model reduced MAE compared with using the previous month as the forecast.'
+                },
+                {
+                    'metric': 'Validation Period',
+                    'value': validation_period,
+                    'explanation': 'Most recent months reserved for testing the model after training on earlier history.'
+                },
+                {
+                    'metric': 'Rare Diagnosis Handling',
+                    'value': rare_grouping_note,
+                    'explanation': 'Sparse diagnosis labels are grouped to reduce noisy low-frequency targets.'
+                },
             ]
             rows = forecast
             details_title = 'Diagnosis Forecast Details'
-            details_note = 'This table lists the forecasted next-month case count by diagnosis so staff and resources can be planned by expected demand area.'
+            details_note = f'This table lists the forecasted diagnosis counts for {predicted_month} so staff and resources can be planned by expected demand area.'
             extra_tables = [
                 {
                     'title': 'Forecast by Age Group',
@@ -4596,7 +5392,44 @@ def create_app():
             ]
 
         elif report_key == 'resource-recommendation':
+            staff_capacity = int(load_app_settings().get('staff_capacity_per_month', STAFF_CAPACITY_PER_MONTH))
+            actual_staff_by_role = summary.get('actual_staff_by_role', {})
+            role_demand = Counter()
+            forecast = summary.get('predictions', [])
+            for item in forecast:
+                diagnosis = item.get('diagnosis', '')
+                predicted_count = int(item.get('predicted_next_month') or 0)
+                mapped_roles = infer_staff_and_equipment(diagnosis).get('roles', ['General Physicians'])
+                for role in mapped_roles:
+                    role_demand[role] += predicted_count
+            if not role_demand and summary.get('predicted_cases_next_month'):
+                role_demand['General Physicians'] = int(summary.get('predicted_cases_next_month') or 0)
+            role_rows = []
+            for role in sorted(set(actual_staff_by_role.keys()) | set(role_demand.keys())):
+                forecast_basis = int(role_demand.get(role, 0))
+                available = int(actual_staff_by_role.get(role, 0))
+                required = int(np.ceil(forecast_basis / max(1, staff_capacity))) if forecast_basis else 0
+                gap = max(0, required - available)
+                if gap > 0:
+                    status = 'Needs Additional Staff'
+                elif required and available <= required:
+                    status = 'At Capacity'
+                else:
+                    status = 'Sufficient'
+                role_rows.append({
+                    'staff_role': role,
+                    'forecast_basis': forecast_basis,
+                    'available_staff': available,
+                    'estimated_required': required,
+                    'gap': gap,
+                    'status': status,
+                })
             sections = [
+                {
+                    'metric': 'Recommendation Method',
+                    'value': 'Forecast-to-role mapping',
+                    'explanation': 'Random Forest forecasts consultation demand; the system maps that demand to configured staff roles for planning.'
+                },
                 {
                     'metric': 'Estimated Monthly Capacity',
                     'value': summary.get('estimated_monthly_capacity', 0),
@@ -4618,12 +5451,9 @@ def create_app():
                     'explanation': 'Recommended staffing/resource action based on forecast pressure.'
                 },
             ]
-            rows = [
-                {'role': role, 'actual_count': count}
-                for role, count in summary.get('actual_staff_by_role', {}).items()
-            ]
-            details_title = 'Active Staff By Role'
-            details_note = 'This table shows current active staff counts by role, which are used when estimating monthly capacity.'
+            rows = role_rows
+            details_title = 'Staff Role Capacity Gap'
+            details_note = 'This table compares forecasted demand mapped to staff roles against current active staff counts and the configured staff capacity setting. It is a decision-support recommendation, not an independent clinical staffing diagnosis.'
 
         return {
             'key': report_key,
@@ -4718,6 +5548,8 @@ def create_app():
                 app_settings['staff_capacity_per_month'] = capacity
                 save_app_settings(app_settings)
                 get_dashboard_summary(force_refresh=True)
+                log_audit('update_staff_capacity_setting', 'Settings', 'staff_capacity_per_month', {'value': capacity})
+                db.session.commit()
                 flash('Staff capacity setting updated.', 'success')
             except Exception:
                 flash('Please enter a valid staff capacity number.', 'error')
@@ -4850,11 +5682,11 @@ def init_db(app=None):
         migrate_operational_schema(app)
         default_branch = Branch.query.filter_by(code=DEFAULT_BRANCH_CODE).first()
         if not User.query.filter_by(username='admin').first():
-            db.session.add(User(username='admin', password='admin123', role='administrator', branch_id=default_branch.id))
+            db.session.add(User(username='admin', password=generate_password_hash('admin123'), role='administrator', branch_id=default_branch.id))
         if not User.query.filter_by(username='staff').first():
-            db.session.add(User(username='staff', password='staff123', role='staff', branch_id=default_branch.id))
+            db.session.add(User(username='staff', password=generate_password_hash('staff123'), role='staff', branch_id=default_branch.id))
         if not User.query.filter_by(username='superadmin').first():
-            db.session.add(User(username='superadmin', password='superadmin123', role='superadmin', branch_id=default_branch.id))
+            db.session.add(User(username='superadmin', password=generate_password_hash('superadmin123'), role='superadmin', branch_id=default_branch.id))
         if not StaffMember.query.first():
             for person in build_facility_staff_roster():
                 db.session.add(StaffMember(
@@ -4865,6 +5697,9 @@ def init_db(app=None):
                     is_active=True,
                     deleted_at=None,
                 ))
+        for user in User.query.all():
+            if user.password and not user.password.startswith(('scrypt:', 'pbkdf2:', 'argon2:')):
+                user.password = generate_password_hash(user.password)
         db.session.commit()
 
 flask_app = create_app()

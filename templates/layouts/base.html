@@ -34,6 +34,7 @@
         <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}">Staff Management</a>
         {% if can_view_all_branches %}
           <a href="/branches" class="{% if request.path.startswith('/branches') %}active{% endif %}">Branches</a>
+          <a href="/audit-logs" class="{% if request.path.startswith('/audit-logs') %}active{% endif %}">Audit Logs</a>
         {% endif %}
         <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}">Settings</a>
         <a href="/logout">Logout</a>
@@ -107,6 +108,21 @@
     </div>
   </div>
   <script>
+    const CSRF_TOKEN = {{ csrf_token()|tojson }};
+    function injectCsrfTokens(container = document) {
+      container.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
+        let input = form.querySelector('input[name="_csrf_token"]');
+        if (!input) {
+          input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = '_csrf_token';
+          form.appendChild(input);
+        }
+        input.value = CSRF_TOKEN;
+      });
+    }
+    injectCsrfTokens();
+
     let loadingTimer = null;
     let loadingProgress = 0;
     let pendingConfirmForm = null;
@@ -308,6 +324,7 @@
           window.history.pushState({}, '', path);
         }
 
+        injectCsrfTokens(contentElement);
         await runInlineScripts(contentElement);
         finishLoading();
       } catch (error) {

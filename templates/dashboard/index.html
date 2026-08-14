@@ -109,11 +109,14 @@
     </table>
   </div>
   <div class="chart-card">
-    <h3>Resource Recommendation</h3>
+    <h3>Forecast-Based Resource Recommendation</h3>
     <p>{{ summary.resource_recommendation }}</p>
+    <p style="color:#64748b; line-height:1.5;">
+      Random Forest forecasts consultation volume. Staff-role guidance is produced by mapping forecasted cases and scheduled services to clinic staff roles.
+    </p>
     <p><strong>Staff Capacity:</strong> {{ summary.estimated_monthly_capacity }} consultations/month</p>
     <p><strong>Forecast Pressure:</strong> {{ summary.forecast_pressure }}%</p>
-    <p><strong>Top Staff Role Needed:</strong> {{ staff_forecast.get('top_role', 'No role demand yet') }} ({{ staff_forecast.get('top_role_demand', 0) }} cases or service needs)</p>
+    <p><strong>Top Mapped Staff Role:</strong> {{ staff_forecast.get('top_role', 'No role demand yet') }} ({{ staff_forecast.get('top_role_demand', 0) }} cases or service needs)</p>
     <p><em>{{ summary.resource_forecast_recommendation }}</em></p>
   </div>
 </div>

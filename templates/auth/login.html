@@ -121,6 +121,7 @@
       </div>
 
       <form method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <label>
           Username
           <input name="username" placeholder="Enter your username" required>

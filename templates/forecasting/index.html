@@ -2,7 +2,7 @@
 
 {% block title %}Predictions · Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Prediction Center{% endblock %}
-{% block page_subtitle %}Random Forest insights for consultation trends and patient volume{% endblock %}
+{% block page_subtitle %}Random Forest demand forecasts with forecast-based staff planning guidance{% endblock %}
 
 {% block content %}
 {% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
@@ -16,6 +16,7 @@
       <form method="post" action="{{ url_for('retrain') }}"
             data-confirm-title="Retrain Random Forest model?"
             data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button class="btn" type="submit">Retrain Model</button>
       </form>
     {% else %}
@@ -46,7 +47,7 @@
 <div class="chart-card" style="margin-top:20px;">
   <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
   <p style="margin:0; color:#64748b; line-height:1.5;">
-    The forecast charts and demographic segment rankings below all refer to {{ summary.predicted_month_full_label }}.
+    The Random Forest model forecasts consultation volume for {{ summary.predicted_month_full_label }}. Staff-role guidance below is derived from those forecasted cases using the clinic's service and diagnosis-to-role mapping.
   </p>
 </div>
 
@@ -138,13 +139,16 @@
 
 <div class="grid section-grid" style="margin-top:20px;">
   <div class="chart-card">
-    <h3>Doctor and Medical Staff Needed for {{ summary.predicted_month_full_label }}</h3>
+    <h3>Forecast-Based Staff Recommendation for {{ summary.predicted_month_full_label }}</h3>
+    <p style="margin:0 0 14px; color:#64748b; line-height:1.5;">
+      This is a decision-support recommendation, not an independent medical diagnosis model. The system maps forecasted consultation demand to the staff roles configured for related services and cases.
+    </p>
     <div class="chart-container staff-forecast-chart">
       <canvas id="predictionStaffForecastChart"></canvas>
     </div>
   </div>
   <div class="chart-card">
-    <h3>Staff Role Forecast</h3>
+    <h3>Mapped Staff Role Demand</h3>
     <table class="table">
       <thead>
         <tr><th>Staff Role</th><th>Planning Demand</th><th>Available</th><th>Status</th></tr>
@@ -168,12 +172,13 @@
 <div class="chart-card" style="margin-top:20px;">
   <h3>Model Notes</h3>
   <p style="margin:0; color:#64748b; line-height:1.5;">
-    The Random Forest model uses monthly lag features, rolling averages, seasonality, diagnosis, age group, and gender. Retraining updates the validation metrics and forecast outputs using the current consultation records.
+    The Random Forest model predicts monthly consultation demand using lag features, rolling averages, seasonality, diagnosis, age group, and gender. Doctor and staff guidance is generated after prediction by mapping forecasted diagnoses, services, and appointments to required staff roles.
   </p>
   {% if summary.branch_code != 'ALL' %}
     <form method="post" action="{{ url_for('retrain') }}" style="margin-top:12px;"
           data-confirm-title="Retrain Random Forest model?"
           data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button class="btn" type="submit">Retrain from existing data</button>
     </form>
   {% else %}
