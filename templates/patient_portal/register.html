@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Create Patient Account - Accudetek Health Diagnostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="patient-public-body">
-  <header class="patient-public-header"><a class="patient-public-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo"><span><strong>Accudetek Health Diagnostics</strong><small>Patient Portal</small></span></a><a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a></header>
+  <header class="clinic-home-header"><a class="clinic-home-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek Health Diagnostics logo"><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></a><nav class="clinic-home-nav" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a><a href="{{ url_for('track_appointment') }}">Track appointment</a></nav><div class="clinic-home-actions"><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div></header>
   <main class="patient-profile-main">
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <section class="patient-profile-card">

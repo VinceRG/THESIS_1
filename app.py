@@ -11,7 +11,7 @@ from email.message import EmailMessage
 import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
-from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, flash, redirect, render_template, request, send_from_directory, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, text
 from sqlalchemy.exc import IntegrityError
@@ -20,6 +20,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 # -------------------------------------------------------------
 # Constants
@@ -181,6 +182,7 @@ class Patient(db.Model):
     address = db.Column(db.String(255), nullable=True)
     emergency_contact_name = db.Column(db.String(140), nullable=True)
     emergency_contact_number = db.Column(db.String(60), nullable=True)
+    profile_photo = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
@@ -1811,6 +1813,18 @@ def create_app():
     app.config['SMTP_FROM'] = os.getenv('SMTP_FROM', os.getenv('SMTP_USERNAME', ''))
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+    def profile_photo_extension(photo):
+        """Return a safe extension only when the upload has a supported image signature."""
+        header = photo.read(32)
+        photo.seek(0)
+        if header.startswith(b'\xff\xd8\xff'):
+            return 'jpg'
+        if header.startswith(b'\x89PNG\r\n\x1a\n'):
+            return 'png'
+        if header.startswith(b'RIFF') and header[8:12] == b'WEBP':
+            return 'webp'
+        return None
+
     db.init_app(app)
     settings_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'app_settings.json')
     dashboard_cache_version = 10
@@ -3170,12 +3184,52 @@ def create_app():
             email = request.form.get('email', '').strip().lower()
             account = PatientAccount.query.filter_by(email=email).first()
             if account and account.email_verified and check_password_hash(account.password_hash, request.form.get('password', '')) and account.patient.is_active:
+                code = f'{secrets.randbelow(1_000_000):06d}'
+                session['pending_patient_login'] = {
+                    'account_id': account.id,
+                    'code_hash': generate_password_hash(code),
+                    'expires_at': (datetime.now() + timedelta(minutes=10)).isoformat(),
+                }
+                try:
+                    send_patient_verification_email(account.email, code)
+                except Exception as exc:
+                    session.pop('pending_patient_login', None)
+                    flash(f'We could not send your verification code: {exc}', 'error')
+                    return render_template('patient_portal/login.html')
+                flash('A six-digit verification code was sent to your email address.', 'success')
+                return redirect(url_for('patient_verify_login'))
+            flash('Invalid email address or password.', 'error')
+        return render_template('patient_portal/login.html')
+
+    @app.route('/patient-verify-login', methods=['GET', 'POST'])
+    def patient_verify_login():
+        pending = session.get('pending_patient_login')
+        if not pending:
+            flash('Please sign in to receive a verification code.', 'error')
+            return redirect(url_for('patient_login'))
+        account = db.session.get(PatientAccount, pending.get('account_id'))
+        if account is None or not account.email_verified or not account.patient.is_active:
+            session.pop('pending_patient_login', None)
+            flash('This account is no longer available. Please sign in again.', 'error')
+            return redirect(url_for('patient_login'))
+        if request.method == 'POST':
+            try:
+                expired = datetime.fromisoformat(pending['expires_at']) < datetime.now()
+            except (KeyError, TypeError, ValueError):
+                expired = True
+            if expired:
+                session.pop('pending_patient_login', None)
+                flash('That verification code has expired. Please sign in again.', 'error')
+                return redirect(url_for('patient_login'))
+            if not check_password_hash(pending.get('code_hash', ''), request.form.get('code', '').strip()):
+                flash('That verification code is invalid.', 'error')
+            else:
+                session.pop('pending_patient_login', None)
                 session['patient_account_id'] = account.id
                 session['patient_portal_patient_id'] = account.patient_id
                 flash(f'Welcome back, {account.patient.full_name}.', 'success')
                 return redirect(url_for('patient_profile'))
-            flash('Invalid email address or password.', 'error')
-        return render_template('patient_portal/login.html')
+        return render_template('patient_portal/verify_login.html', email=account.email)
 
     @app.route('/patient-logout')
     def patient_logout():
@@ -3578,6 +3632,13 @@ def create_app():
             appointments=appointments,
             upcoming_appointments=upcoming_appointments,
         )
+
+    @app.route('/patient-profile-photo/<filename>')
+    def patient_profile_photo(filename):
+        account = PatientAccount.query.filter_by(id=session.get('patient_account_id')).first()
+        if account is None or account.patient.profile_photo != filename:
+            abort(404)
+        return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], 'patient_photos'), filename)
 
     @app.route('/branches/select', methods=['POST'])
     def select_branch():
@@ -5631,6 +5692,10 @@ def migrate_branch_schema(app):
 def migrate_operational_schema(app):
     with app.app_context():
         with db.engine.begin() as conn:
+            patient_result = conn.execute(text("PRAGMA table_info(patient)"))
+            patient_columns = {row[1] for row in patient_result.fetchall()}
+            if 'profile_photo' not in patient_columns:
+                conn.execute(text("ALTER TABLE patient ADD COLUMN profile_photo VARCHAR(255)"))
             account_result = conn.execute(text("PRAGMA table_info(patient_account)"))
             account_columns = {row[1] for row in account_result.fetchall()}
             if 'email' not in account_columns:

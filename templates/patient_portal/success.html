@@ -6,30 +6,35 @@
   <title>Appointment Submitted - Accudetek Health Diagnostics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="patient-public-body">
-  <header class="patient-public-header">
-    <a class="patient-public-brand" href="{{ url_for('patient_portal') }}">
+  <header class="clinic-home-header">
+    <a class="clinic-home-brand" href="{{ url_for('landing_page') }}">
       <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
       <span>
-        <strong>Accudetek Health Diagnostics</strong>
-        <small>{{ branch.name }}</small>
+        <strong>Accudetek</strong>
+        <small>Health Diagnostics</small>
       </span>
     </a>
-    <nav class="patient-public-nav" aria-label="Patient portal navigation">
-      {% if session.get('patient_account_id') %}<a href="{{ url_for('patient_profile') }}">My Profile</a><a href="{{ url_for('patient_logout') }}">Sign Out</a>{% else %}<a href="{{ url_for('patient_login') }}">Patient Sign In</a><a href="{{ url_for('patient_register') }}">Create Account</a>{% endif %}
-      <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
-    </nav>
+    <button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button>
+    <nav class="clinic-home-nav" id="clinic-navigation" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a>{% if session.get('patient_account_id') %}<a href="{{ url_for('patient_profile') }}">My Profile</a>{% else %}<a href="{{ url_for('track_appointment') }}">Track appointment</a>{% endif %}</nav>
+    <div class="clinic-home-actions">{% if session.get('patient_account_id') %}<a href="{{ url_for('patient_logout') }}">Sign out</a>{% else %}<a href="{{ url_for('patient_login') }}">Patient sign in</a>{% endif %}<a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
   </header>
 
   <main class="patient-success-main">
-    <section class="patient-success-card">
+    <section class="patient-confirmation-shell">
+      <div class="patient-confirmation-hero">
+        <span>Appointment request received</span>
+        <h1>We’ll take it from here.</h1>
+        <p>Your request is with the clinic. We will review availability and send the next update to your email.</p>
+        <div class="patient-confirmation-steps"><span><b>1</b> Request sent</span><span><b>2</b> Clinic review</span><span><b>3</b> Confirmation</span></div>
+      </div>
+      <section class="patient-success-card">
       <div class="success-mark">&#10003;</div>
-      <span>Appointment Request Submitted</span>
       <h1>{{ patient.full_name }}</h1>
-      <p>Your appointment request has been saved and is now pending clinic confirmation.</p>
+      <p>Your appointment request has been saved and is pending clinic confirmation.</p>
 
       <dl class="patient-success-details">
         <dt>Appointment ID</dt>
@@ -92,7 +97,21 @@
         {% endif %}
         <a href="{{ url_for('patient_portal', branch_id=branch.id) }}">Book Another Appointment</a>
       </div>
+      </section>
     </section>
   </main>
+  <footer class="clinic-home-footer patient-flow-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>Care you can trust, from booking to results.</p><a href="{{ url_for('landing_page') }}">Return home</a></footer>
+  <script>
+    const menuToggle = document.querySelector('.clinic-menu-toggle');
+    const homeHeader = document.querySelector('.clinic-home-header');
+    menuToggle?.addEventListener('click', () => {
+      const isOpen = homeHeader.classList.toggle('is-menu-open');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.querySelectorAll('.clinic-home-nav a').forEach(link => link.addEventListener('click', () => {
+      homeHeader.classList.remove('is-menu-open');
+      menuToggle?.setAttribute('aria-expanded', 'false');
+    }));
+  </script>
 </body>
 </html>

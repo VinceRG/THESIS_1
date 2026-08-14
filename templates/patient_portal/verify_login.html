@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Patient Sign In - Accudetek Health Diagnostics</title>
+  <title>Verify Sign In - Accudetek Health Diagnostics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -11,22 +11,10 @@
   <main class="patient-profile-main">
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <section class="patient-profile-card patient-lookup-card">
-      <span class="patient-kicker">Patient Portal</span><h1>Sign in to your account</h1><p>View your profile, appointment status, and appointment history.</p>
-      <form method="post" class="patient-auth-form"><label>Email Address<input type="email" name="email" required autofocus autocomplete="email" placeholder="you@example.com"></label><label>Password<input type="password" name="password" required autocomplete="current-password"></label><button type="submit">Sign In Securely</button></form>
-      <p class="patient-auth-footer">New patient? <a href="{{ url_for('patient_register') }}">Create an account</a>.</p>
+      <span class="patient-kicker">Secure sign in</span><h1>Verify your email</h1><p>We sent a six-digit code to <strong>{{ email }}</strong>. Enter it to finish signing in. The code expires after 10 minutes.</p>
+      <form method="post" class="patient-auth-form"><label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus placeholder="000000"></label><button class="patient-primary-button" type="submit">Verify and sign in</button></form>
+      <p class="patient-auth-footer"><a href="{{ url_for('patient_login') }}">Use a different account</a>.</p>
     </section>
   </main>
-<script>
-  const CSRF_TOKEN = {{ csrf_token()|tojson }};
-  document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
-    if (!form.querySelector('input[name="_csrf_token"]')) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = '_csrf_token';
-      input.value = CSRF_TOKEN;
-      form.appendChild(input);
-    }
-  });
-</script>
 </body>
 </html>
