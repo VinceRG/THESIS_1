@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% from 'partials/pagination.html' import render_pagination %}
 
 {% block title %}Services - Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Services{% endblock %}
@@ -11,6 +12,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="section-stack">
 <div class="chart-card">
   <div class="page-heading-row">
     <div>
@@ -56,11 +58,11 @@
   </form>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   {% if mode == 'global' %}
     <h3>Master Services</h3>
     <div class="table-scroll">
-      <table class="table service-table">
+      <table class="table service-table table-sticky-head">
         <thead>
           <tr>
             <th>Service</th>
@@ -98,7 +100,7 @@
               </td>
             </tr>
           {% else %}
-            <tr><td colspan="7">No services found.</td></tr>
+            <tr class="table-empty-state"><td colspan="7"><strong>No services found.</strong>Try clearing your filters or add a new service.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -106,7 +108,7 @@
   {% else %}
     <h3>Branch Services</h3>
     <div class="table-scroll">
-      <table class="table service-table">
+      <table class="table service-table table-sticky-head">
         <thead>
           <tr>
             <th>Service</th>
@@ -167,33 +169,14 @@
               </td>
             </tr>
           {% else %}
-            <tr><td colspan="4">No branch services found.</td></tr>
+            <tr class="table-empty-state"><td colspan="4"><strong>No branch services found.</strong>Try clearing your filters.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   {% endif %}
 
-  {% if services.pages > 1 %}
-    <div class="pagination" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-      {% if services.has_prev %}
-        <a class="btn secondary" href="{{ url_for('services', page=services.prev_num, q=search_query, category=selected_category) }}">Previous</a>
-      {% endif %}
-      {% for page_num in services.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
-        {% if page_num %}
-          {% if page_num == services.page %}
-            <span class="btn" style="cursor:default;">{{ page_num }}</span>
-          {% else %}
-            <a class="btn secondary" href="{{ url_for('services', page=page_num, q=search_query, category=selected_category) }}">{{ page_num }}</a>
-          {% endif %}
-        {% else %}
-          <span style="padding:10px 4px; color:#64748b;">...</span>
-        {% endif %}
-      {% endfor %}
-      {% if services.has_next %}
-        <a class="btn secondary" href="{{ url_for('services', page=services.next_num, q=search_query, category=selected_category) }}">Next</a>
-      {% endif %}
-    </div>
-  {% endif %}
+  {{ render_pagination(services, 'services', {'q': search_query, 'category': selected_category}) }}
+</div>
 </div>
 {% endblock %}

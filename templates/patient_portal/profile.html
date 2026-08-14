@@ -83,17 +83,6 @@
         </div>
       </section>
   </main>
-<script>
-  const CSRF_TOKEN = {{ csrf_token()|tojson }};
-  document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
-    if (!form.querySelector('input[name="_csrf_token"]')) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = '_csrf_token';
-      input.value = CSRF_TOKEN;
-      form.appendChild(input);
-    }
-  });
-</script>
+{% include 'partials/csrf_inject.html' %}
 </body>
 </html>

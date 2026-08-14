@@ -6,6 +6,13 @@
 
 {% block content %}
 {% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
+{% if not summary.rf_metrics %}
+  <div class="flash-message flash-warning" style="margin-bottom:18px;">
+    Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.
+    Visit <a href="{{ url_for('predict') }}">Predictions</a> and use <strong>Retrain Model</strong> for a fresh forecast.
+  </div>
+{% endif %}
+<div class="section-stack">
 <div class="grid cards">
   <div class="card">
     <h3>Total Consultations</h3>
@@ -29,7 +36,7 @@
   </div>
 </div>
 
-<div class="grid section-grid" style="margin-top:20px;">
+<div class="grid section-grid">
   <div class="chart-card">
     <h3>Monthly Consultation Trend</h3>
     <div class="chart-container">
@@ -44,7 +51,7 @@
   </div>
 </div>
 
-<div class="grid section-grid" style="margin-top:20px;">
+<div class="grid section-grid">
   <div class="chart-card">
     <h3>Top Consultation Cases</h3>
     <div class="chart-container donut-container">
@@ -69,21 +76,21 @@
   </div>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
-  <p style="margin:0; color:#64748b; line-height:1.5;">
+  <p class="muted-copy">
     The prediction summary, resource recommendation, age-group forecast, gender forecast, and demographic segment forecast below all refer to {{ summary.predicted_month_full_label }}.
   </p>
 </div>
 
-<div class="grid section-grid" style="margin-top:20px;">
+<div class="grid section-grid">
   <div class="chart-card full-width">
     <h3>Prediction Summary</h3>
     <p style="margin-bottom:12px; font-size:1.1rem;">
       <strong>Reference Month (Last Year):</strong> {{ summary.reference_month }} &nbsp;|&nbsp;
       <strong>Predicted Month (Current):</strong> {{ summary.predicted_month_label }}
     </p>
-    <table class="table">
+    <table class="table table-sticky-head">
       <thead>
         <tr>
           <th>Disease</th>
@@ -95,14 +102,14 @@
       <tbody>
         {% for item in summary.predictions %}
           <tr>
-            <td>{{ item.diagnosis }}</td>
+            <td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td>
             <td>{{ item.current_month }}</td>
             <td>{{ item.predicted_next_month }}</td>
             <td>{{ item.trend }}</td>
           </tr>
         {% else %}
-          <tr>
-            <td colspan="4">No predictions available yet. Upload data and retrain the model.</td>
+          <tr class="table-empty-state">
+            <td colspan="4"><strong>No predictions available yet.</strong>Upload consultation data and retrain the model to generate a forecast.</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -111,7 +118,7 @@
   <div class="chart-card">
     <h3>Forecast-Based Resource Recommendation</h3>
     <p>{{ summary.resource_recommendation }}</p>
-    <p style="color:#64748b; line-height:1.5;">
+    <p class="muted-copy">
       Random Forest forecasts consultation volume. Staff-role guidance is produced by mapping forecasted cases and scheduled services to clinic staff roles.
     </p>
     <p><strong>Staff Capacity:</strong> {{ summary.estimated_monthly_capacity }} consultations/month</p>
@@ -121,7 +128,7 @@
   </div>
 </div>
 
-<div class="grid section-grid" style="margin-top:20px;">
+<div class="grid section-grid">
   <div class="chart-card">
     <h3>Forecast by Age Group</h3>
     <div class="chart-container">
@@ -136,7 +143,7 @@
   </div>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>Top Diagnosis-Demographic Forecast Segments</h3>
   <div class="grid demographic-comparison">
     <div>
@@ -147,9 +154,9 @@
         </thead>
         <tbody>
           {% for item in summary.demographic_forecast.segments if item.gender|lower == 'male' %}
-            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+            <tr><td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
           {% else %}
-            <tr><td colspan="3">No male segment forecast available.</td></tr>
+            <tr class="table-empty-state"><td colspan="3">No male segment forecast available.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -162,14 +169,15 @@
         </thead>
         <tbody>
           {% for item in summary.demographic_forecast.segments if item.gender|lower == 'female' %}
-            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+            <tr><td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
           {% else %}
-            <tr><td colspan="3">No female segment forecast available.</td></tr>
+            <tr class="table-empty-state"><td colspan="3">No female segment forecast available.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -179,18 +187,18 @@
     new Chart(trendCtx, {
       type: 'bar',
       data: {
-        labels: [{% for item in summary.monthly_trend %}'{{ item.month }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: {{ summary.monthly_trend | map(attribute='month') | list | tojson }},
         datasets: [{
           type: 'bar',
           label: 'Patient Volume',
-          data: [{% for item in summary.monthly_trend %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          data: {{ summary.monthly_trend | map(attribute='count') | list | tojson }},
           backgroundColor: 'rgba(37, 99, 235, 0.65)',
           borderRadius: 12,
           borderWidth: 0,
         }, {
           type: 'line',
           label: 'Trend',
-          data: [{% for item in summary.monthly_trend %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          data: {{ summary.monthly_trend | map(attribute='count') | list | tojson }},
           borderColor: '#1d4ed8',
           backgroundColor: 'rgba(59, 130, 246, 0.2)',
           tension: 0.35,
@@ -220,9 +228,9 @@
     new Chart(distributionDonutCtx, {
       type: 'doughnut',
       data: {
-        labels: [{% for diagnosis, count in summary.consultation_distribution %}'{{ diagnosis }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: {{ summary.consultation_distribution | map('first') | list | tojson }},
         datasets: [{
-          data: [{% for diagnosis, count in summary.consultation_distribution %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          data: {{ summary.consultation_distribution | map('last') | list | tojson }},
           backgroundColor: ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'],
           borderWidth: 0,
         }]
@@ -249,9 +257,9 @@
     new Chart(topCasesDonutCtx, {
       type: 'doughnut',
       data: {
-        labels: [{% for diagnosis, count in summary.top_cases %}'{{ diagnosis }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: {{ summary.top_cases | map('first') | list | tojson }},
         datasets: [{
-          data: [{% for diagnosis, count in summary.top_cases %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          data: {{ summary.top_cases | map('last') | list | tojson }},
           backgroundColor: ['#1d4ed8', '#3b82f6', '#60a5fa', '#0ea5e9', '#38bdf8'],
           borderWidth: 0,
         }]
@@ -278,9 +286,9 @@
     new Chart(genderDistributionDonutCtx, {
       type: 'doughnut',
       data: {
-        labels: [{% for gender, count in summary.gender_distribution %}'{{ gender }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: {{ summary.gender_distribution | map('first') | list | tojson }},
         datasets: [{
-          data: [{% for gender, count in summary.gender_distribution %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          data: {{ summary.gender_distribution | map('last') | list | tojson }},
           backgroundColor: ['#2563eb', '#ec4899'],
           borderWidth: 0,
         }]
@@ -307,10 +315,10 @@
     new Chart(ageForecastCtx, {
       type: 'bar',
       data: {
-        labels: [{% for item in summary.demographic_forecast.age_group %}'{{ item.age_group }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: {{ summary.demographic_forecast.age_group | map(attribute='age_group') | list | tojson }},
         datasets: [{
           label: '{{ summary.predicted_month_label }} forecast',
-          data: [{% for item in summary.demographic_forecast.age_group %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          data: {{ summary.demographic_forecast.age_group | map(attribute='forecasted_cases') | list | tojson }},
           backgroundColor: ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706'],
           borderRadius: 8,
           borderWidth: 0
@@ -341,10 +349,10 @@
     new Chart(genderForecastCtx, {
       type: 'bar',
       data: {
-        labels: [{% for item in summary.demographic_forecast.gender %}'{{ item.gender }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: {{ summary.demographic_forecast.gender | map(attribute='gender') | list | tojson }},
         datasets: [{
           label: '{{ summary.predicted_month_label }} forecast',
-          data: [{% for item in summary.demographic_forecast.gender %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
+          data: {{ summary.demographic_forecast.gender | map(attribute='forecasted_cases') | list | tojson }},
           backgroundColor: ['#0f5b8a', '#c026d3', '#2ba7c5'],
           borderRadius: 8,
           borderWidth: 0

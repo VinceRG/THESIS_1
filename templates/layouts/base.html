@@ -33,6 +33,7 @@
         <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">Reports</a>
         <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}">Staff Management</a>
         {% if can_view_all_branches %}
+          <span class="section-heading-eyebrow">Administration</span>
           <a href="/branches" class="{% if request.path.startswith('/branches') %}active{% endif %}">Branches</a>
           <a href="/audit-logs" class="{% if request.path.startswith('/audit-logs') %}active{% endif %}">Audit Logs</a>
         {% endif %}

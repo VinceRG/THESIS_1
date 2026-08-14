@@ -23,7 +23,7 @@
           <option value="{{ role }}" {% if selected_role == role %}selected{% endif %}>{{ role }}</option>
         {% endfor %}
         {% if selected_role and selected_role not in role_options %}
-          <option value="{{ selected_role }}" selected>{{ selected_role }}</option>
+          <option value="{{ selected_role }}" selected>{{ selected_role }} (current, not in standard list)</option>
         {% endif %}
       </select>
     </label>

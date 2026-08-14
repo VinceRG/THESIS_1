@@ -6,11 +6,18 @@
 
 {% block content %}
 {% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
+<div class="section-stack">
+{% if not summary.rf_metrics %}
+  <div class="flash-message flash-warning">
+    Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.
+    Use <strong>Retrain Model</strong> below for a fresh forecast.
+  </div>
+{% endif %}
 <div class="chart-card">
   <div class="page-heading-row">
     <div>
       <h3>Model Controls</h3>
-      <p style="margin:4px 0 0; color:#64748b;">Retrain the Random Forest model using the current consultation records for the selected branch.</p>
+      <p class="muted-copy">Retrain the Random Forest model using the current consultation records for the selected branch.</p>
     </div>
     {% if summary.branch_code != 'ALL' %}
       <form method="post" action="{{ url_for('retrain') }}"
@@ -29,48 +36,54 @@
   <div class="card">
     <h3>Algorithm</h3>
     <div class="value">Random Forest</div>
+    <p class="hint">Consultation-volume forecast, not a specialist classifier.</p>
   </div>
   <div class="card">
     <h3>Validation R2</h3>
     <div class="value">{{ metrics.r2_score }}</div>
+    <p class="hint">Holdout performance — higher is better.</p>
   </div>
   <div class="card">
     <h3>MAE</h3>
     <div class="value">{{ metrics.mae }}</div>
+    <p class="hint">Average error in cases — lower is better.</p>
   </div>
   <div class="card">
     <h3>RMSE</h3>
     <div class="value">{{ metrics.rmse }}</div>
+    <p class="hint">Weights larger errors more — lower is better.</p>
   </div>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
-  <p style="margin:0; color:#64748b; line-height:1.5;">
+  <p class="muted-copy">
     The Random Forest model forecasts consultation volume for {{ summary.predicted_month_full_label }}. Staff-role guidance below is derived from those forecasted cases using the clinic's service and diagnosis-to-role mapping.
   </p>
 </div>
 
-<div class="grid section-grid" style="margin-top:20px;">
+<div class="grid section-grid">
   <div class="chart-card">
     <h3>Forecasted Cases by Diagnosis</h3>
-    <table class="table">
-      <thead>
-        <tr><th>Diagnosis</th><th>Reference Month</th><th>Forecasted Cases</th><th>Trend</th></tr>
-      </thead>
-      <tbody>
-        {% for item in summary.predictions %}
-          <tr>
-            <td>{{ item.diagnosis }}</td>
-            <td>{{ item.current_month }}</td>
-            <td><strong>{{ item.predicted_next_month }}</strong></td>
-            <td>{{ item.trend }}</td>
-          </tr>
-        {% else %}
-          <tr><td colspan="4">No forecast available yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table class="table table-sticky-head">
+        <thead>
+          <tr><th>Diagnosis</th><th>Reference Month</th><th>Forecasted Cases</th><th>Trend</th></tr>
+        </thead>
+        <tbody>
+          {% for item in summary.predictions %}
+            <tr>
+              <td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td>
+              <td>{{ item.current_month }}</td>
+              <td><strong>{{ item.predicted_next_month }}</strong></td>
+              <td>{{ item.trend }}</td>
+            </tr>
+          {% else %}
+            <tr class="table-empty-state"><td colspan="4"><strong>No forecast available yet.</strong>Upload consultation data and retrain the model.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
   <div class="chart-card">
     <h3>Model Validation Results</h3>
@@ -86,7 +99,7 @@
   </div>
 </div>
 
-<div class="grid section-grid" style="margin-top:20px;">
+<div class="grid section-grid">
   <div class="chart-card">
     <h3>Forecast by Age Group</h3>
     <div class="chart-container">
@@ -101,7 +114,7 @@
   </div>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>Top Diagnosis-Demographic Segments</h3>
   <div class="grid demographic-comparison">
     <div>
@@ -112,9 +125,9 @@
         </thead>
         <tbody>
           {% for item in summary.demographic_forecast.segments if item.gender|lower == 'male' %}
-            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+            <tr><td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
           {% else %}
-            <tr><td colspan="3">No male segment forecast available yet.</td></tr>
+            <tr class="table-empty-state"><td colspan="3">No male segment forecast available yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -127,9 +140,9 @@
         </thead>
         <tbody>
           {% for item in summary.demographic_forecast.segments if item.gender|lower == 'female' %}
-            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+            <tr><td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
           {% else %}
-            <tr><td colspan="3">No female segment forecast available yet.</td></tr>
+            <tr class="table-empty-state"><td colspan="3">No female segment forecast available yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -137,10 +150,10 @@
   </div>
 </div>
 
-<div class="grid section-grid" style="margin-top:20px;">
+<div class="grid section-grid">
   <div class="chart-card">
     <h3>Forecast-Based Staff Recommendation for {{ summary.predicted_month_full_label }}</h3>
-    <p style="margin:0 0 14px; color:#64748b; line-height:1.5;">
+    <p class="muted-copy" style="margin-bottom:14px;">
       This is a decision-support recommendation, not an independent medical diagnosis model. The system maps forecasted consultation demand to the staff roles configured for related services and cases.
     </p>
     <div class="chart-container staff-forecast-chart">
@@ -162,16 +175,16 @@
             <td><span class="status-pill status-{{ row.status_class }}">{{ row.status }}</span></td>
           </tr>
         {% else %}
-          <tr><td colspan="4">No staff role forecast available yet.</td></tr>
+          <tr class="table-empty-state"><td colspan="4">No staff role forecast available yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>Model Notes</h3>
-  <p style="margin:0; color:#64748b; line-height:1.5;">
+  <p class="muted-copy">
     The Random Forest model predicts monthly consultation demand using lag features, rolling averages, seasonality, diagnosis, age group, and gender. Doctor and staff guidance is generated after prediction by mapping forecasted diagnoses, services, and appointments to required staff roles.
   </p>
   {% if summary.branch_code != 'ALL' %}
@@ -182,8 +195,9 @@
       <button class="btn" type="submit">Retrain from existing data</button>
     </form>
   {% else %}
-    <p style="margin:12px 0 0; color:#64748b; line-height:1.5;">Select one branch to retrain the model for branch-specific forecasting.</p>
+    <p class="muted-copy" style="margin-top:12px;">Select one branch to retrain the model for branch-specific forecasting.</p>
   {% endif %}
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

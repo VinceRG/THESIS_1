@@ -1,10 +1,12 @@
 {% extends 'layouts/base.html' %}
+{% from 'partials/pagination.html' import render_pagination %}
 
 {% block title %}Audit Logs - Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Audit Logs{% endblock %}
 {% block page_subtitle %}Security and accountability record for important system changes{% endblock %}
 
 {% block content %}
+<div class="section-stack">
 <div class="chart-card">
   <form method="get" class="filter-form">
     <label>
@@ -23,47 +25,40 @@
   </form>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>Recorded System Actions</h3>
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Date and Time</th>
-        <th>Actor</th>
-        <th>Role</th>
-        <th>Action</th>
-        <th>Entity</th>
-        <th>Details</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for log in logs.items %}
-      <tr>
-        <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '' }}</td>
-        <td>{{ log.actor or 'System/Patient' }}</td>
-        <td>{{ log.role or 'Public' }}</td>
-        <td>{{ log.action|replace('_', ' ')|title }}</td>
-        <td>{{ log.entity_type }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
-        <td style="max-width:360px; white-space:normal;">{{ log.details }}</td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="6">No audit logs recorded yet.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% if logs.pages > 1 %}
-  <div class="pagination">
-    {% if logs.has_prev %}
-      <a class="btn secondary" href="{{ url_for('audit_logs', page=logs.prev_num, action=selected_action) }}">Previous</a>
-    {% endif %}
-    <span>Page {{ logs.page }} of {{ logs.pages }}</span>
-    {% if logs.has_next %}
-      <a class="btn secondary" href="{{ url_for('audit_logs', page=logs.next_num, action=selected_action) }}">Next</a>
-    {% endif %}
+  <div class="table-scroll">
+    <table class="table table-sticky-head">
+      <thead>
+        <tr>
+          <th>Date and Time</th>
+          <th>Actor</th>
+          <th>Role</th>
+          <th>Action</th>
+          <th>Entity</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs.items %}
+        <tr>
+          <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '' }}</td>
+          <td>{{ log.actor or 'System/Patient' }}</td>
+          <td>{{ log.role or 'Public' }}</td>
+          <td>{{ log.action|replace('_', ' ')|title }}</td>
+          <td>{{ log.entity_type }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
+          <td class="audit-details-cell">{{ log.details }}</td>
+        </tr>
+        {% else %}
+        <tr class="table-empty-state">
+          <td colspan="6"><strong>No audit logs recorded yet.</strong>Actions taken by administrators will appear here.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
-  {% endif %}
+
+  {{ render_pagination(logs, 'audit_logs', {'action': selected_action}) }}
+</div>
 </div>
 {% endblock %}

@@ -5,6 +5,7 @@
 {% block page_subtitle %}Generated {{ report.generated_at }}{% endblock %}
 
 {% block content %}
+<div class="section-stack">
 <div class="page-actions">
   <a class="btn secondary" href="{{ url_for('reports') }}">Back to Reports</a>
   <a class="btn secondary" href="{{ url_for('report_print', report_key=report.key) }}">Print</a>
@@ -13,7 +14,7 @@
 
 <div class="chart-card">
   <h3>{{ report.description }}</h3>
-  <p style="margin:0 0 14px; color:#64748b;">Branch: {{ report.branch_name }}{% if report.branch_code %} ({{ report.branch_code }}){% endif %}</p>
+  <p class="muted-copy" style="margin-bottom:14px;">Branch: {{ report.branch_name }}{% if report.branch_code %} ({{ report.branch_code }}){% endif %}</p>
   <table class="table">
     <thead>
       <tr>
@@ -38,41 +39,43 @@
   </table>
 </div>
 
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>{{ report.details_title }}</h3>
-  <p style="margin:0 0 14px; color:#64748b; line-height:1.5;">{{ report.details_note }}</p>
+  <p class="muted-copy" style="margin-bottom:14px;">{{ report.details_note }}</p>
   {% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows %}
     <div class="chart-container report-chart-container">
       <canvas id="reportLineChart"></canvas>
     </div>
   {% elif report.key in ['monthly-consultation', 'quarterly'] %}
-    <p style="margin:0; color:#64748b;">No graph data available yet.</p>
+    <p class="muted-copy">No graph data is available yet. Upload consultation records to generate this chart.</p>
   {% elif report.rows %}
-    <table class="table">
-      <thead>
-        <tr>
-          {% for key in report.rows[0].keys() %}
-          <th>{{ key|replace('_', ' ')|title }}</th>
+    <div class="table-scroll">
+      <table class="table table-sticky-head">
+        <thead>
+          <tr>
+            {% for key in report.rows[0].keys() %}
+            <th>{{ key|replace('_', ' ')|title }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.rows %}
+          <tr>
+            {% for value in row.values() %}
+            <td>{{ value }}</td>
+            {% endfor %}
+          </tr>
           {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in report.rows %}
-        <tr>
-          {% for value in row.values() %}
-          <td>{{ value }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   {% else %}
-    <p style="margin:0; color:#64748b;">No detail rows available.</p>
+    <p class="muted-copy">No detail rows are available for this report yet.</p>
   {% endif %}
 </div>
 
 {% for chart in report.extra_charts %}
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>{{ chart.title }}</h3>
   <div class="chart-container report-chart-container">
     <canvas id="extraReportChart{{ loop.index }}"></canvas>
@@ -81,33 +84,35 @@
 {% endfor %}
 
 {% for table in report.extra_tables %}
-<div class="chart-card" style="margin-top:20px;">
+<div class="chart-card">
   <h3>{{ table.title }}</h3>
   {% if table.rows %}
-    <table class="table">
-      <thead>
-        <tr>
-          {% for key in table.rows[0].keys() %}
-          <th>{{ key|replace('_', ' ')|title }}</th>
+    <div class="table-scroll">
+      <table class="table table-sticky-head">
+        <thead>
+          <tr>
+            {% for key in table.rows[0].keys() %}
+            <th>{{ key|replace('_', ' ')|title }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table.rows %}
+          <tr>
+            {% for value in row.values() %}
+            <td>{{ value }}</td>
+            {% endfor %}
+          </tr>
           {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in table.rows %}
-        <tr>
-          {% for value in row.values() %}
-          <td>{{ value }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   {% else %}
-    <p style="margin:0; color:#64748b;">No demographic rows available.</p>
+    <p class="muted-copy">No demographic rows are available for this report yet.</p>
   {% endif %}
 </div>
 {% endfor %}
-
+</div>
 {% if print_mode %}
 <script>
   window.addEventListener('load', () => window.print());
