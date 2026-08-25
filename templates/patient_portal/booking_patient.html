@@ -1,0 +1,84 @@
+{% extends 'patient_portal/_booking_base.html' %}
+{% block title %}Step 2: Patient Information{% endblock %}
+{% block hero_title %}Tell us who we're seeing.{% endblock %}
+{% block hero_subtitle %}Birthdate is used to compute the age group automatically, and email is where we'll send your confirmation.{% endblock %}
+{% block step_content %}
+  <form method="post">
+    <section class="patient-form-section" id="patient-info">
+      <div class="patient-step-heading">
+        <span class="patient-step-badge">Step 2 of 5</span>
+        <div>
+          <h2>Patient Information</h2>
+          <p>Birthdate is used to compute the age group automatically.</p>
+        </div>
+      </div>
+      <div class="patient-form-grid">
+        <label class="{% if field_errors.full_name %}has-error{% endif %}">
+          Full Name
+          <input type="text" name="full_name" value="{{ values.full_name }}" required autofocus>
+          {% if field_errors.full_name %}<small class="patient-field-error">{{ field_errors.full_name }}</small>{% endif %}
+        </label>
+        <label class="{% if field_errors.birthdate %}has-error{% endif %}">
+          Birthdate
+          <input type="date" name="birthdate" value="{{ values.birthdate }}" max="{{ current_date }}" required data-public-birthdate>
+          {% if field_errors.birthdate %}<small class="patient-field-error">{{ field_errors.birthdate }}</small>{% endif %}
+        </label>
+        <label>
+          Computed Age Group
+          <output class="readonly-field" data-public-age-group tabindex="-1"></output>
+        </label>
+        <label class="{% if field_errors.gender %}has-error{% endif %}">
+          Gender
+          <select name="gender" required>
+            <option value="" disabled {% if not values.gender %}selected{% endif %}>Select gender</option>
+            {% for gender in gender_options %}
+              <option value="{{ gender }}" {% if values.gender == gender %}selected{% endif %}>{{ gender }}</option>
+            {% endfor %}
+          </select>
+          {% if field_errors.gender %}<small class="patient-field-error">{{ field_errors.gender }}</small>{% endif %}
+        </label>
+        <label>
+          Contact Number
+          <input type="tel" name="contact_number" value="{{ values.contact_number }}" placeholder="e.g. 0917 123 4567" pattern="[0-9+\-() ]{7,20}" title="Digits, spaces, and + - ( ) only">
+          {% if field_errors.contact_number %}<small class="patient-field-error">{{ field_errors.contact_number }}</small>{% endif %}
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" value="{{ values.email }}" placeholder="name@example.com" required>
+          {% if field_errors.email %}<small class="patient-field-error">{{ field_errors.email }}</small>{% endif %}
+        </label>
+        <label class="patient-wide-field">
+          Address
+          <textarea name="address" rows="2">{{ values.address }}</textarea>
+        </label>
+      </div>
+    </section>
+    <div class="patient-wizard-controls">
+      <a class="patient-wizard-back" href="{{ url_for('patient_portal') }}">← Back</a>
+      <button type="submit" class="patient-wizard-next">Next: Packages and Services →</button>
+    </div>
+  </form>
+{% endblock %}
+{% block step_scripts %}
+<script>
+  function parseLocalDate(value) {
+    const parts = (value || '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+    return { year: parts[0], month: parts[1], day: parts[2] };
+  }
+
+  function updateAgeGroup() {
+    const input = document.querySelector('[data-public-birthdate]');
+    const output = document.querySelector('[data-public-age-group]');
+    const birthdate = parseLocalDate(input?.value);
+    const reference = parseLocalDate('{{ current_date }}');
+    if (!birthdate || !reference || !output) return;
+    let age = reference.year - birthdate.year;
+    if (reference.month < birthdate.month || (reference.month === birthdate.month && reference.day < birthdate.day)) age -= 1;
+    output.value = age <= 17 ? 'Child' : age <= 59 ? 'Adult' : 'Senior';
+  }
+
+  document.querySelector('[data-public-birthdate]')?.addEventListener('change', updateAgeGroup);
+  updateAgeGroup();
+</script>
+{% endblock %}

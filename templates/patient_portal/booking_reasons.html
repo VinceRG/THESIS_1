@@ -1,0 +1,33 @@
+{% extends 'patient_portal/_booking_base.html' %}
+{% block title %}Step 4: Check-up Reasons{% endblock %}
+{% block hero_title %}Anything specific we should know?{% endblock %}
+{% block hero_subtitle %}Optional, but it helps the clinic prepare for your visit.{% endblock %}
+{% block step_content %}
+  <form method="post">
+    <section class="patient-form-section patient-service-block" id="reasons">
+      <div class="patient-step-heading">
+        <span class="patient-step-badge">Step 4 of 5</span>
+        <div>
+          <h2>Check-up Reasons</h2>
+          <p>Choose common concerns or enter a specific request.</p>
+        </div>
+      </div>
+      <div class="patient-reason-grid">
+        {% for reason in consultation_reason_options %}
+          <label class="patient-reason-pill">
+            <input type="checkbox" name="consultation_reasons" value="{{ reason }}" {% if reason in values.consultation_reasons %}checked{% endif %}>
+            <span>{{ reason }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <label class="patient-public-notes">
+        Other reason or request
+        <textarea name="other_reason" rows="3">{{ values.other_reason }}</textarea>
+      </label>
+    </section>
+    <div class="patient-wizard-controls">
+      <a class="patient-wizard-back" href="{{ url_for('patient_portal_services_step') }}">← Back</a>
+      <button type="submit" class="patient-wizard-next">Next: Review →</button>
+    </div>
+  </form>
+{% endblock %}

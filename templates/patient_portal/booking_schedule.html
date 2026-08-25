@@ -1,0 +1,81 @@
+{% extends 'patient_portal/_booking_base.html' %}
+{% block title %}Step 1: Schedule{% endblock %}
+{% block hero_title %}Care begins with a simple booking.{% endblock %}
+{% block hero_subtitle %}Choose your branch and preferred visit date and time. We will confirm your visit after checking availability.{% endblock %}
+{% block step_content %}
+  <form method="post">
+    <section class="patient-form-section" id="schedule">
+      <div class="patient-step-heading">
+        <span class="patient-step-badge">Step 1 of 5</span>
+        <div>
+          <h2>Branch and Schedule</h2>
+          <p>Select where and when the patient wants to visit.</p>
+        </div>
+      </div>
+      <div class="patient-form-grid">
+        <label>
+          Branch
+          <select name="branch_id" onchange="window.location.href='{{ url_for('patient_portal') }}?branch_id=' + this.value">
+            {% for option in branch_options %}
+              <option value="{{ option.id }}" {% if option.id == branch.id %}selected{% endif %}>{{ option.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="{% if field_errors.appointment_date %}has-error{% endif %}">
+          Preferred Date
+          <input type="date" name="appointment_date" value="{{ values.appointment_date or today }}" min="{{ today }}" required data-appointment-date>
+          {% if field_errors.appointment_date %}<small class="patient-field-error">{{ field_errors.appointment_date }}</small>{% endif %}
+        </label>
+        <label class="{% if field_errors.appointment_time %}has-error{% endif %}">
+          Preferred Time
+          <input type="time" name="appointment_time" step="600" value="{{ values.appointment_time }}" required data-appointment-time>
+          <small class="patient-field-help" data-clinic-hours-hint>Clinic hours: 6:00 AM – 5:00 PM (Mon–Sat), 6:00 AM – 12:00 PM (Sun).</small>
+          {% if field_errors.appointment_time %}<small class="patient-field-error">{{ field_errors.appointment_time }}</small>{% endif %}
+        </label>
+      </div>
+    </section>
+    <div class="patient-wizard-controls">
+      <span></span>
+      <button type="submit" class="patient-wizard-next">Next: Patient Information →</button>
+    </div>
+  </form>
+{% endblock %}
+{% block step_scripts %}
+<script>
+  (function () {
+    const dateInput = document.querySelector('[data-appointment-date]');
+    const timeInput = document.querySelector('[data-appointment-time]');
+    const hint = document.querySelector('[data-clinic-hours-hint]');
+    if (!dateInput || !timeInput) return;
+    const todayIso = '{{ today }}';
+
+    function clinicHoursFor(dateValue) {
+      const parts = (dateValue || '').split('-').map(Number);
+      if (parts.length !== 3 || parts.some(Number.isNaN)) return { open: '06:00', close: '17:00', isSunday: false };
+      const isSunday = new Date(parts[0], parts[1] - 1, parts[2]).getDay() === 0;
+      return isSunday ? { open: '06:00', close: '12:00', isSunday: true } : { open: '06:00', close: '17:00', isSunday: false };
+    }
+
+    function applyBounds() {
+      const { open, close, isSunday } = clinicHoursFor(dateInput.value);
+      let min = open;
+      if (dateInput.value === todayIso) {
+        const now = new Date();
+        const nowHhMm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        if (nowHhMm > min) min = nowHhMm;
+      }
+      timeInput.min = min;
+      timeInput.max = close;
+      if (timeInput.value && (timeInput.value < min || timeInput.value > close)) timeInput.value = '';
+      if (hint) {
+        hint.textContent = isSunday
+          ? 'Clinic hours on Sunday: 6:00 AM – 12:00 PM.'
+          : 'Clinic hours: 6:00 AM – 5:00 PM (Monday–Saturday).';
+      }
+    }
+
+    dateInput.addEventListener('change', applyBounds);
+    applyBounds();
+  })();
+</script>
+{% endblock %}

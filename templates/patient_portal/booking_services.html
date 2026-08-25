@@ -1,0 +1,202 @@
+{% extends 'patient_portal/_booking_base.html' %}
+{% block title %}Step 3: Packages and Services{% endblock %}
+{% block hero_title %}What would you like done?{% endblock %}
+{% block hero_subtitle %}Pick a bundled package or individual services. You can mix both.{% endblock %}
+{% block step_content %}
+  <form method="post">
+    <nav class="patient-service-tabs" aria-label="Jump within this step">
+      <a href="#packages">Packages</a>
+      <a href="#services">Services</a>
+    </nav>
+
+    {% if field_errors.services %}<p class="patient-field-error patient-field-error-block">{{ field_errors.services }}</p>{% endif %}
+
+    <section class="patient-form-section patient-service-block" id="packages">
+      <div class="patient-step-heading patient-step-heading-search">
+        <span class="patient-step-badge">Step 3A</span>
+        <div>
+          <h2>Packages</h2>
+          <p>Select bundled services if the patient wants a package.</p>
+        </div>
+        <input type="search" placeholder="Search packages" data-public-package-search aria-controls="package-search-status">
+      </div>
+      <p class="patient-search-status" data-public-package-search-status id="package-search-status" role="status" aria-live="polite"></p>
+      <div class="patient-option-grid">
+        {% for package in package_options %}
+          <label class="patient-option-card" data-public-package-option data-public-package-text="{{ package.label|lower }}">
+            <input type="checkbox" name="selected_packages" value="{{ package.value }}" data-public-package-checkbox data-price="{{ package.price_php }}" {% if package.value in values.selected_packages %}checked{% endif %}>
+            <span>
+              <strong>{{ package.label }}</strong>
+              <small>{{ package.item_count }} service{{ '' if package.item_count == 1 else 's' }}{% if package.price_php %} | PHP {{ package.price_php }}{% endif %}</small>
+            </span>
+          </label>
+        {% else %}
+          <div class="patient-empty-state">No packages available for this branch.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="patient-form-section patient-service-block" id="services">
+      <div class="patient-step-heading patient-step-heading-search">
+        <span class="patient-step-badge">Step 3B</span>
+        <div>
+          <h2>Services</h2>
+          <p>Select one or more consultation, laboratory, imaging, or diagnostic services.</p>
+        </div>
+        <input type="search" placeholder="Search services" data-public-service-search aria-controls="service-search-status">
+      </div>
+      <p class="patient-search-status" data-public-service-search-status id="service-search-status" role="status" aria-live="polite"></p>
+      <div class="patient-service-list">
+        {% for category, services in service_groups.items() %}
+          <section data-public-service-group>
+            <h3>{{ category }}</h3>
+            <div class="patient-option-grid">
+              {% for service in services %}
+                <label class="patient-option-card" data-public-service-option data-public-service-text="{{ (service.label ~ ' ' ~ service.section ~ ' ' ~ service.category)|lower }}">
+                  <input type="checkbox" name="selected_services" value="{{ service.value }}" data-public-service-checkbox data-price="{{ service.price_php }}" {% if service.value in values.selected_services %}checked{% endif %}>
+                  <span>
+                    <strong>{{ service.label }}</strong>
+                    <small>{{ service.section or service.category }}{% if service.price_php %} | PHP {{ service.price_php }}{% endif %}</small>
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          </section>
+        {% else %}
+          <div class="patient-empty-state">No services available for this branch.</div>
+        {% endfor %}
+      </div>
+    </section>
+    <div class="patient-wizard-controls">
+      <a class="patient-wizard-back" href="{{ url_for('patient_portal_patient_step') }}">← Back</a>
+      <button type="submit" class="patient-wizard-next">Next: Check-up Reasons →</button>
+    </div>
+  </form>
+{% endblock %}
+{% block sidebar_extra %}
+  <div class="patient-summary-card">
+    <div class="patient-summary-heading">
+      <h2>Selected Items</h2>
+      <span class="patient-status-badge patient-status-badge-soft" data-public-selected-count>{{ summary.selected_items|length }} selected</span>
+    </div>
+    <div class="patient-selected-list" data-public-selected-preview>
+      {% if summary.selected_items %}{% for item in summary.selected_items %}<span>{{ item }}</span>{% endfor %}{% else %}No selected services yet.{% endif %}
+    </div>
+    <div class="patient-subtotal-row" data-public-subtotal-row {% if not summary.has_priced_item %}hidden{% endif %}>
+      <span>Estimated total</span>
+      <strong data-public-subtotal-amount>PHP {{ '{:,.0f}'.format(summary.subtotal) }}</strong>
+    </div>
+    <p class="patient-subtotal-note" data-public-subtotal-note>{% if summary.has_priced_item %}Estimate only; final pricing is confirmed at the clinic.{% elif summary.selected_items %}Pricing for the selected items will be confirmed at check-in.{% else %}Pricing will appear here once you select items.{% endif %}</p>
+  </div>
+
+  <div class="patient-summary-card" data-public-preparation-card {% if not summary.prep_notes %}hidden{% endif %}>
+    <div class="patient-summary-heading">
+      <h2>Before Your Visit</h2>
+      <span class="patient-status-badge patient-status-badge-soft">Preparation</span>
+    </div>
+    <ul class="patient-prep-list" data-public-preparation-list>{% for note in summary.prep_notes %}<li>{{ note }}</li>{% endfor %}</ul>
+  </div>
+{% endblock %}
+{% block step_scripts %}
+<script>
+  const servicePreparation = {{ service_preparation|tojson }};
+  const packagePreparation = {{ package_preparation|tojson }};
+
+  function unique(values) {
+    return Array.from(new Set(values.filter(Boolean)));
+  }
+
+  function updateCardStates() {
+    document.querySelectorAll('.patient-option-card').forEach(card => {
+      const input = card.querySelector('input');
+      card.classList.toggle('is-selected', Boolean(input?.checked));
+    });
+  }
+
+  function updateSelectionPreview() {
+    const serviceInputs = Array.from(document.querySelectorAll('[data-public-service-checkbox]')).filter(input => input.checked);
+    const packageInputs = Array.from(document.querySelectorAll('[data-public-package-checkbox]')).filter(input => input.checked);
+    const selected = [];
+    const prepNotes = [];
+    let subtotal = 0;
+    let hasPricedItem = false;
+
+    serviceInputs.forEach(input => {
+      const service = input.value;
+      prepNotes.push(...(servicePreparation[service] || []));
+      selected.push(service);
+      const price = parseFloat((input.dataset.price || '').replace(/[^0-9.]/g, ''));
+      if (!Number.isNaN(price)) { subtotal += price; hasPricedItem = true; }
+    });
+    packageInputs.forEach(input => {
+      const packageName = input.value;
+      prepNotes.push(...(packagePreparation[packageName] || []));
+      selected.push('Package: ' + packageName);
+      const price = parseFloat((input.dataset.price || '').replace(/[^0-9.]/g, ''));
+      if (!Number.isNaN(price)) { subtotal += price; hasPricedItem = true; }
+    });
+
+    const selectedPreview = document.querySelector('[data-public-selected-preview]');
+    if (selectedPreview) {
+      selectedPreview.innerHTML = selected.length ? selected.map(item => `<span>${item}</span>`).join('') : 'No selected services yet.';
+    }
+    const selectedCount = document.querySelector('[data-public-selected-count]');
+    if (selectedCount) selectedCount.textContent = selected.length === 1 ? '1 selected' : `${selected.length} selected`;
+
+    const subtotalRow = document.querySelector('[data-public-subtotal-row]');
+    const subtotalAmount = document.querySelector('[data-public-subtotal-amount]');
+    const subtotalNote = document.querySelector('[data-public-subtotal-note]');
+    if (hasPricedItem) {
+      subtotalRow?.removeAttribute('hidden');
+      if (subtotalAmount) subtotalAmount.textContent = `PHP ${subtotal.toLocaleString('en-PH')}`;
+      if (subtotalNote) subtotalNote.textContent = 'Estimate only; final pricing is confirmed at the clinic.';
+    } else {
+      subtotalRow?.setAttribute('hidden', '');
+      if (subtotalNote) {
+        subtotalNote.textContent = selected.length
+          ? 'Pricing for the selected items will be confirmed at check-in.'
+          : 'Pricing will appear here once you select items.';
+      }
+    }
+
+    const preparationCard = document.querySelector('[data-public-preparation-card]');
+    const preparationList = document.querySelector('[data-public-preparation-list]');
+    const uniquePrep = unique(prepNotes);
+    if (preparationList) preparationList.innerHTML = uniquePrep.map(note => `<li>${note}</li>`).join('');
+    preparationCard?.toggleAttribute('hidden', uniquePrep.length === 0);
+
+    updateCardStates();
+  }
+
+  function filterOptions(inputSelector, optionSelector, textAttribute, groupSelector, statusSelector) {
+    const input = document.querySelector(inputSelector);
+    if (!input) return;
+    input.addEventListener('input', () => {
+      const term = input.value.trim().toLowerCase();
+      let visibleCount = 0;
+      document.querySelectorAll(optionSelector).forEach(option => {
+        const visible = !term || (option.getAttribute(textAttribute) || '').includes(term);
+        option.style.display = visible ? '' : 'none';
+        if (visible) visibleCount += 1;
+      });
+      if (groupSelector) {
+        document.querySelectorAll(groupSelector).forEach(group => {
+          const visible = Array.from(group.querySelectorAll(optionSelector)).some(option => option.style.display !== 'none');
+          group.style.display = visible ? '' : 'none';
+        });
+      }
+      const status = statusSelector ? document.querySelector(statusSelector) : null;
+      if (status) {
+        status.textContent = term ? `${visibleCount} result${visibleCount === 1 ? '' : 's'} for "${input.value.trim()}"` : '';
+      }
+    });
+  }
+
+  document.querySelectorAll('[data-public-service-checkbox], [data-public-package-checkbox]').forEach(input => {
+    input.addEventListener('change', updateSelectionPreview);
+  });
+  filterOptions('[data-public-package-search]', '[data-public-package-option]', 'data-public-package-text', null, '[data-public-package-search-status]');
+  filterOptions('[data-public-service-search]', '[data-public-service-option]', 'data-public-service-text', '[data-public-service-group]', '[data-public-service-search-status]');
+  updateCardStates();
+</script>
+{% endblock %}

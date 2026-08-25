@@ -1880,6 +1880,8 @@ def create_app():
             ip_address=request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip(),
         ))
 
+    OTP_RESEND_COOLDOWN_SECONDS = 60
+
     def send_patient_verification_email(recipient, code):
         """Deliver a short-lived sign-up code using the configured SMTP provider."""
         if not all([app.config['SMTP_HOST'], app.config['SMTP_FROM']]):
@@ -2092,6 +2094,20 @@ def create_app():
                 pass
         return value
 
+    CLINIC_HOURS_WEEKDAY = ('06:00', '17:00')
+    CLINIC_HOURS_SUNDAY = ('06:00', '12:00')
+
+    def clinic_hours_for_date(date_obj):
+        if date_obj is not None and date_obj.weekday() == 6:
+            return CLINIC_HOURS_SUNDAY
+        return CLINIC_HOURS_WEEKDAY
+
+    def is_within_clinic_hours(date_obj, time_value):
+        if not time_value:
+            return False
+        open_time, close_time = clinic_hours_for_date(date_obj)
+        return open_time <= time_value <= close_time
+
     def format_appointment_time(value):
         value = str(value or '').strip()
         if not value:
@@ -2141,6 +2157,109 @@ def create_app():
         if not roles:
             roles.append('General Physicians')
         return {'roles': sorted(set(roles)), 'equipment': sorted(set(equipment))}
+
+    def infer_preparation_notes(label, category=''):
+        text_value = f'{label} {category}'.lower()
+        notes = []
+        if any(word in text_value for word in ['fbs', 'fasting blood sugar', 'glucose', 'lipid', 'cholesterol', 'triglyceride']):
+            notes.append('Fast (no food or drink except water) for 8-10 hours before your visit.')
+        if 'ultrasound' in text_value and any(word in text_value for word in ['pelvic', 'transvaginal', 'whole abdomen', 'kub', 'urinary', 'bladder']):
+            notes.append('Drink plenty of water and avoid urinating for 1 hour before your visit so your bladder is full.')
+        if 'drug test' in text_value:
+            notes.append('Bring one valid government-issued ID.')
+        if ('x-ray' in text_value or 'xray' in text_value) and 'chest' in text_value:
+            notes.append('Wear clothing without metal fasteners or jewelry near the chest area.')
+        if 'stool' in text_value:
+            notes.append('Collect a fresh stool sample in a clean, dry container on the day of your visit.')
+        if 'urine' in text_value or 'urinalysis' in text_value:
+            notes.append('Collect a midstream urine sample; a first-morning sample is best if possible.')
+        if 'annual' in text_value or 'ape' in text_value or 'physical examination' in text_value:
+            notes.append('Wear comfortable clothing and bring a list of current medications, if any.')
+        return notes
+
+    def load_service_options():
+        service_path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_services_scraped.csv')
+        groups = {}
+        recommendations = {}
+        preparation = {}
+        if os.path.exists(service_path):
+            try:
+                service_df = pd.read_csv(service_path).fillna('')
+                for _, row in service_df.iterrows():
+                    label = str(row.get('service_name', '')).strip()
+                    if not label:
+                        continue
+                    category = str(row.get('category', '')).strip() or 'Services'
+                    section = str(row.get('section', '')).strip()
+                    price_php = str(row.get('price_php', '')).strip()
+                    option = {
+                        'label': label,
+                        'value': label,
+                        'category': category,
+                        'section': section,
+                        'price_php': price_php,
+                    }
+                    groups.setdefault(category, []).append(option)
+                    recommendations[label] = infer_staff_and_equipment(label, f'{category} {section}')
+                    preparation[label] = infer_preparation_notes(label, f'{category} {section}')
+            except Exception:
+                groups = {}
+                recommendations = {}
+                preparation = {}
+        if not groups:
+            for service_name in SERVICE_CATALOG:
+                option = {
+                    'label': service_name,
+                    'value': service_name,
+                    'category': 'Clinic Services',
+                    'section': 'Clinic Services',
+                    'price_php': '',
+                }
+                groups.setdefault('Clinic Services', []).append(option)
+                recommendations[service_name] = infer_staff_and_equipment(service_name)
+                preparation[service_name] = infer_preparation_notes(service_name)
+        return groups, recommendations, preparation
+
+    def load_package_options(service_recommendations, service_preparation):
+        package_path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_packages_scraped.csv')
+        package_items = {}
+        recommendations = {}
+        preparation = {}
+        if os.path.exists(package_path):
+            try:
+                package_df = pd.read_csv(package_path).fillna('')
+                for _, row in package_df.iterrows():
+                    package_name = str(row.get('package_name', '')).strip()
+                    included_service = str(row.get('included_service', '')).strip()
+                    if not package_name:
+                        continue
+                    package_items.setdefault(package_name, [])
+                    if included_service:
+                        package_items[package_name].append(included_service)
+            except Exception:
+                package_items = {}
+        options = []
+        for package_name, included_services in sorted(package_items.items()):
+            roles = []
+            equipment = []
+            notes = []
+            for included_service in included_services:
+                mapped = service_recommendations.get(included_service) or infer_staff_and_equipment(included_service)
+                roles.extend(mapped.get('roles', []))
+                equipment.extend(mapped.get('equipment', []))
+                notes.extend(service_preparation.get(included_service) or infer_preparation_notes(included_service))
+            options.append({
+                'label': package_name,
+                'value': package_name,
+                'item_count': len(included_services),
+                'price_php': '',
+            })
+            recommendations[package_name] = {
+                'roles': sorted(set(roles)) or ['General Physicians'],
+                'equipment': sorted(set(equipment)),
+            }
+            preparation[package_name] = sorted(set(notes))
+        return options, recommendations, preparation
 
     def service_type_for_name(service_name):
         text_value = service_name.lower()
@@ -3106,12 +3225,14 @@ def create_app():
                     key: value for key, value in values.items()
                     if key not in {'password', 'password_confirmation'}
                 }
+                now = datetime.now()
                 session['pending_patient_registration'] = {
                     'values': registration_values,
                     'existing_patient_id': patient.id if patient else None,
                     'password_hash': generate_password_hash(values['password']),
                     'code_hash': generate_password_hash(code),
-                    'expires_at': (datetime.now() + timedelta(minutes=10)).isoformat(),
+                    'expires_at': (now + timedelta(minutes=10)).isoformat(),
+                    'last_sent_at': now.isoformat(),
                 }
                 try:
                     send_patient_verification_email(values['email'], code)
@@ -3123,6 +3244,7 @@ def create_app():
                 return redirect(url_for('patient_verify_email'))
             return render_template('patient_portal/register.html', branch_options=branch_options, values=values, guest_booking_patient=guest_booking_patient)
         if guest_booking_patient:
+            session.pop('patient_registration_draft', None)
             values = {
                 'patient_number': guest_booking_patient.patient_number,
                 'branch_id': str(guest_booking_patient.branch_id or branch_options[0].id),
@@ -3133,6 +3255,9 @@ def create_app():
                 'email': guest_booking_patient.email or '',
             }
             return render_template('patient_portal/register.html', branch_options=branch_options, values=values, guest_booking_patient=guest_booking_patient)
+        draft_values = session.pop('patient_registration_draft', None)
+        if draft_values:
+            return render_template('patient_portal/register.html', branch_options=branch_options, values=draft_values, guest_booking_patient=None)
         return render_template('patient_portal/register.html', branch_options=branch_options, values={}, guest_booking_patient=None)
 
     @app.route('/patient-verify-email', methods=['GET', 'POST'])
@@ -3142,15 +3267,39 @@ def create_app():
             flash('Start by creating your patient account.', 'error')
             return redirect(url_for('patient_register'))
         if request.method == 'POST':
+            action = request.form.get('action', 'verify')
+            if action == 'resend':
+                try:
+                    last_sent_at = datetime.fromisoformat(pending.get('last_sent_at', ''))
+                except (TypeError, ValueError):
+                    last_sent_at = None
+                elapsed = (datetime.now() - last_sent_at).total_seconds() if last_sent_at else OTP_RESEND_COOLDOWN_SECONDS
+                if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                    flash(f'Please wait {int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)} seconds before requesting another code.', 'error')
+                else:
+                    code = f'{secrets.randbelow(1_000_000):06d}'
+                    now = datetime.now()
+                    pending['code_hash'] = generate_password_hash(code)
+                    pending['expires_at'] = (now + timedelta(minutes=10)).isoformat()
+                    pending['last_sent_at'] = now.isoformat()
+                    session['pending_patient_registration'] = pending
+                    try:
+                        send_patient_verification_email(pending['values']['email'], code)
+                    except Exception as exc:
+                        flash(f'We could not send your verification code: {exc}', 'error')
+                    else:
+                        flash('A new verification code was sent to your email address.', 'success')
+                return render_template('patient_portal/verify_email.html', email=pending['values']['email'])
             try:
                 expired = datetime.fromisoformat(pending['expires_at']) < datetime.now()
             except (KeyError, TypeError, ValueError):
                 expired = True
             code = request.form.get('code', '').strip()
             if expired:
+                session['patient_registration_draft'] = pending.get('values')
                 session.pop('pending_patient_registration', None)
                 session.pop('guest_booking_patient_id', None)
-                flash('That verification code has expired. Please register again.', 'error')
+                flash('That verification code has expired. Please review your details and register again.', 'error')
                 return redirect(url_for('patient_register'))
             if not check_password_hash(pending.get('code_hash', ''), code):
                 flash('That verification code is invalid.', 'error')
@@ -3185,10 +3334,12 @@ def create_app():
             account = PatientAccount.query.filter_by(email=email).first()
             if account and account.email_verified and check_password_hash(account.password_hash, request.form.get('password', '')) and account.patient.is_active:
                 code = f'{secrets.randbelow(1_000_000):06d}'
+                now = datetime.now()
                 session['pending_patient_login'] = {
                     'account_id': account.id,
                     'code_hash': generate_password_hash(code),
-                    'expires_at': (datetime.now() + timedelta(minutes=10)).isoformat(),
+                    'expires_at': (now + timedelta(minutes=10)).isoformat(),
+                    'last_sent_at': now.isoformat(),
                 }
                 try:
                     send_patient_verification_email(account.email, code)
@@ -3213,6 +3364,29 @@ def create_app():
             flash('This account is no longer available. Please sign in again.', 'error')
             return redirect(url_for('patient_login'))
         if request.method == 'POST':
+            action = request.form.get('action', 'verify')
+            if action == 'resend':
+                try:
+                    last_sent_at = datetime.fromisoformat(pending.get('last_sent_at', ''))
+                except (TypeError, ValueError):
+                    last_sent_at = None
+                elapsed = (datetime.now() - last_sent_at).total_seconds() if last_sent_at else OTP_RESEND_COOLDOWN_SECONDS
+                if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                    flash(f'Please wait {int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)} seconds before requesting another code.', 'error')
+                else:
+                    code = f'{secrets.randbelow(1_000_000):06d}'
+                    now = datetime.now()
+                    pending['code_hash'] = generate_password_hash(code)
+                    pending['expires_at'] = (now + timedelta(minutes=10)).isoformat()
+                    pending['last_sent_at'] = now.isoformat()
+                    session['pending_patient_login'] = pending
+                    try:
+                        send_patient_verification_email(account.email, code)
+                    except Exception as exc:
+                        flash(f'We could not send your verification code: {exc}', 'error')
+                    else:
+                        flash('A new verification code was sent to your email address.', 'success')
+                return render_template('patient_portal/verify_login.html', email=account.email)
             try:
                 expired = datetime.fromisoformat(pending['expires_at']) < datetime.now()
             except (KeyError, TypeError, ValueError):
@@ -3230,6 +3404,91 @@ def create_app():
                 flash(f'Welcome back, {account.patient.full_name}.', 'success')
                 return redirect(url_for('patient_profile'))
         return render_template('patient_portal/verify_login.html', email=account.email)
+
+    @app.route('/patient-forgot-password', methods=['GET', 'POST'])
+    def patient_forgot_password():
+        if request.method == 'POST':
+            email = request.form.get('email', '').strip().lower()
+            account = PatientAccount.query.filter_by(email=email, email_verified=True).first()
+            if account and account.patient.is_active:
+                code = f'{secrets.randbelow(1_000_000):06d}'
+                now = datetime.now()
+                session['pending_patient_password_reset'] = {
+                    'account_id': account.id,
+                    'code_hash': generate_password_hash(code),
+                    'expires_at': (now + timedelta(minutes=10)).isoformat(),
+                    'last_sent_at': now.isoformat(),
+                }
+                try:
+                    send_patient_verification_email(account.email, code)
+                except Exception:
+                    session.pop('pending_patient_password_reset', None)
+                    flash('We could not send your reset code. Please try again later.', 'error')
+                    return render_template('patient_portal/forgot_password.html')
+            flash('If an account exists for that email address, a reset code has been sent.', 'success')
+            return redirect(url_for('patient_reset_password'))
+        return render_template('patient_portal/forgot_password.html')
+
+    @app.route('/patient-reset-password', methods=['GET', 'POST'])
+    def patient_reset_password():
+        pending = session.get('pending_patient_password_reset')
+        if not pending:
+            flash('Please request a password reset code first.', 'error')
+            return redirect(url_for('patient_forgot_password'))
+        account = db.session.get(PatientAccount, pending.get('account_id'))
+        if account is None or not account.patient.is_active:
+            session.pop('pending_patient_password_reset', None)
+            flash('This account is no longer available.', 'error')
+            return redirect(url_for('patient_forgot_password'))
+        if request.method == 'POST':
+            action = request.form.get('action', 'verify')
+            if action == 'resend':
+                try:
+                    last_sent_at = datetime.fromisoformat(pending.get('last_sent_at', ''))
+                except (TypeError, ValueError):
+                    last_sent_at = None
+                elapsed = (datetime.now() - last_sent_at).total_seconds() if last_sent_at else OTP_RESEND_COOLDOWN_SECONDS
+                if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                    flash(f'Please wait {int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)} seconds before requesting another code.', 'error')
+                else:
+                    code = f'{secrets.randbelow(1_000_000):06d}'
+                    now = datetime.now()
+                    pending['code_hash'] = generate_password_hash(code)
+                    pending['expires_at'] = (now + timedelta(minutes=10)).isoformat()
+                    pending['last_sent_at'] = now.isoformat()
+                    session['pending_patient_password_reset'] = pending
+                    try:
+                        send_patient_verification_email(account.email, code)
+                    except Exception as exc:
+                        flash(f'We could not send your reset code: {exc}', 'error')
+                    else:
+                        flash('A new reset code was sent to your email address.', 'success')
+                return render_template('patient_portal/reset_password.html', email=account.email)
+            try:
+                expired = datetime.fromisoformat(pending['expires_at']) < datetime.now()
+            except (KeyError, TypeError, ValueError):
+                expired = True
+            code = request.form.get('code', '').strip()
+            new_password = request.form.get('password', '')
+            confirm_password = request.form.get('password_confirmation', '')
+            if expired:
+                session.pop('pending_patient_password_reset', None)
+                flash('That reset code has expired. Please request a new one.', 'error')
+                return redirect(url_for('patient_forgot_password'))
+            if not check_password_hash(pending.get('code_hash', ''), code):
+                flash('That reset code is invalid.', 'error')
+            elif len(new_password) < 8:
+                flash('Password must contain at least 8 characters.', 'error')
+            elif new_password != confirm_password:
+                flash('Passwords do not match.', 'error')
+            else:
+                account.password_hash = generate_password_hash(new_password)
+                log_audit('patient_password_reset', 'Patient', account.patient_id, {'email': account.email}, branch_id=account.patient.branch_id)
+                db.session.commit()
+                session.pop('pending_patient_password_reset', None)
+                flash('Your password has been updated. Please sign in.', 'success')
+                return redirect(url_for('patient_login'))
+        return render_template('patient_portal/reset_password.html', email=account.email)
 
     @app.route('/patient-logout')
     def patient_logout():
@@ -3256,19 +3515,29 @@ def create_app():
             if appointment is None:
                 flash('We could not find an appointment with that ID and email address.', 'error')
             elif action == 'send_otp':
-                code = f'{secrets.randbelow(1_000_000):06d}'
-                appointment.tracking_otp_hash = generate_password_hash(code)
-                appointment.tracking_otp_expires_at = datetime.now() + timedelta(minutes=10)
-                db.session.commit()
-                sent = send_appointment_email(
-                    appointment.patient.email,
-                    f'Your Accudetek appointment tracking code — {appointment.appointment_code}',
-                    f'Your one-time appointment tracking code is: {code}\n\nIt expires in 10 minutes. Do not share this code with anyone.',
-                )
-                if sent:
-                    flash('A six-digit tracking code has been sent to your email address.', 'success')
+                cooldown_key = f'track_otp_last_sent_{appointment.id}'
+                try:
+                    last_sent_at = datetime.fromisoformat(session.get(cooldown_key, ''))
+                except (TypeError, ValueError):
+                    last_sent_at = None
+                elapsed = (datetime.now() - last_sent_at).total_seconds() if last_sent_at else OTP_RESEND_COOLDOWN_SECONDS
+                if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                    flash(f'Please wait {int(OTP_RESEND_COOLDOWN_SECONDS - elapsed)} seconds before requesting another code.', 'error')
                 else:
-                    flash('We could not send the tracking code. Please contact the clinic for assistance.', 'error')
+                    code = f'{secrets.randbelow(1_000_000):06d}'
+                    appointment.tracking_otp_hash = generate_password_hash(code)
+                    appointment.tracking_otp_expires_at = datetime.now() + timedelta(minutes=10)
+                    db.session.commit()
+                    session[cooldown_key] = datetime.now().isoformat()
+                    sent = send_appointment_email(
+                        appointment.patient.email,
+                        f'Your Accudetek appointment tracking code — {appointment.appointment_code}',
+                        f'Your one-time appointment tracking code is: {code}\n\nIt expires in 10 minutes. Do not share this code with anyone.',
+                    )
+                    if sent:
+                        flash('A six-digit tracking code has been sent to your email address. It expires in 10 minutes.', 'success')
+                    else:
+                        flash('We could not send the tracking code. Please contact the clinic for assistance.', 'error')
             elif action == 'verify_otp':
                 otp = request.form.get('otp', '').strip()
                 valid = (
@@ -3283,7 +3552,10 @@ def create_app():
                     return render_template('patient_portal/track_appointment.html', values=values, appointment=appointment, verified=True)
                 flash('That tracking code is invalid or has expired.', 'error')
 
-        return render_template('patient_portal/track_appointment.html', values=values, appointment=appointment, verified=False)
+        return render_template(
+            'patient_portal/track_appointment.html', values=values, appointment=appointment, verified=False,
+            otp_pending=bool(appointment and appointment.tracking_otp_hash),
+        )
 
     @app.cli.command('send-appointment-reminders')
     def send_appointment_reminders():
@@ -3307,16 +3579,121 @@ def create_app():
         db.session.commit()
         print(f'Sent {sent_count} appointment reminder(s).')
 
+    CONSULTATION_REASON_OPTIONS = [
+        'Headache',
+        'Fever',
+        'Cough and colds',
+        'Sore throat',
+        'Dizziness',
+        'Body weakness or fatigue',
+        'Abdominal pain',
+        'Urinary tract infection symptoms',
+        'Gastrointestinal complaints',
+        'Skin conditions and allergies',
+        'Routine medical consultation and health clearance',
+        'Follow-up consultation',
+        'Hypertension monitoring',
+        'Diabetes mellitus monitoring',
+        'Preventive health check-up',
+    ]
+
+    BOOKING_STEP_DEFS = [
+        (1, 'schedule', 'Schedule', 'patient_portal'),
+        (2, 'patient', 'Patient', 'patient_portal_patient_step'),
+        (3, 'services', 'Services', 'patient_portal_services_step'),
+        (4, 'reasons', 'Reason', 'patient_portal_reasons_step'),
+        (5, 'review', 'Review', 'patient_portal_review_step'),
+    ]
+
+    def get_booking_draft():
+        draft = session.get('booking_draft')
+        return draft if isinstance(draft, dict) else {}
+
+    def save_booking_draft(**updates):
+        draft = get_booking_draft()
+        draft.update(updates)
+        session['booking_draft'] = draft
+        return draft
+
+    def clear_booking_draft():
+        session.pop('booking_draft', None)
+
+    def draft_step_ready(draft, step):
+        if step == 'schedule':
+            return bool(draft.get('branch_id') and draft.get('appointment_date') and draft.get('appointment_time'))
+        if step == 'patient':
+            return bool(draft.get('full_name') and draft.get('birthdate') and draft.get('gender') and draft.get('email'))
+        if step == 'services':
+            return bool(draft.get('selected_services') or draft.get('selected_packages'))
+        if step == 'reasons':
+            return True
+        return False
+
+    def redirect_to_first_missing_step(draft, required_steps):
+        for number, key, label, endpoint in BOOKING_STEP_DEFS:
+            if key in required_steps and not draft_step_ready(draft, key):
+                return redirect(url_for(endpoint))
+        return None
+
+    def booking_progress_steps(current_step, furthest_step):
+        return [
+            {
+                'number': number,
+                'label': label,
+                'url': url_for(endpoint) if number <= furthest_step else None,
+                'is_current': number == current_step,
+                'is_complete': number < current_step,
+            }
+            for number, key, label, endpoint in BOOKING_STEP_DEFS
+        ]
+
+    def booking_selection_summary(draft, service_lookup, package_lookup, service_preparation, package_preparation):
+        items = []
+        prep_notes = []
+        subtotal = 0.0
+        has_priced_item = False
+        for service in draft.get('selected_services', []):
+            items.append(service)
+            prep_notes.extend(service_preparation.get(service, []))
+            digits = re.sub(r'[^0-9.]', '', service_lookup.get(service, '') or '')
+            if digits:
+                try:
+                    subtotal += float(digits)
+                    has_priced_item = True
+                except ValueError:
+                    pass
+        for package in draft.get('selected_packages', []):
+            items.append(f'Package: {package}')
+            prep_notes.extend(package_preparation.get(package, []))
+            digits = re.sub(r'[^0-9.]', '', package_lookup.get(package, '') or '')
+            if digits:
+                try:
+                    subtotal += float(digits)
+                    has_priced_item = True
+                except ValueError:
+                    pass
+        return {
+            'selected_items': items,
+            'subtotal': subtotal,
+            'has_priced_item': has_priced_item,
+            'prep_notes': sorted(set(prep_notes)),
+        }
+
+    def price_lookup_from_service_groups(service_groups):
+        return {option['value']: option['price_php'] for options in service_groups.values() for option in options}
+
+    def price_lookup_from_package_options(package_options):
+        return {option['value']: option['price_php'] for option in package_options}
+
     @app.route('/patient-portal', methods=['GET', 'POST'])
     def patient_portal():
-        account = PatientAccount.query.filter_by(id=session.get('patient_account_id'), email_verified=True).first()
-        portal_patient = account.patient if account and account.patient.is_active else None
         today = datetime.now().strftime('%Y-%m-%d')
         branch_options = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
         if not branch_options:
             branch_options = [ensure_default_branch()]
 
-        requested_branch_id = request.form.get('branch_id') or request.args.get('branch_id')
+        draft = get_booking_draft()
+        requested_branch_id = request.form.get('branch_id') or request.args.get('branch_id') or draft.get('branch_id')
         branch = None
         if requested_branch_id:
             try:
@@ -3325,266 +3702,349 @@ def create_app():
                 branch = None
         branch = branch or branch_options[0]
 
-        def patient_portal_values():
-            return {
-                'appointment_date': request.form.get('appointment_date', today).strip(),
-                'appointment_time': request.form.get('appointment_time', '').strip(),
-                'full_name': request.form.get('full_name', portal_patient.full_name if portal_patient else '').strip(),
-                'birthdate': request.form.get('birthdate', portal_patient.birthdate if portal_patient else '').strip(),
-                'gender': request.form.get('gender', portal_patient.gender if portal_patient else '').strip(),
-                'contact_number': request.form.get('contact_number', portal_patient.contact_number if portal_patient else '').strip(),
-                'email': request.form.get('email', (portal_patient.email or account.email) if portal_patient else '').strip().lower(),
-                'address': request.form.get('address', portal_patient.address if portal_patient else '').strip(),
-                'selected_packages': request.form.getlist('selected_packages'),
-                'selected_services': request.form.getlist('selected_services'),
-                'consultation_reasons': request.form.getlist('consultation_reasons'),
-                'other_reason': request.form.get('other_reason', '').strip(),
-            }
-
-        def infer_staff_and_equipment(label, category=''):
-            text_value = f'{label} {category}'.lower()
-            roles = []
-            equipment = []
-            if any(word in text_value for word in ['x-ray', 'xray', 'ultrasound', 'radiology', 'vascular']):
-                roles.extend(['Registered Radiologic Technologists', 'Radiologists'])
-                if 'ultrasound' in text_value:
-                    equipment.append('Ultrasound Machine')
-                else:
-                    equipment.append('X-ray System/Machine')
-            if any(word in text_value for word in ['cbc', 'blood', 'urine', 'stool', 'chem', 'laboratory', 'hematology', 'serology', 'microscopy', 'immunology', 'drug test']):
-                roles.extend(['Registered Medical Technologists', 'Laboratory Technicians'])
-                equipment.extend(['Automated Hematology Analyzer', 'Automated Clinical Chemistry Analyzer'])
-            if any(word in text_value for word in ['ecg', 'electrocardiography', 'cardio']):
-                roles.extend(['General Physicians', 'Internal Medicine Physicians'])
-                equipment.append('Electrocardiograph (ECG) Machine')
-            if any(word in text_value for word in ['consult', 'check-up', 'checkup', 'hypertension', 'diabetes', 'asthma', 'fever', 'cough', 'headache', 'clearance']):
-                roles.extend(['General Physicians', 'Internal Medicine Physicians'])
-            if not roles:
-                roles.append('General Physicians')
-            return {
-                'roles': sorted(set(roles)),
-                'equipment': sorted(set(equipment)),
-            }
-
-        def load_service_options():
-            service_path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_services_scraped.csv')
-            groups = {}
-            recommendations = {}
-            if os.path.exists(service_path):
-                try:
-                    service_df = pd.read_csv(service_path).fillna('')
-                    for _, row in service_df.iterrows():
-                        label = str(row.get('service_name', '')).strip()
-                        if not label:
-                            continue
-                        category = str(row.get('category', '')).strip() or 'Services'
-                        section = str(row.get('section', '')).strip()
-                        price_php = str(row.get('price_php', '')).strip()
-                        option = {
-                            'label': label,
-                            'value': label,
-                            'category': category,
-                            'section': section,
-                            'price_php': price_php,
-                        }
-                        groups.setdefault(category, []).append(option)
-                        recommendations[label] = infer_staff_and_equipment(label, f'{category} {section}')
-                except Exception:
-                    groups = {}
-                    recommendations = {}
-            if not groups:
-                for service_name in SERVICE_CATALOG:
-                    option = {
-                        'label': service_name,
-                        'value': service_name,
-                        'category': 'Clinic Services',
-                        'section': 'Clinic Services',
-                        'price_php': '',
-                    }
-                    groups.setdefault('Clinic Services', []).append(option)
-                    recommendations[service_name] = infer_staff_and_equipment(service_name)
-            return groups, recommendations
-
-        def load_package_options(service_recommendations):
-            package_path = os.path.join(app.config['UPLOAD_FOLDER'], 'accudetek_packages_scraped.csv')
-            package_items = {}
-            recommendations = {}
-            if os.path.exists(package_path):
-                try:
-                    package_df = pd.read_csv(package_path).fillna('')
-                    for _, row in package_df.iterrows():
-                        package_name = str(row.get('package_name', '')).strip()
-                        included_service = str(row.get('included_service', '')).strip()
-                        if not package_name:
-                            continue
-                        package_items.setdefault(package_name, [])
-                        if included_service:
-                            package_items[package_name].append(included_service)
-                except Exception:
-                    package_items = {}
-            options = []
-            for package_name, included_services in sorted(package_items.items()):
-                roles = []
-                equipment = []
-                for included_service in included_services:
-                    mapped = service_recommendations.get(included_service) or infer_staff_and_equipment(included_service)
-                    roles.extend(mapped.get('roles', []))
-                    equipment.extend(mapped.get('equipment', []))
-                options.append({
-                    'label': package_name,
-                    'value': package_name,
-                    'item_count': len(included_services),
-                    'price_php': '',
-                })
-                recommendations[package_name] = {
-                    'roles': sorted(set(roles)) or ['General Physicians'],
-                    'equipment': sorted(set(equipment)),
-                }
-            return options, recommendations
-
-        service_groups, service_recommendations = load_service_options()
-        package_options, package_recommendations = load_package_options(service_recommendations)
-        consultation_reason_options = [
-            'Headache',
-            'Fever',
-            'Cough and colds',
-            'Sore throat',
-            'Dizziness',
-            'Body weakness or fatigue',
-            'Abdominal pain',
-            'Urinary tract infection symptoms',
-            'Gastrointestinal complaints',
-            'Skin conditions and allergies',
-            'Routine medical consultation and health clearance',
-            'Follow-up consultation',
-            'Hypertension monitoring',
-            'Diabetes mellitus monitoring',
-            'Preventive health check-up',
-        ]
-        reason_recommendations = {
-            reason: infer_staff_and_equipment(reason)['roles']
-            for reason in consultation_reason_options
+        field_errors = {}
+        values = {
+            'appointment_date': request.form.get('appointment_date', draft.get('appointment_date') or today).strip(),
+            'appointment_time': request.form.get('appointment_time', draft.get('appointment_time', '')).strip(),
         }
-        keyword_recommendations = {
-            'lab': ['Registered Medical Technologists', 'Laboratory Technicians'],
-            'blood': ['Registered Medical Technologists', 'Laboratory Technicians'],
-            'urine': ['Registered Medical Technologists', 'Laboratory Technicians'],
-            'xray': ['Registered Radiologic Technologists', 'Radiologists'],
-            'x-ray': ['Registered Radiologic Technologists', 'Radiologists'],
-            'ultrasound': ['Registered Radiologic Technologists', 'Radiologists'],
-            'ecg': ['General Physicians', 'Internal Medicine Physicians'],
-            'heart': ['General Physicians', 'Internal Medicine Physicians'],
-        }
-        values = patient_portal_values()
 
         if request.method == 'POST':
             appointment_date = parse_iso_date(values['appointment_date'])
             appointment_time = normalize_appointment_time(values['appointment_time'])
-            age = calculate_age_from_birthdate(values['birthdate'], appointment_date or datetime.now().date())
-            if not values['full_name']:
-                flash('Full name is required.', 'error')
-            elif not values['birthdate'] or age is None:
-                flash('Please enter a valid birthdate.', 'error')
-            elif not values['gender']:
-                flash('Please select gender.', 'error')
-            elif not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', values['email']):
-                flash('Please enter a valid email address so we can send your appointment confirmation.', 'error')
-            elif appointment_date is None or appointment_date < datetime.now().date():
-                flash('Please choose a valid appointment date.', 'error')
-            elif not appointment_time:
-                flash('Please choose an appointment time.', 'error')
-            elif not values['selected_services'] and not values['selected_packages']:
-                flash('Please select at least one service or package.', 'error')
-            elif appointment_slot_conflict(branch.id, values['appointment_date'], appointment_time):
-                flash('That appointment slot is already taken for this branch.', 'error')
+            now = datetime.now()
+            if appointment_date is None or appointment_date < now.date():
+                field_errors['appointment_date'] = 'Please choose a valid appointment date.'
+            if not appointment_time:
+                field_errors['appointment_time'] = 'Please choose an appointment time.'
+            elif appointment_date == now.date() and appointment_time <= now.strftime('%H:%M'):
+                field_errors['appointment_time'] = 'Please choose a time later than the current time.'
+            elif not is_within_clinic_hours(appointment_date, appointment_time):
+                open_time, close_time = clinic_hours_for_date(appointment_date)
+                field_errors['appointment_time'] = f'Please choose a time between {format_appointment_time(open_time)} and {format_appointment_time(close_time)}.'
+            if not field_errors and appointment_slot_conflict(branch.id, values['appointment_date'], appointment_time):
+                field_errors['appointment_time'] = 'That appointment slot is already taken for this branch. Please choose another time.'
+
+            if field_errors:
+                flash('Please fix the highlighted fields below before continuing.', 'error')
             else:
-                patient = portal_patient
-                if patient is None:
-                    patient = Patient.query.filter_by(email=values['email'], is_active=True).order_by(Patient.id.asc()).first()
-                if patient is None:
-                    patient = Patient(
-                        branch_id=branch.id,
-                        patient_number=generate_patient_number(branch),
-                        full_name=values['full_name'], birthdate=values['birthdate'], age=age,
-                        age_group=age_group_from_age(age), gender=values['gender'],
-                        contact_number=values['contact_number'], email=values['email'],
-                        address=values['address'], is_active=True,
-                    )
-                    db.session.add(patient)
-                    db.session.flush()
-                else:
-                    patient.full_name = values['full_name']
-                    patient.birthdate = values['birthdate']
-                    patient.age = age
-                    patient.age_group = age_group_from_age(age)
-                    patient.gender = values['gender']
-                    patient.contact_number = values['contact_number']
-                    patient.email = values['email']
-                    patient.address = values['address']
-                    patient.is_active = True
-                    patient.updated_at = datetime.now()
-                roles, equipment, notes = appointment_recommendations(
-                    values['selected_services'],
-                    values['selected_packages'],
-                    values['consultation_reasons'],
-                    values['other_reason'],
-                    service_recommendations,
-                    package_recommendations,
-                )
-                appointment = Appointment(
-                    appointment_code=new_appointment_code(),
+                save_booking_draft(
                     branch_id=branch.id,
-                    patient_id=patient.id,
                     appointment_date=values['appointment_date'],
                     appointment_time=appointment_time,
-                    selected_services=join_items(values['selected_services']),
-                    selected_packages=join_items(values['selected_packages']),
-                    consultation_reasons=join_items(values['consultation_reasons']),
-                    other_reason=values['other_reason'],
-                    recommended_roles=join_items(roles),
-                    recommended_equipment=join_items(equipment),
-                    recommendation_notes=join_items(notes),
-                    status='Pending',
+                    furthest_step=max(draft.get('furthest_step', 1), 2),
                 )
-                db.session.add(appointment)
-                try:
-                    db.session.flush()
-                    log_audit('patient_portal_booking', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'patient_id': patient.id, 'date': appointment.appointment_date, 'time': appointment.appointment_time}, branch_id=branch.id)
-                    db.session.commit()
-                except IntegrityError:
-                    db.session.rollback()
-                    flash('That appointment slot was just taken. Please choose another time.', 'error')
-                else:
-                    remove_cached_dashboard_summary(branch.id)
-                    if account:
-                        session['patient_portal_patient_id'] = patient.id
-                    else:
-                        session['guest_booking_patient_id'] = patient.id
-                    email_sent = send_appointment_email(
-                        patient.email,
-                        f'Accudetek appointment request received — {appointment.appointment_code}',
-                        f'Hello {patient.full_name},\n\nYour appointment request has been received.\n\n'
-                        f'Appointment ID: {appointment.appointment_code}\nBranch: {branch.name}\n'
-                        f'Schedule: {appointment.appointment_date} at {format_appointment_time(appointment.appointment_time)}\n'
-                        'Status: Pending clinic confirmation\n\nKeep your Appointment ID. You can use it with your email to request a one-time code and track this appointment online.',
-                    )
-                    return render_template('patient_portal/success.html', branch=branch, patient=patient, appointment=appointment, email_sent=email_sent, is_guest=account is None)
+                return redirect(url_for('patient_portal_patient_step'))
 
         return render_template(
-            'patient_portal/index.html',
+            'patient_portal/booking_schedule.html',
             branch=branch,
             branch_options=branch_options,
             values=values,
+            field_errors=field_errors,
+            today=today,
+            progress_steps=booking_progress_steps(1, draft.get('furthest_step', 1)),
+            summary=None,
+        )
+
+    @app.route('/patient-portal/patient-info', methods=['GET', 'POST'])
+    def patient_portal_patient_step():
+        account = PatientAccount.query.filter_by(id=session.get('patient_account_id'), email_verified=True).first()
+        portal_patient = account.patient if account and account.patient.is_active else None
+        draft = get_booking_draft()
+        redirect_response = redirect_to_first_missing_step(draft, {'schedule'})
+        if redirect_response:
+            flash('Please choose your branch and schedule first.', 'error')
+            return redirect_response
+        branch = db.session.get(Branch, draft.get('branch_id')) or ensure_default_branch()
+
+        field_errors = {}
+        values = {
+            'full_name': request.form.get('full_name', draft.get('full_name') or (portal_patient.full_name if portal_patient else '') or '').strip(),
+            'birthdate': request.form.get('birthdate', draft.get('birthdate') or (portal_patient.birthdate if portal_patient else '') or '').strip(),
+            'gender': request.form.get('gender', draft.get('gender') or (portal_patient.gender if portal_patient else '') or '').strip(),
+            'contact_number': request.form.get('contact_number', draft.get('contact_number') or (portal_patient.contact_number if portal_patient else '') or '').strip(),
+            'email': request.form.get('email', draft.get('email') or ((portal_patient.email or account.email) if portal_patient else '') or '').strip().lower(),
+            'address': request.form.get('address', draft.get('address') or (portal_patient.address if portal_patient else '') or '').strip(),
+        }
+
+        if request.method == 'POST':
+            reference_date = parse_iso_date(draft.get('appointment_date', '')) or datetime.now().date()
+            age = calculate_age_from_birthdate(values['birthdate'], reference_date)
+            if not values['full_name']:
+                field_errors['full_name'] = 'Full name is required.'
+            if not values['birthdate'] or age is None:
+                field_errors['birthdate'] = 'Please enter a valid birthdate.'
+            if not values['gender']:
+                field_errors['gender'] = 'Please select gender.'
+            if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', values['email']):
+                field_errors['email'] = 'Please enter a valid email address so we can send your appointment confirmation.'
+            if values['contact_number'] and not re.fullmatch(r'[0-9+\-()\s]{7,20}', values['contact_number']):
+                field_errors['contact_number'] = 'Please enter a valid phone number.'
+
+            if field_errors:
+                flash('Please fix the highlighted fields below before continuing.', 'error')
+            else:
+                save_booking_draft(**values, furthest_step=max(draft.get('furthest_step', 1), 3))
+                return redirect(url_for('patient_portal_services_step'))
+
+        return render_template(
+            'patient_portal/booking_patient.html',
+            branch=branch,
+            values=values,
+            field_errors=field_errors,
             gender_options=['Female', 'Male'],
+            current_date=datetime.now().strftime('%Y-%m-%d'),
+            progress_steps=booking_progress_steps(2, draft.get('furthest_step', 1)),
+            summary=None,
+        )
+
+    @app.route('/patient-portal/services', methods=['GET', 'POST'])
+    def patient_portal_services_step():
+        draft = get_booking_draft()
+        redirect_response = redirect_to_first_missing_step(draft, {'schedule', 'patient'})
+        if redirect_response:
+            flash('Please complete the previous steps first.', 'error')
+            return redirect_response
+        branch = db.session.get(Branch, draft.get('branch_id')) or ensure_default_branch()
+
+        service_groups, service_recommendations, service_preparation = load_service_options()
+        package_options, _package_recommendations, package_preparation = load_package_options(service_recommendations, service_preparation)
+
+        field_errors = {}
+        if request.method == 'POST':
+            values = {
+                'selected_packages': request.form.getlist('selected_packages'),
+                'selected_services': request.form.getlist('selected_services'),
+            }
+            if not values['selected_services'] and not values['selected_packages']:
+                field_errors['services'] = 'Please select at least one service or package.'
+            if field_errors:
+                flash('Please select at least one service or package before continuing.', 'error')
+            else:
+                save_booking_draft(
+                    selected_services=values['selected_services'],
+                    selected_packages=values['selected_packages'],
+                    furthest_step=max(draft.get('furthest_step', 1), 4),
+                )
+                return redirect(url_for('patient_portal_reasons_step'))
+        else:
+            values = {
+                'selected_packages': draft.get('selected_packages', []),
+                'selected_services': draft.get('selected_services', []),
+            }
+
+        summary = booking_selection_summary(
+            {'selected_services': values['selected_services'], 'selected_packages': values['selected_packages']},
+            price_lookup_from_service_groups(service_groups),
+            price_lookup_from_package_options(package_options),
+            service_preparation,
+            package_preparation,
+        )
+        return render_template(
+            'patient_portal/booking_services.html',
+            branch=branch,
             service_groups=service_groups,
             package_options=package_options,
-            consultation_reason_options=consultation_reason_options,
-            service_recommendations=service_recommendations,
-            package_recommendations=package_recommendations,
-            reason_recommendations=reason_recommendations,
-            keyword_recommendations=keyword_recommendations,
-            today=today,
-            current_date=today,
+            service_preparation=service_preparation,
+            package_preparation=package_preparation,
+            values=values,
+            field_errors=field_errors,
+            progress_steps=booking_progress_steps(3, draft.get('furthest_step', 1)),
+            summary=summary,
+        )
+
+    @app.route('/patient-portal/reasons', methods=['GET', 'POST'])
+    def patient_portal_reasons_step():
+        draft = get_booking_draft()
+        redirect_response = redirect_to_first_missing_step(draft, {'schedule', 'patient', 'services'})
+        if redirect_response:
+            flash('Please complete the previous steps first.', 'error')
+            return redirect_response
+        branch = db.session.get(Branch, draft.get('branch_id')) or ensure_default_branch()
+
+        service_groups, service_recommendations, service_preparation = load_service_options()
+        package_options, _package_recommendations, package_preparation = load_package_options(service_recommendations, service_preparation)
+        summary = booking_selection_summary(
+            draft,
+            price_lookup_from_service_groups(service_groups),
+            price_lookup_from_package_options(package_options),
+            service_preparation,
+            package_preparation,
+        )
+
+        if request.method == 'POST':
+            values = {
+                'consultation_reasons': request.form.getlist('consultation_reasons'),
+                'other_reason': request.form.get('other_reason', '').strip(),
+            }
+            save_booking_draft(
+                consultation_reasons=values['consultation_reasons'],
+                other_reason=values['other_reason'],
+                furthest_step=max(draft.get('furthest_step', 1), 5),
+            )
+            return redirect(url_for('patient_portal_review_step'))
+
+        values = {
+            'consultation_reasons': draft.get('consultation_reasons', []),
+            'other_reason': draft.get('other_reason', ''),
+        }
+
+        return render_template(
+            'patient_portal/booking_reasons.html',
+            branch=branch,
+            consultation_reason_options=CONSULTATION_REASON_OPTIONS,
+            values=values,
+            progress_steps=booking_progress_steps(4, draft.get('furthest_step', 1)),
+            summary=summary,
+        )
+
+    @app.route('/patient-portal/review', methods=['GET', 'POST'])
+    def patient_portal_review_step():
+        account = PatientAccount.query.filter_by(id=session.get('patient_account_id'), email_verified=True).first()
+        portal_patient = account.patient if account and account.patient.is_active else None
+        draft = get_booking_draft()
+        redirect_response = redirect_to_first_missing_step(draft, {'schedule', 'patient', 'services'})
+        if redirect_response:
+            flash('Please complete the previous steps first.', 'error')
+            return redirect_response
+        branch = db.session.get(Branch, draft.get('branch_id')) or ensure_default_branch()
+
+        service_groups, service_recommendations, service_preparation = load_service_options()
+        package_options, package_recommendations, package_preparation = load_package_options(service_recommendations, service_preparation)
+
+        if request.method == 'POST':
+            appointment_date = parse_iso_date(draft.get('appointment_date', ''))
+            appointment_time = normalize_appointment_time(draft.get('appointment_time', ''))
+            full_name = draft.get('full_name', '')
+            birthdate = draft.get('birthdate', '')
+            gender = draft.get('gender', '')
+            email = draft.get('email', '')
+            contact_number = draft.get('contact_number', '')
+            address = draft.get('address', '')
+            selected_services = draft.get('selected_services', [])
+            selected_packages = draft.get('selected_packages', [])
+            consultation_reasons = draft.get('consultation_reasons', [])
+            other_reason = draft.get('other_reason', '')
+            age = calculate_age_from_birthdate(birthdate, appointment_date or datetime.now().date())
+
+            field_errors = {}
+            if not full_name:
+                field_errors['full_name'] = 'Full name is required.'
+            if not birthdate or age is None:
+                field_errors['birthdate'] = 'Please enter a valid birthdate.'
+            if not gender:
+                field_errors['gender'] = 'Please select gender.'
+            if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
+                field_errors['email'] = 'Please enter a valid email address so we can send your appointment confirmation.'
+            now = datetime.now()
+            if appointment_date is None or appointment_date < now.date():
+                field_errors['appointment_date'] = 'Please choose a valid appointment date.'
+            if not appointment_time:
+                field_errors['appointment_time'] = 'Please choose an appointment time.'
+            elif appointment_date == now.date() and appointment_time <= now.strftime('%H:%M'):
+                field_errors['appointment_time'] = 'Please choose a time later than the current time.'
+            elif not is_within_clinic_hours(appointment_date, appointment_time):
+                open_time, close_time = clinic_hours_for_date(appointment_date)
+                field_errors['appointment_time'] = f'Please choose a time between {format_appointment_time(open_time)} and {format_appointment_time(close_time)}.'
+            if not selected_services and not selected_packages:
+                field_errors['services'] = 'Please select at least one service or package.'
+            if 'appointment_date' not in field_errors and 'appointment_time' not in field_errors:
+                if appointment_slot_conflict(branch.id, draft.get('appointment_date'), appointment_time):
+                    field_errors['appointment_time'] = 'That appointment slot is already taken for this branch. Please choose another time.'
+
+            if field_errors:
+                flash('Something needs a second look before this can be submitted — please review it again.', 'error')
+                if 'services' in field_errors:
+                    return redirect(url_for('patient_portal_services_step'))
+                if 'appointment_date' in field_errors or 'appointment_time' in field_errors:
+                    return redirect(url_for('patient_portal'))
+                return redirect(url_for('patient_portal_patient_step'))
+
+            patient = portal_patient
+            if patient is None:
+                patient = Patient.query.filter_by(
+                    email=email, birthdate=birthdate, is_active=True
+                ).order_by(Patient.id.asc()).first()
+            if patient is None:
+                patient = Patient(
+                    branch_id=branch.id,
+                    patient_number=generate_patient_number(branch),
+                    full_name=full_name, birthdate=birthdate, age=age,
+                    age_group=age_group_from_age(age), gender=gender,
+                    contact_number=contact_number, email=email,
+                    address=address, is_active=True,
+                )
+                db.session.add(patient)
+                db.session.flush()
+            else:
+                patient.full_name = full_name
+                patient.birthdate = birthdate
+                patient.age = age
+                patient.age_group = age_group_from_age(age)
+                patient.gender = gender
+                patient.contact_number = contact_number
+                patient.email = email
+                patient.address = address
+                patient.is_active = True
+                patient.updated_at = datetime.now()
+            roles, equipment, notes = appointment_recommendations(
+                selected_services, selected_packages, consultation_reasons, other_reason,
+                service_recommendations, package_recommendations,
+            )
+            appointment = Appointment(
+                appointment_code=new_appointment_code(),
+                branch_id=branch.id,
+                patient_id=patient.id,
+                appointment_date=draft.get('appointment_date'),
+                appointment_time=appointment_time,
+                selected_services=join_items(selected_services),
+                selected_packages=join_items(selected_packages),
+                consultation_reasons=join_items(consultation_reasons),
+                other_reason=other_reason,
+                recommended_roles=join_items(roles),
+                recommended_equipment=join_items(equipment),
+                recommendation_notes=join_items(notes),
+                status='Pending',
+            )
+            db.session.add(appointment)
+            try:
+                db.session.flush()
+                log_audit('patient_portal_booking', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'patient_id': patient.id, 'date': appointment.appointment_date, 'time': appointment.appointment_time}, branch_id=branch.id)
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash('That appointment slot was just taken. Please choose another time.', 'error')
+                return redirect(url_for('patient_portal'))
+
+            remove_cached_dashboard_summary(branch.id)
+            if account:
+                session['patient_portal_patient_id'] = patient.id
+            else:
+                session['guest_booking_patient_id'] = patient.id
+            email_sent = send_appointment_email(
+                patient.email,
+                f'Accudetek appointment request received — {appointment.appointment_code}',
+                f'Hello {patient.full_name},\n\nYour appointment request has been received.\n\n'
+                f'Appointment ID: {appointment.appointment_code}\nBranch: {branch.name}\n'
+                f'Schedule: {appointment.appointment_date} at {format_appointment_time(appointment.appointment_time)}\n'
+                'Status: Pending clinic confirmation\n\nKeep your Appointment ID. You can use it with your email to request a one-time code and track this appointment online.',
+            )
+            clear_booking_draft()
+            return render_template('patient_portal/success.html', branch=branch, patient=patient, appointment=appointment, email_sent=email_sent, is_guest=account is None)
+
+        summary = booking_selection_summary(
+            draft,
+            price_lookup_from_service_groups(service_groups),
+            price_lookup_from_package_options(package_options),
+            service_preparation,
+            package_preparation,
+        )
+        return render_template(
+            'patient_portal/booking_review.html',
+            branch=branch,
+            draft=draft,
+            summary=summary,
+            progress_steps=booking_progress_steps(5, draft.get('furthest_step', 1)),
         )
 
     @app.route('/patient-profile', methods=['GET', 'POST'])
@@ -3611,26 +4071,101 @@ def create_app():
                 db.session.commit()
                 flash('Your profile details have been updated.', 'success')
                 return redirect(url_for('patient_profile'))
+            if action == 'upload_photo':
+                photo = request.files.get('profile_photo')
+                extension = profile_photo_extension(photo) if photo and photo.filename else None
+                if extension is None:
+                    flash('Please upload a JPG, PNG, or WEBP image.', 'error')
+                else:
+                    photos_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'patient_photos')
+                    os.makedirs(photos_dir, exist_ok=True)
+                    old_photo = patient.profile_photo
+                    filename = f'patient_{patient.id}_{secrets.token_hex(6)}.{extension}'
+                    photo.save(os.path.join(photos_dir, filename))
+                    patient.profile_photo = filename
+                    patient.updated_at = datetime.now()
+                    db.session.commit()
+                    if old_photo:
+                        old_path = os.path.join(photos_dir, old_photo)
+                        if os.path.exists(old_path):
+                            try:
+                                os.remove(old_path)
+                            except OSError:
+                                pass
+                    flash('Your profile photo has been updated.', 'success')
+                return redirect(url_for('patient_profile'))
+            if action in ('cancel_appointment', 'reschedule_appointment'):
+                appointment = Appointment.query.filter_by(
+                    id=request.form.get('appointment_id', type=int), patient_id=patient.id,
+                ).first()
+                if appointment is None or appointment.status not in ('Pending', 'Confirmed'):
+                    flash('That appointment can no longer be changed.', 'error')
+                    return redirect(url_for('patient_profile'))
+                appointment.status = 'Cancelled'
+                appointment.updated_at = datetime.now()
+                audit_action = 'patient_rescheduled_appointment' if action == 'reschedule_appointment' else 'patient_cancelled_appointment'
+                log_audit(audit_action, 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code}, branch_id=appointment.branch_id)
+                db.session.commit()
+                remove_cached_dashboard_summary(appointment.branch_id)
+                if action == 'reschedule_appointment':
+                    send_appointment_email(
+                        patient.email,
+                        f'Accudetek appointment cancelled for rescheduling — {appointment.appointment_code}',
+                        f'Hello {patient.full_name},\n\nYour appointment {appointment.appointment_code} on {appointment.appointment_date} has been '
+                        'cancelled so you can choose a new time. You will receive a new confirmation once you finish rebooking.',
+                    )
+                    clear_booking_draft()
+                    save_booking_draft(
+                        branch_id=appointment.branch_id,
+                        full_name=patient.full_name,
+                        birthdate=patient.birthdate,
+                        gender=patient.gender,
+                        contact_number=patient.contact_number or '',
+                        email=patient.email or '',
+                        address=patient.address or '',
+                        selected_services=appointment.service_items(),
+                        selected_packages=appointment.package_items(),
+                        consultation_reasons=appointment.reason_items(),
+                        other_reason=appointment.other_reason or '',
+                        furthest_step=1,
+                    )
+                    flash('Your previous appointment was cancelled. Choose a new date and time to finish rescheduling.', 'success')
+                    return redirect(url_for('patient_portal'))
+                send_appointment_email(
+                    patient.email,
+                    f'Accudetek appointment cancelled — {appointment.appointment_code}',
+                    f'Hello {patient.full_name},\n\nYour appointment {appointment.appointment_code} on {appointment.appointment_date}'
+                    f'{" at " + format_appointment_time(appointment.appointment_time) if appointment.appointment_time else ""} has been cancelled at your request.\n\n'
+                    'If this was a mistake, you can book a new appointment anytime from the patient portal.',
+                )
+                flash('Your appointment has been cancelled.', 'success')
+                return redirect(url_for('patient_profile'))
 
-        appointments = []
-        if patient:
-            appointments = Appointment.query.filter_by(patient_id=patient.id).order_by(
-                Appointment.appointment_date.desc(),
-                Appointment.appointment_time.desc(),
-            ).all()
-        upcoming_appointments = []
-        if patient:
-            upcoming_appointments = Appointment.query.filter(
-                Appointment.patient_id == patient.id,
-                Appointment.appointment_date >= datetime.now().strftime('%Y-%m-%d'),
-                Appointment.status.in_(['Pending', 'Confirmed']),
-            ).order_by(Appointment.appointment_date.asc(), Appointment.appointment_time.asc()).all()
+        HISTORY_PAGE_SIZE = 5
+        history_page = request.args.get('history_page', 1, type=int) or 1
+        history_query = Appointment.query.filter_by(patient_id=patient.id).order_by(
+            Appointment.appointment_date.desc(),
+            Appointment.appointment_time.desc(),
+        )
+        total_history = history_query.count()
+        history_total_pages = max(1, -(-total_history // HISTORY_PAGE_SIZE))
+        history_page = min(max(history_page, 1), history_total_pages)
+        appointments = history_query.offset((history_page - 1) * HISTORY_PAGE_SIZE).limit(HISTORY_PAGE_SIZE).all()
+
+        upcoming_appointments = Appointment.query.filter(
+            Appointment.patient_id == patient.id,
+            Appointment.appointment_date >= datetime.now().strftime('%Y-%m-%d'),
+            Appointment.status.in_(['Pending', 'Confirmed']),
+        ).order_by(Appointment.appointment_date.asc(), Appointment.appointment_time.asc()).all()
 
         return render_template(
             'patient_portal/profile.html',
             patient=patient,
             appointments=appointments,
             upcoming_appointments=upcoming_appointments,
+            history_page=history_page,
+            history_total_pages=history_total_pages,
+            history_total=total_history,
         )
 
     @app.route('/patient-profile-photo/<filename>')

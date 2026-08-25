@@ -15,7 +15,8 @@
       <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
       <span><strong>Accudetek</strong><small>Health Diagnostics</small></span>
     </a>
-    <nav class="clinic-home-nav" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a><a href="{{ url_for('track_appointment') }}">Track appointment</a></nav>
+    <button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button>
+    <nav class="clinic-home-nav" id="clinic-navigation" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a><a href="{{ url_for('track_appointment') }}">Track appointment</a></nav>
     <div class="clinic-home-actions"><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
   </header>
 
@@ -29,7 +30,7 @@
         <span class="patient-kicker">Patient portal</span>
         <form method="post" enctype="multipart/form-data" class="patient-photo-form">
           <input type="hidden" name="action" value="upload_photo">
-          <label class="patient-avatar" for="profile_photo">{% if patient.profile_photo %}<img src="{{ url_for('patient_profile_photo', filename=patient.profile_photo) }}" alt="Profile photo of {{ patient.full_name }}">{% else %}<span aria-hidden="true">{{ patient.full_name[:1]|upper }}</span>{% endif %}<b>Change photo</b></label>
+          <label class="patient-avatar" for="profile_photo" aria-label="Change profile photo">{% if patient.profile_photo %}<img src="{{ url_for('patient_profile_photo', filename=patient.profile_photo) }}" alt="Profile photo of {{ patient.full_name }}">{% else %}<span aria-hidden="true">{{ patient.full_name[:1]|upper }}</span>{% endif %}<b aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></b></label>
           <input id="profile_photo" name="profile_photo" type="file" accept="image/jpeg,image/png,image/webp" data-profile-photo-input>
           <button class="patient-photo-save" type="submit" data-profile-photo-save hidden>Save photo</button>
         </form>
@@ -39,7 +40,7 @@
           <button type="button" role="tab" aria-selected="false" aria-controls="profile-upcoming" id="tab-upcoming" data-profile-tab="upcoming">Upcoming <span>{{ upcoming_appointments|length }}</span></button>
           <button type="button" role="tab" aria-selected="false" aria-controls="profile-history" id="tab-history" data-profile-tab="history">Appointment history <span>{{ appointments|length }}</span></button>
         </nav>
-        <div class="patient-profile-account-actions"><a href="{{ url_for('patient_logout') }}">Switch account</a><a href="{{ url_for('patient_logout') }}">Sign out</a></div>
+        <div class="patient-profile-account-actions"><a href="{{ url_for('patient_logout') }}">Sign out</a></div>
       </aside>
 
       <div class="patient-profile-panels">
@@ -67,6 +68,10 @@
               <div><strong>{{ appointment.appointment_date }}{% if appointment.appointment_time %} at {{ format_appointment_time(appointment.appointment_time) }}{% endif %}</strong><span>{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</span></div>
               <span class="patient-status-badge patient-status-{{ appointment.status|lower }}">{{ appointment.status }}</span>
               <div class="patient-history-services"><b>Requested:</b> {{ appointment.service_items()|join(', ') or appointment.package_items()|join(', ') or 'Consultation request' }}</div>
+              <div class="patient-history-actions">
+                <form method="post" data-confirm="This will cancel your current appointment and start a new booking with your details pre-filled. Continue?" data-confirm-title="Reschedule appointment" data-loading-title="Preparing your reschedule" data-loading-message="Cancelling your current appointment and setting up a new booking with your details pre-filled."><input type="hidden" name="action" value="reschedule_appointment"><input type="hidden" name="appointment_id" value="{{ appointment.id }}"><button type="submit" class="patient-reschedule-button">Reschedule</button></form>
+                <form method="post" data-confirm="Cancel this appointment? This cannot be undone." data-confirm-title="Cancel appointment" data-loading-title="Cancelling appointment" data-loading-message="Please wait while we cancel your appointment and send you a confirmation email."><input type="hidden" name="action" value="cancel_appointment"><input type="hidden" name="appointment_id" value="{{ appointment.id }}"><button type="submit" class="patient-cancel-button">Cancel</button></form>
+              </div>
             </article>
           {% else %}
             <div class="patient-empty-state">You have no pending or confirmed appointments. You can book online using the button above.</div>
@@ -75,7 +80,7 @@
       </section>
 
       <section class="patient-profile-card patient-history-card patient-profile-panel" id="profile-history" role="tabpanel" aria-labelledby="tab-history" data-profile-panel="history" hidden>
-        <div class="patient-profile-heading"><div><h2>Appointment History</h2><p>{{ appointments|length }} appointment{{ '' if appointments|length == 1 else 's' }} found</p></div></div>
+        <div class="patient-profile-heading"><div><h2>Appointment History</h2><p>{{ history_total }} appointment{{ '' if history_total == 1 else 's' }} found</p></div></div>
         <div class="patient-history-list">
           {% for appointment in appointments %}
             <article class="patient-history-item">
@@ -87,10 +92,147 @@
             <div class="patient-empty-state">No appointments have been recorded for this profile yet.</div>
           {% endfor %}
         </div>
+        {% if history_total_pages > 1 %}
+          <nav class="patient-history-pagination" aria-label="Appointment history pages">
+            {% if history_page > 1 %}
+              <a class="patient-secondary-action" href="{{ url_for('patient_profile', history_page=history_page - 1) }}#profile-history">← Previous</a>
+            {% else %}
+              <span class="patient-secondary-action is-disabled" aria-disabled="true">← Previous</span>
+            {% endif %}
+            <span>Page {{ history_page }} of {{ history_total_pages }}</span>
+            {% if history_page < history_total_pages %}
+              <a class="patient-secondary-action" href="{{ url_for('patient_profile', history_page=history_page + 1) }}#profile-history">Next →</a>
+            {% else %}
+              <span class="patient-secondary-action is-disabled" aria-disabled="true">Next →</span>
+            {% endif %}
+          </nav>
+        {% endif %}
       </section>
       </div>
     </div>
   </main>
+  <footer class="clinic-home-footer patient-flow-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>Care you can trust, from booking to results.</p><a href="{{ url_for('landing_page') }}">Return home</a></footer>
+
+  <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-hidden="true">
+    <div class="loading-panel">
+      <div class="loading-heading" id="loadingTitle">Processing request</div>
+      <div class="loading-copy" id="loadingMessage">Please wait while the system saves your changes.</div>
+      <div class="loading-track">
+        <div class="loading-bar" id="loadingBar"></div>
+      </div>
+      <div class="loading-percent" id="loadingPercent">0%</div>
+    </div>
+  </div>
+  <div class="confirm-overlay" id="confirmOverlay" aria-hidden="true">
+    <div class="confirm-panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle">Confirm action</h3>
+      <p id="confirmMessage">Are you sure you want to continue?</p>
+      <div class="confirm-actions">
+        <button type="button" class="btn secondary" id="confirmCancel">Go back</button>
+        <button type="button" class="btn" id="confirmProceed">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const menuToggle = document.querySelector('.clinic-menu-toggle');
+    const homeHeader = document.querySelector('.clinic-home-header');
+    menuToggle?.addEventListener('click', () => {
+      const isOpen = homeHeader.classList.toggle('is-menu-open');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.querySelectorAll('.clinic-home-nav a').forEach(link => link.addEventListener('click', () => {
+      homeHeader.classList.remove('is-menu-open');
+      menuToggle?.setAttribute('aria-expanded', 'false');
+    }));
+    const profileTabs = document.querySelectorAll('[data-profile-tab]');
+    const profilePanels = document.querySelectorAll('[data-profile-panel]');
+    profileTabs.forEach(tab => tab.addEventListener('click', () => {
+      const target = tab.dataset.profileTab;
+      profileTabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', String(active)); });
+      profilePanels.forEach(panel => { const active = panel.dataset.profilePanel === target; panel.classList.toggle('is-active', active); panel.hidden = !active; });
+    }));
+    document.querySelector('[data-profile-photo-input]')?.addEventListener('change', event => {
+      document.querySelector('[data-profile-photo-save]')?.toggleAttribute('hidden', !event.target.files.length);
+    });
+    if (new URLSearchParams(location.search).has('history_page') || location.hash === '#profile-history') {
+      document.querySelector('[data-profile-tab="history"]')?.click();
+    }
+
+    let pendingConfirmForm = null;
+    let loadingTimer = null;
+    let loadingProgress = 0;
+
+    function openConfirmModal(form, message, title = 'Confirm action') {
+      pendingConfirmForm = form;
+      const overlay = document.getElementById('confirmOverlay');
+      const titleElement = document.getElementById('confirmTitle');
+      const messageElement = document.getElementById('confirmMessage');
+      if (titleElement) titleElement.textContent = title;
+      if (messageElement) messageElement.textContent = message;
+      if (overlay) {
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function closeConfirmModal() {
+      const overlay = document.getElementById('confirmOverlay');
+      if (overlay) {
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+      pendingConfirmForm = null;
+    }
+
+    function setLoadingProgress(value) {
+      loadingProgress = Math.max(0, Math.min(100, Math.round(value)));
+      const bar = document.getElementById('loadingBar');
+      const percent = document.getElementById('loadingPercent');
+      if (bar) bar.style.width = loadingProgress + '%';
+      if (percent) percent.textContent = loadingProgress + '%';
+    }
+
+    function startLoading(title = 'Processing request', message = 'Please wait while the system saves your changes.') {
+      const overlay = document.getElementById('loadingOverlay');
+      const titleElement = document.getElementById('loadingTitle');
+      const messageElement = document.getElementById('loadingMessage');
+      if (!overlay) return;
+      if (titleElement) titleElement.textContent = title;
+      if (messageElement) messageElement.textContent = message;
+      overlay.classList.add('active');
+      overlay.setAttribute('aria-hidden', 'false');
+      setLoadingProgress(0);
+      if (loadingTimer) window.clearInterval(loadingTimer);
+      loadingTimer = window.setInterval(() => {
+        const increment = loadingProgress < 45 ? 7 : loadingProgress < 75 ? 4 : loadingProgress < 92 ? 2 : 0;
+        if (increment > 0) setLoadingProgress(loadingProgress + increment);
+      }, 260);
+    }
+
+    document.addEventListener('submit', event => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      if (form.dataset.confirm && form.dataset.confirmed !== 'true') {
+        event.preventDefault();
+        openConfirmModal(form, form.dataset.confirm, form.dataset.confirmTitle || 'Confirm action');
+        return;
+      }
+      if (form.dataset.confirmed === 'true') delete form.dataset.confirmed;
+      startLoading(form.dataset.loadingTitle || 'Processing request', form.dataset.loadingMessage || 'Please wait while the system saves your changes.');
+    });
+    document.getElementById('confirmCancel')?.addEventListener('click', closeConfirmModal);
+    document.getElementById('confirmOverlay')?.addEventListener('click', event => {
+      if (event.target.id === 'confirmOverlay') closeConfirmModal();
+    });
+    document.getElementById('confirmProceed')?.addEventListener('click', () => {
+      if (!pendingConfirmForm) return;
+      const form = pendingConfirmForm;
+      form.dataset.confirmed = 'true';
+      closeConfirmModal();
+      form.requestSubmit();
+    });
+  </script>
 <script>
   const CSRF_TOKEN = {{ csrf_token()|tojson }};
   document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {

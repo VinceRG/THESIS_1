@@ -7,16 +7,30 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="patient-public-body">
-  <header class="clinic-home-header"><a class="clinic-home-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek Health Diagnostics logo"><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></a><nav class="clinic-home-nav" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a><a href="{{ url_for('track_appointment') }}">Track appointment</a></nav><div class="clinic-home-actions"><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div></header>
+  <header class="clinic-home-header"><a class="clinic-home-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek Health Diagnostics logo"><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></a><button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button><nav class="clinic-home-nav" id="clinic-navigation" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a><a href="{{ url_for('track_appointment') }}">Track appointment</a></nav><div class="clinic-home-actions"><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div></header>
   <main class="patient-profile-main">
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <section class="patient-profile-card patient-lookup-card">
       <span class="patient-kicker">One final step</span><h1>Verify your email</h1>
       <p>We sent a six-digit code to <strong>{{ email }}</strong>. Enter it below to activate your patient account. The code expires after 10 minutes.</p>
       <form method="post" class="patient-auth-form"><label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus placeholder="000000"></label><button class="patient-primary-button" type="submit">Verify and continue</button></form>
+      <form method="post" class="patient-otp-resend-form"><input type="hidden" name="action" value="resend"><button class="patient-secondary-action" type="submit">Resend code</button></form>
       <p class="patient-auth-footer"><a href="{{ url_for('patient_register') }}">Use a different email or start again</a>.</p>
     </section>
   </main>
+  <footer class="clinic-home-footer patient-flow-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>Care you can trust, from booking to results.</p><a href="{{ url_for('landing_page') }}">Return home</a></footer>
+<script>
+  const menuToggle = document.querySelector('.clinic-menu-toggle');
+  const homeHeader = document.querySelector('.clinic-home-header');
+  menuToggle?.addEventListener('click', () => {
+    const isOpen = homeHeader.classList.toggle('is-menu-open');
+    menuToggle.setAttribute('aria-expanded', String(isOpen));
+  });
+  document.querySelectorAll('.clinic-home-nav a').forEach(link => link.addEventListener('click', () => {
+    homeHeader.classList.remove('is-menu-open');
+    menuToggle?.setAttribute('aria-expanded', 'false');
+  }));
+</script>
 <script>
   const CSRF_TOKEN = {{ csrf_token()|tojson }};
   document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {

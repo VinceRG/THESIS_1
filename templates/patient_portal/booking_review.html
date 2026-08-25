@@ -1,0 +1,36 @@
+{% extends 'patient_portal/_booking_base.html' %}
+{% block title %}Step 5: Review and Submit{% endblock %}
+{% block hero_title %}Almost there — please review.{% endblock %}
+{% block hero_subtitle %}The clinic will confirm the pending appointment after checking availability.{% endblock %}
+{% block step_content %}
+  <form method="post">
+    <section class="patient-form-section patient-review-section" id="review">
+      <div class="patient-step-heading">
+        <span class="patient-step-badge">Step 5 of 5</span>
+        <div>
+          <h2>Review and Submit</h2>
+          <p>Check the details below before sending your request.</p>
+        </div>
+      </div>
+      <dl class="patient-review-summary">
+        <div><dt>Branch</dt><dd>{{ branch.name }}</dd></div>
+        <div><dt>Date and time</dt><dd>{{ draft.get('appointment_date') }}{% if draft.get('appointment_time') %} at {{ format_appointment_time(draft.get('appointment_time')) }}{% endif %}</dd></div>
+        <div><dt>Patient</dt><dd>{{ [draft.get('full_name'), draft.get('gender')]|select|join(' · ') }}</dd></div>
+        <div><dt>Birthdate</dt><dd>{{ draft.get('birthdate') }}</dd></div>
+        <div><dt>Contact</dt><dd>{{ [draft.get('email'), draft.get('contact_number')]|select|join(' · ') }}</dd></div>
+        {% if draft.get('address') %}<div><dt>Address</dt><dd>{{ draft.get('address') }}</dd></div>{% endif %}
+        <div><dt>Packages</dt><dd>{{ (draft.get('selected_packages') or [])|join(', ') or 'None' }}</dd></div>
+        <div><dt>Services</dt><dd>{{ (draft.get('selected_services') or [])|join(', ') or 'None' }}</dd></div>
+        <div><dt>Reasons</dt><dd>{{ (draft.get('consultation_reasons') or [])|join(', ') or draft.get('other_reason') or 'None specified' }}</dd></div>
+      </dl>
+      <div class="patient-booking-actions">
+        <span class="patient-status-badge">Pending clinic confirmation</span>
+        <button type="submit">Submit Appointment Request</button>
+      </div>
+    </section>
+    <div class="patient-wizard-controls">
+      <a class="patient-wizard-back" href="{{ url_for('patient_portal_reasons_step') }}">← Back</a>
+      <span></span>
+    </div>
+  </form>
+{% endblock %}

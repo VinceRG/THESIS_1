@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Book Appointment{% endblock %} - Accudetek Health Diagnostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="patient-public-body">
+  <header class="clinic-home-header">
+    <a class="clinic-home-brand" href="{{ url_for('landing_page') }}">
+      <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
+      <span>
+        <strong>Accudetek</strong>
+        <small>Health Diagnostics</small>
+      </span>
+    </a>
+    <button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button>
+    <nav class="clinic-home-nav" id="clinic-navigation" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a>{% if session.get('patient_account_id') %}<a href="{{ url_for('patient_profile') }}">My Profile</a>{% else %}<a href="{{ url_for('track_appointment') }}">Track appointment</a>{% endif %}</nav>
+    <div class="clinic-home-actions">{% if session.get('patient_account_id') %}<a href="{{ url_for('patient_logout') }}">Sign out</a>{% else %}<a href="{{ url_for('patient_login') }}">Patient sign in</a>{% endif %}<a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
+  </header>
+
+  <main class="patient-public-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="patient-flash-stack">
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="patient-booking-shell">
+      <div class="patient-booking-panel">
+        <div class="patient-hero-card">
+          <div class="patient-section-heading">
+            <span>Plan your visit</span>
+            <h1>{% block hero_title %}Care begins with a simple booking.{% endblock %}</h1>
+            <p>{% block hero_subtitle %}Choose your branch, schedule, details, and requested services. We will confirm your visit after checking availability.{% endblock %}</p>
+          </div>
+          <div class="patient-booking-expectations" aria-label="Booking expectations"><span><b>About 3 minutes</b> to complete</span><span><b>No payment</b> required online</span><span><b>Confirmation</b> is sent by email</span></div>
+        </div>
+
+        <ol class="patient-progress" aria-label="Booking progress">
+          {% for step in progress_steps %}
+            <li class="{% if step.is_current %}is-current{% endif %} {% if step.is_complete %}is-complete{% endif %}">
+              {% if step.url %}
+                <a href="{{ step.url }}"><span>{{ step.number }}</span><strong>{{ step.label }}</strong></a>
+              {% else %}
+                <div class="patient-progress-locked"><span>{{ step.number }}</span><strong>{{ step.label }}</strong></div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+
+        {% block step_content %}{% endblock %}
+      </div>
+
+      <aside class="patient-summary-panel">
+        <div class="patient-summary-card patient-clinic-card">
+          <img src="{{ url_for('static', filename='Screenshot 2026-07-09 000115.png') }}" alt="Accudetek clinic">
+          <div>
+            <span class="patient-status-badge patient-status-badge-soft">Selected Branch</span>
+            <h2>{{ branch.name }}</h2>
+            <p>{{ branch.address or 'Accudetek Health Diagnostics' }}</p>
+            {% if branch.contact_number %}<p>{{ branch.contact_number }}</p>{% endif %}
+            {% if branch.email %}<p>{{ branch.email }}</p>{% endif %}
+          </div>
+        </div>
+
+        {% block sidebar_extra %}
+          {% if summary %}
+            <div class="patient-summary-card">
+              <div class="patient-summary-heading">
+                <h2>Selected Items</h2>
+                <span class="patient-status-badge patient-status-badge-soft">{{ summary.selected_items|length }} selected</span>
+              </div>
+              <div class="patient-selected-list">
+                {% if summary.selected_items %}
+                  {% for item in summary.selected_items %}<span>{{ item }}</span>{% endfor %}
+                {% else %}
+                  No selected services yet.
+                {% endif %}
+              </div>
+              {% if summary.has_priced_item %}
+                <div class="patient-subtotal-row">
+                  <span>Estimated total</span>
+                  <strong>PHP {{ '{:,.0f}'.format(summary.subtotal) }}</strong>
+                </div>
+                <p class="patient-subtotal-note">Estimate only; final pricing is confirmed at the clinic.</p>
+              {% else %}
+                <p class="patient-subtotal-note">{% if summary.selected_items %}Pricing for the selected items will be confirmed at check-in.{% else %}Pricing will appear here once you select items.{% endif %}</p>
+              {% endif %}
+            </div>
+
+            {% if summary.prep_notes %}
+              <div class="patient-summary-card">
+                <div class="patient-summary-heading">
+                  <h2>Before Your Visit</h2>
+                  <span class="patient-status-badge patient-status-badge-soft">Preparation</span>
+                </div>
+                <ul class="patient-prep-list">
+                  {% for note in summary.prep_notes %}<li>{{ note }}</li>{% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endblock %}
+      </aside>
+    </section>
+  </main>
+
+  <footer class="clinic-home-footer patient-flow-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>Care you can trust, from booking to results.</p><a href="{{ url_for('landing_page') }}">Return home</a></footer>
+
+  {% block extra_body %}{% endblock %}
+
+  <script>
+    const menuToggle = document.querySelector('.clinic-menu-toggle');
+    const homeHeader = document.querySelector('.clinic-home-header');
+    menuToggle?.addEventListener('click', () => {
+      const isOpen = homeHeader.classList.toggle('is-menu-open');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.querySelectorAll('.clinic-home-nav a').forEach(link => link.addEventListener('click', () => {
+      homeHeader.classList.remove('is-menu-open');
+      menuToggle?.setAttribute('aria-expanded', 'false');
+    }));
+  </script>
+  {% block step_scripts %}{% endblock %}
+  <script>
+    const CSRF_TOKEN = {{ csrf_token()|tojson }};
+    document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
+      if (!form.querySelector('input[name="_csrf_token"]')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = '_csrf_token';
+        input.value = CSRF_TOKEN;
+        form.appendChild(input);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -77,17 +77,6 @@
         </div>
       </div>
 
-      <div class="patient-success-block">
-        <h2>Recommended Staff</h2>
-        <div class="tag-stack">
-          {% for role in appointment.role_items() %}
-            <span class="tag-pill tag-primary">{{ role }}</span>
-          {% else %}
-            <span class="tag-pill">For clinic review</span>
-          {% endfor %}
-        </div>
-      </div>
-
       <div class="patient-success-actions">
         {% if is_guest %}
         <a class="patient-secondary-action" href="{{ url_for('track_appointment', appointment_code=appointment.appointment_code, email=patient.email) }}">Track Appointment</a>
