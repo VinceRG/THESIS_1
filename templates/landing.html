@@ -14,7 +14,7 @@
     <a class="clinic-home-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek Health Diagnostics logo"><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></a>
     <button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button>
     <nav class="clinic-home-nav" id="clinic-navigation" aria-label="Clinic navigation"><a href="#services">Services</a><a href="#about">About us</a><a href="#visit">Visit us</a><a href="{{ url_for('track_appointment') }}">Track appointment</a></nav>
-    <div class="clinic-home-actions"><a href="{{ url_for('track_appointment') }}">Track appointment</a><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
+    <div class="clinic-home-actions"><a href="{{ url_for('patient_login') }}">Patient sign in</a><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
   </header>
 
   <main>

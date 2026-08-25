@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Verify Email - Accudetek Health Diagnostics</title>
+  <title>Verify Sign In - Accudetek Health Diagnostics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -11,12 +11,10 @@
   <main class="patient-profile-main">
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <section class="patient-profile-card patient-lookup-card">
-      <span class="patient-kicker">One final step</span><h1>Verify your email</h1>
-      <p>We sent a six-digit code to <strong>{{ email }}</strong>. Enter it below to activate your patient account. The code expires after 10 minutes.</p>
-      <form method="post" class="patient-auth-form"><label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus placeholder="000000"></label><button class="patient-primary-button" type="submit">Verify and continue</button></form>
-      <p class="patient-auth-footer"><a href="{{ url_for('patient_register') }}">Use a different email or start again</a>.</p>
+      <span class="patient-kicker">Secure sign in</span><h1>Verify your email</h1><p>We sent a six-digit code to <strong>{{ email }}</strong>. Enter it to finish signing in. The code expires after 10 minutes.</p>
+      <form method="post" class="patient-auth-form"><label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus placeholder="000000"></label><button class="patient-primary-button" type="submit">Verify and sign in</button></form>
+      <p class="patient-auth-footer"><a href="{{ url_for('patient_login') }}">Use a different account</a>.</p>
     </section>
   </main>
-{% include 'partials/csrf_inject.html' %}
 </body>
 </html>

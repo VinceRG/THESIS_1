@@ -6,22 +6,21 @@
   <title>Book Appointment - Accudetek Health Diagnostics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="patient-public-body">
-  <header class="patient-public-header">
-    <a class="patient-public-brand" href="{{ url_for('patient_portal') }}">
+  <header class="clinic-home-header">
+    <a class="clinic-home-brand" href="{{ url_for('landing_page') }}">
       <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
       <span>
-        <strong>Accudetek Health Diagnostics</strong>
-        <small>{{ branch.name }}</small>
+        <strong>Accudetek</strong>
+        <small>Health Diagnostics</small>
       </span>
     </a>
-    <nav class="patient-public-nav" aria-label="Patient portal navigation">
-      {% if session.get('patient_account_id') %}<a href="{{ url_for('patient_profile') }}">My Profile</a><a href="{{ url_for('patient_logout') }}">Sign Out</a>{% else %}<a href="{{ url_for('track_appointment') }}">Track Appointment</a><a href="{{ url_for('patient_login') }}">Patient Sign In</a>{% endif %}
-      <a class="patient-staff-link" href="{{ url_for('login') }}">Staff Portal</a>
-    </nav>
+    <button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button>
+    <nav class="clinic-home-nav" id="clinic-navigation" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a>{% if session.get('patient_account_id') %}<a href="{{ url_for('patient_profile') }}">My Profile</a>{% else %}<a href="{{ url_for('track_appointment') }}">Track appointment</a>{% endif %}</nav>
+    <div class="clinic-home-actions">{% if session.get('patient_account_id') %}<a href="{{ url_for('patient_logout') }}">Sign out</a>{% else %}<a href="{{ url_for('patient_login') }}">Patient sign in</a>{% endif %}<a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
   </header>
 
   <main class="patient-public-main">
@@ -39,9 +38,9 @@
       <form method="post" class="patient-booking-panel">
         <div class="patient-hero-card">
           <div class="patient-section-heading">
-            <span>Appointment Request</span>
-            <h1>Book a clinic visit</h1>
-            <p>Choose your branch, schedule, patient details, and requested diagnostic services in one form.</p>
+            <span>Plan your visit</span>
+            <h1>Care begins with a simple booking.</h1>
+            <p>Choose your branch, schedule, details, and requested services. We will confirm your visit after checking availability.</p>
           </div>
           <div class="patient-booking-expectations" aria-label="Booking expectations"><span><b>About 3 minutes</b> to complete</span><span><b>No payment</b> required online</span><span><b>Confirmation</b> is sent by email</span></div>
           <div class="patient-trust-strip" aria-label="Clinic highlights">
@@ -280,6 +279,8 @@
     </section>
   </main>
 
+  <footer class="clinic-home-footer patient-flow-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>Care you can trust, from booking to results.</p><a href="{{ url_for('landing_page') }}">Return home</a></footer>
+
   <div class="patient-clock-overlay" data-public-time-overlay aria-hidden="true">
     <div class="patient-clock-dialog" role="dialog" aria-modal="true" aria-label="Select appointment time">
       <div class="patient-clock-title">Select Time</div>
@@ -305,6 +306,16 @@
   </div>
 
   <script>
+    const menuToggle = document.querySelector('.clinic-menu-toggle');
+    const homeHeader = document.querySelector('.clinic-home-header');
+    menuToggle?.addEventListener('click', () => {
+      const isOpen = homeHeader.classList.toggle('is-menu-open');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.querySelectorAll('.clinic-home-nav a').forEach(link => link.addEventListener('click', () => {
+      homeHeader.classList.remove('is-menu-open');
+      menuToggle?.setAttribute('aria-expanded', 'false');
+    }));
     const serviceRecommendations = {{ service_recommendations|tojson }};
     const packageRecommendations = {{ package_recommendations|tojson }};
     const reasonRecommendations = {{ reason_recommendations|tojson }};

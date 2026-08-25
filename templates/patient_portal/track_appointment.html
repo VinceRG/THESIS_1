@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Track Appointment - Accudetek Health Diagnostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="patient-public-body">
-  <header class="patient-public-header"><a class="patient-public-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo"><span><strong>Accudetek Health Diagnostics</strong><small>Guest Appointment Tracking</small></span></a><nav class="patient-public-nav"><a href="{{ url_for('patient_portal') }}">Book Appointment</a><a href="{{ url_for('patient_login') }}">Patient Sign In</a></nav></header>
+  <header class="clinic-home-header"><a class="clinic-home-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek Health Diagnostics logo"><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></a><nav class="clinic-home-nav" aria-label="Clinic navigation"><a href="{{ url_for('landing_page') }}#services">Services</a><a href="{{ url_for('landing_page') }}#about">About us</a><a href="{{ url_for('landing_page') }}#visit">Visit us</a></nav><div class="clinic-home-actions"><a href="{{ url_for('patient_login') }}">Patient sign in</a><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div></header>
   <main class="patient-profile-main">
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <section class="patient-profile-card patient-lookup-card">
@@ -18,10 +19,10 @@
           <input type="hidden" name="action" value="send_otp">
           <label>Appointment ID<input name="appointment_code" value="{{ values.appointment_code }}" required placeholder="APT-XXXXXXXX" autocomplete="off"></label>
           <label>Email Address<input type="email" name="email" value="{{ values.email }}" required autocomplete="email"></label>
-          <button type="submit">Send one-time code</button>
+          <button class="patient-primary-button" type="submit">Send one-time code</button>
         </form>
         {% if appointment %}
-        <form method="post" class="patient-auth-form patient-otp-form"><input type="hidden" name="action" value="verify_otp"><input type="hidden" name="appointment_code" value="{{ values.appointment_code }}"><input type="hidden" name="email" value="{{ values.email }}"><label>Six-digit code<input name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><button type="submit">View appointment</button></form>
+        <form method="post" class="patient-auth-form patient-otp-form"><input type="hidden" name="action" value="verify_otp"><input type="hidden" name="appointment_code" value="{{ values.appointment_code }}"><input type="hidden" name="email" value="{{ values.email }}"><label>Six-digit code<input name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><button class="patient-primary-button" type="submit">View appointment</button></form>
         {% endif %}
       {% endif %}
     </section>
