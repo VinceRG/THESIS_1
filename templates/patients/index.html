@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% from 'partials/pagination.html' import render_pagination %}
 
 {% block title %}Patient Records - Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Patient Records{% endblock %}
@@ -131,26 +132,6 @@
     </tbody>
   </table>
 
-  {% if patients.pages > 1 %}
-    <div class="pagination" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-      {% if patients.has_prev %}
-        <a class="btn secondary" href="{{ url_for('patients', page=patients.prev_num, q=search_query, gender=selected_gender, age_group=selected_age_group, status=selected_status) }}">Previous</a>
-      {% endif %}
-      {% for page_num in patients.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
-        {% if page_num %}
-          {% if page_num == patients.page %}
-            <span class="btn" style="cursor:default;">{{ page_num }}</span>
-          {% else %}
-            <a class="btn secondary" href="{{ url_for('patients', page=page_num, q=search_query, gender=selected_gender, age_group=selected_age_group, status=selected_status) }}">{{ page_num }}</a>
-          {% endif %}
-        {% else %}
-          <span style="padding:10px 4px; color:#64748b;">...</span>
-        {% endif %}
-      {% endfor %}
-      {% if patients.has_next %}
-        <a class="btn secondary" href="{{ url_for('patients', page=patients.next_num, q=search_query, gender=selected_gender, age_group=selected_age_group, status=selected_status) }}">Next</a>
-      {% endif %}
-    </div>
-  {% endif %}
+  {{ render_pagination(patients, 'patients', {'q': search_query, 'gender': selected_gender, 'age_group': selected_age_group, 'status': selected_status}) }}
 </div>
 {% endblock %}

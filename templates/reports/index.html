@@ -5,16 +5,21 @@
 {% block page_subtitle %}Downloadable reports for operations, forecasting, and resource planning{% endblock %}
 
 {% block content %}
-<div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));">
+<div class="grid grid-auto-fit">
   {% for key, report in reports.items() %}
   <div class="chart-card">
     <h3>{{ report.title }}</h3>
-    <p style="margin:0 0 14px; color:#64748b; line-height:1.5;">{{ report.description }}</p>
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <p class="muted-copy" style="margin-bottom:14px;">{{ report.description }}</p>
+    <div class="report-card-actions">
       <a class="btn" href="{{ url_for('report_view', report_key=key) }}" data-loading-link="report-view">View</a>
       <a class="btn secondary" href="{{ url_for('report_print', report_key=key) }}">Print</a>
       <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key) }}">Download PDF</a>
     </div>
+  </div>
+  {% else %}
+  <div class="chart-card">
+    <h3>No reports are available yet</h3>
+    <p class="muted-copy">Reports appear here once consultation and forecasting data has been recorded.</p>
   </div>
   {% endfor %}
 </div>

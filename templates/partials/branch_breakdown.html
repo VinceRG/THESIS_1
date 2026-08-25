@@ -1,0 +1,44 @@
+{% if summary.branch_code == 'ALL' and summary.branch_breakdown %}
+<div class="chart-card">
+  <h3>By Branch</h3>
+  <p class="muted-copy" style="margin-bottom:14px;">
+    You're viewing combined totals for all branches above. This table breaks the same numbers down per branch so one branch's activity doesn't get lost in the blend.
+  </p>
+  <div class="table-scroll">
+    <table class="table table-sticky-head">
+      <thead>
+        <tr>
+          <th>Branch</th>
+          <th>Consultations</th>
+          <th>Active Staff</th>
+          <th>Predicted Next Month</th>
+          <th>Resource Readiness</th>
+          <th>Staffing Gap</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in summary.branch_breakdown %}
+          <tr>
+            <td><strong>{{ row.branch_name }}</strong><div class="muted-copy">{{ row.branch_code }}</div></td>
+            <td>{{ row.total_consultations }}</td>
+            <td>{{ row.staff_count }}</td>
+            {% if row.has_forecast %}
+              <td>{{ row.predicted_cases_next_month }}</td>
+              <td>{{ row.resource_readiness }}%</td>
+              <td>
+                {% if row.staffing_gap and row.staffing_gap > 0 %}
+                  <span class="status-pill status-high">+{{ row.staffing_gap }}</span>
+                {% else %}
+                  <span class="status-pill status-healthy">0</span>
+                {% endif %}
+              </td>
+            {% else %}
+              <td colspan="3"><span class="muted-copy">Not yet generated — select this branch and retrain to forecast it.</span></td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}

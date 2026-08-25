@@ -1,0 +1,29 @@
+{% macro render_pagination(pagination, endpoint, extra_args={}, page_param='page') %}
+  {% if pagination.pages > 1 %}
+    <div class="pagination pagination-bar">
+      <span class="pagination-summary muted-copy">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+      <div class="pagination-links">
+        {% if pagination.has_prev %}
+          {% set prev_args = extra_args.copy() %}{% set _ = prev_args.update({page_param: pagination.prev_num}) %}
+          <a class="btn secondary" href="{{ url_for(endpoint, **prev_args) }}">Previous</a>
+        {% endif %}
+        {% for page_num in pagination.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+          {% if page_num %}
+            {% if page_num == pagination.page %}
+              <span class="btn" style="cursor:default;">{{ page_num }}</span>
+            {% else %}
+              {% set link_args = extra_args.copy() %}{% set _ = link_args.update({page_param: page_num}) %}
+              <a class="btn secondary" href="{{ url_for(endpoint, **link_args) }}">{{ page_num }}</a>
+            {% endif %}
+          {% else %}
+            <span class="pagination-ellipsis">&hellip;</span>
+          {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+          {% set next_args = extra_args.copy() %}{% set _ = next_args.update({page_param: pagination.next_num}) %}
+          <a class="btn secondary" href="{{ url_for(endpoint, **next_args) }}">Next</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}

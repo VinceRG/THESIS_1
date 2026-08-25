@@ -15,7 +15,8 @@
     </label>
     <label>
       Branch Code
-      <input type="text" name="code" value="{{ branch.code if branch else '' }}" maxlength="40" {% if branch and branch.is_main %}readonly{% endif %} required>
+      <input type="text" name="code" value="{{ branch.code if branch else '' }}" maxlength="40" class="{{ 'readonly-field' if branch and branch.is_main else '' }}" {% if branch and branch.is_main %}readonly{% endif %} required>
+      {% if branch and branch.is_main %}<span class="muted-copy">Locked — this is the main branch code.</span>{% endif %}
     </label>
     <label>
       Address
