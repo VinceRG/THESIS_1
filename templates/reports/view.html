@@ -32,6 +32,9 @@
           {% else %}
             {{ section.value }}
           {% endif %}
+          {% if section.explanation %}
+          <p class="muted-copy" style="margin-top:4px;">{{ section.explanation }}</p>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

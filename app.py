@@ -16,7 +16,9 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, text
 from sqlalchemy.exc import IntegrityError
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -113,6 +115,11 @@ MIN_DIAGNOSIS_RECORDS_FOR_RF = 50
 MIN_MODELED_DIAGNOSES_FOR_RF = 10
 REQUIRE_COMPLETE_TRAINING_YEARS = True
 
+# Number of highest-volume individually-named diagnoses (excluding the rare-diagnosis
+# aggregate bucket) used to report forecast accuracy specifically for common cases,
+# separate from the aggregate accuracy across all diagnoses.
+TOP_N_COMMON_DIAGNOSES = 10
+
 # Evidence-based diagnosis-to-role attribution: a diagnosis is only mapped from
 # historical ConsultationRecord.physician data (instead of the SERVICE_CATEGORY_KEYWORDS
 # fallback) when at least this many historical records for it matched a current
@@ -120,6 +127,13 @@ REQUIRE_COMPLETE_TRAINING_YEARS = True
 # of those matches. Both are methodology choices, not statistically derived.
 MIN_HISTORICAL_ROLE_SUPPORT = 5
 MIN_HISTORICAL_ROLE_SHARE = 0.5
+
+# When a diagnosis has no confident historical mapping, it is compared (by TF-IDF
+# character-n-gram cosine similarity) against diagnoses that do. Below this
+# similarity, the match is not trusted and lookup falls through to the static
+# keyword fallback instead. A methodology choice, not statistically derived --
+# same status as MIN_HISTORICAL_ROLE_SUPPORT/SHARE above.
+TIER2_MIN_SIMILARITY = 0.55
 
 # Resource planning constants
 ROOM_COUNT = 5
@@ -422,21 +436,30 @@ def build_training_frame(df):
 
     return df
 
-def generate_forecast_for_specific_month(df, target_month, target_year, fast=True):
+def generate_forecast_for_specific_month(df, target_month, target_year, fast=True, compute_model_b=True):
     """Wrapper to generate forecast for a specific month."""
     if df.empty:
         return None, None, None
     try:
-        model, metrics, feature_cols, label_mapping = train_and_evaluate_model(df, fast=fast)
+        model, metrics, feature_cols, label_mapping = train_and_evaluate_model(df, fast=fast, compute_model_b=compute_model_b)
         forecast = generate_forecast_for_month(model, feature_cols, label_mapping, df, target_month, target_year)
         total_pred = sum(count for _, count in forecast)
+        metrics['prediction_intervals'] = getattr(generate_forecast_for_month, 'last_prediction_intervals', {})
         return total_pred, forecast, metrics
     except Exception:
         traceback.print_exc()
         return None, None, None
 
-def build_forecasting_training_frame(df):
-    """Build one diagnosis-age-gender-month row per observed month, with honest lag features."""
+def build_forecasting_training_frame(df, apply_year_filter=True, keep_diagnoses=None):
+    """Build one diagnosis-age-gender-month row per observed month, with honest lag features.
+
+    apply_year_filter=False skips the complete-calendar-year training rule so
+    the freshest available months (even from an in-progress year) can inform
+    lag/rolling feature values at forecast time, without loosening which rows
+    the model itself is actually trained on -- the real training call always
+    uses the default. keep_diagnoses, when provided, pins the trained model's
+    own diagnosis vocabulary so a wider (unfiltered) date range can never
+    disagree with the training frame about which diagnoses are rare."""
     raw = df.copy()
     for col in ['consultation_date', 'diagnosis', 'age_group', 'gender']:
         if col in raw.columns:
@@ -454,10 +477,27 @@ def build_forecasting_training_frame(df):
     if raw.empty:
         return pd.DataFrame()
 
-    raw, year_filtering = filter_to_complete_training_years(raw)
+    # Anchor time_index to this call's full (pre-filter) date range so a
+    # training call (year-filtered) and a lag-context call (unfiltered) on the
+    # same source df always agree on the numeric time scale, even though one
+    # of them may drop early/incomplete years afterward.
+    time_index_anchor_year = int(raw['consultation_date'].dt.year.min())
+
+    if apply_year_filter:
+        raw, year_filtering = filter_to_complete_training_years(raw)
+    else:
+        years = sorted(raw['consultation_date'].dt.year.dropna().astype(int).unique().tolist())
+        year_filtering = {
+            'complete_year_rule': False,
+            'original_years': years,
+            'used_years': years,
+            'excluded_years': [],
+            'excluded_record_count': 0,
+            'fallback_reason': 'Year filtering intentionally skipped for forecast lag/rolling context.',
+        }
     if raw.empty:
         return pd.DataFrame()
-    raw, diagnosis_grouping = apply_rare_diagnosis_grouping(raw)
+    raw, diagnosis_grouping = apply_rare_diagnosis_grouping(raw, keep_diagnoses=keep_diagnoses)
     raw['period'] = raw['consultation_date'].dt.to_period('M')
     diagnoses = sorted(raw['diagnosis'].unique())
     age_groups = sorted(raw['age_group'].unique())
@@ -476,7 +516,7 @@ def build_forecasting_training_frame(df):
     merged['season'] = (merged['month'] - 1) // 3 + 1
     merged['month_sin'] = np.sin(2 * np.pi * merged['month'] / 12)
     merged['month_cos'] = np.cos(2 * np.pi * merged['month'] / 12)
-    merged['time_index'] = (merged['year'] - merged['year'].min()) * 12 + merged['month']
+    merged['time_index'] = (merged['year'] - time_index_anchor_year) * 12 + merged['month']
     segment_columns = ['diagnosis', 'age_group', 'gender']
     merged = merged.sort_values(segment_columns + ['period']).reset_index(drop=True)
 
@@ -512,6 +552,7 @@ def build_forecasting_training_frame(df):
     merged.attrs['diagnosis_encoder'] = le
     merged.attrs['diagnosis_grouping'] = diagnosis_grouping
     merged.attrs['year_filtering'] = year_filtering
+    merged.attrs['time_index_anchor_year'] = time_index_anchor_year
     return merged
 
 def filter_to_complete_training_years(raw):
@@ -554,8 +595,14 @@ def filter_to_complete_training_years(raw):
         'excluded_record_count': excluded_record_count,
     }
 
-def apply_rare_diagnosis_grouping(raw):
-    """Group sparse diagnosis labels so the segmented RF learns stable patterns."""
+def apply_rare_diagnosis_grouping(raw, keep_diagnoses=None):
+    """Group sparse diagnosis labels so the segmented RF learns stable patterns.
+
+    keep_diagnoses, when provided, pins the exact set of diagnoses to leave
+    ungrouped instead of recomputing thresholds from this call's own data --
+    used when building a forecast-time lag/rolling context frame from a wider
+    (unfiltered) date range than the trained model itself saw, so the two
+    frames can never disagree about which diagnoses are "common" vs rare."""
     counts = raw['diagnosis'].value_counts()
     if counts.empty:
         return raw, {
@@ -565,9 +612,12 @@ def apply_rare_diagnosis_grouping(raw):
             'grouped_diagnosis_count': 0,
         }
 
-    keep = set(counts[counts >= MIN_DIAGNOSIS_RECORDS_FOR_RF].index)
-    if len(keep) < MIN_MODELED_DIAGNOSES_FOR_RF:
-        keep = set(counts.head(MIN_MODELED_DIAGNOSES_FOR_RF).index)
+    if keep_diagnoses is not None:
+        keep = set(keep_diagnoses)
+    else:
+        keep = set(counts[counts >= MIN_DIAGNOSIS_RECORDS_FOR_RF].index)
+        if len(keep) < MIN_MODELED_DIAGNOSES_FOR_RF:
+            keep = set(counts.head(MIN_MODELED_DIAGNOSES_FOR_RF).index)
     grouped_count = int((~raw['diagnosis'].isin(keep)).sum())
     if grouped_count:
         raw = raw.copy()
@@ -615,6 +665,19 @@ def _predict_consultation_counts(model, features):
     # Count-scale predictions retain accuracy for busy segments; log-scale
     # predictions reduce overestimation in the many sparse segments.
     return (0.75 * count_predictions) + (0.25 * log_predictions)
+
+def _predict_consultation_count_interval(model, features, lower_pct=10, upper_pct=90):
+    """Spread across the primary (count-scale) forest's individual trees, as a
+    real, model-derived confidence range -- not a re-derivation of the blended
+    0.75/0.25 count+log-scale point estimate, since the two forests are
+    independently randomized on different target scales and don't form a
+    matched ensemble. Callers should widen the range to also contain the
+    actual blended point prediction, since it can fall slightly outside this
+    forest-only spread."""
+    tree_predictions = np.array([tree.predict(features) for tree in model.estimators_])
+    low = np.maximum(0, np.percentile(tree_predictions, lower_pct, axis=0))
+    high = np.maximum(0, np.percentile(tree_predictions, upper_pct, axis=0))
+    return low, high
 
 def _period_time_series_splits(frame, max_splits=3):
     """Return expanding-window splits that never divide a calendar month.
@@ -776,7 +839,7 @@ def evaluate_model_without_demographics(df, fast=False):
         'validation_period_end': str(validation_periods[-1]),
     }
 
-def train_and_evaluate_model(df, fast=False):
+def train_and_evaluate_model(df, fast=False, compute_model_b=True):
     training_df = build_forecasting_training_frame(df)
     if training_df.empty:
         raise ValueError('Insufficient data for model training')
@@ -784,6 +847,13 @@ def train_and_evaluate_model(df, fast=False):
     diagnosis_encoder = training_df.attrs.get('diagnosis_encoder')
     diagnosis_grouping = training_df.attrs.get('diagnosis_grouping') or {}
     year_filtering = training_df.attrs.get('year_filtering') or {}
+    diagnosis_volume = training_df.groupby('diagnosis')['case_count'].sum()
+    common_diagnoses = (
+        diagnosis_volume.drop(index=RARE_DIAGNOSIS_BUCKET, errors='ignore')
+        .sort_values(ascending=False)
+        .head(TOP_N_COMMON_DIAGNOSES)
+        .index.tolist()
+    )
     label_mapping = {i: name for i, name in enumerate(diagnosis_encoder.classes_)}
     diagnosis_feature_columns = sorted([
         col for col in training_df.columns
@@ -852,7 +922,17 @@ def train_and_evaluate_model(df, fast=False):
     validation_metrics = _regression_metrics(y_validation, validation_preds)
     baseline_metrics = _regression_metrics(y_validation, validation_df['lag_1'])
 
+    common_validation_mask = validation_df['diagnosis'].isin(common_diagnoses).to_numpy()
+    if common_validation_mask.any():
+        common_validation_metrics = _regression_metrics(
+            y_validation.to_numpy()[common_validation_mask],
+            validation_preds[common_validation_mask],
+        )
+    else:
+        common_validation_metrics = {'r2': None, 'mae': None, 'mse': None, 'rmse': None}
+
     cv_scores = {'r2': [], 'mae': [], 'rmse': []}
+    cv_scores_common = {'r2': [], 'mae': [], 'rmse': []}
     validation_splits = _period_time_series_splits(train_df)
     cv_splits_to_run = 1 if fast else len(validation_splits)
     for train_idx, test_idx in validation_splits:
@@ -869,6 +949,18 @@ def train_and_evaluate_model(df, fast=False):
             cv_scores['r2'].append(fold_metrics['r2'])
         cv_scores['mae'].append(fold_metrics['mae'])
         cv_scores['rmse'].append(fold_metrics['rmse'])
+
+        fold_common_mask = fold_test['diagnosis'].isin(common_diagnoses).to_numpy()
+        if fold_common_mask.any():
+            fold_common_metrics = _regression_metrics(
+                fold_test['case_count'].to_numpy()[fold_common_mask],
+                preds[fold_common_mask],
+            )
+            if fold_common_metrics['r2'] is not None:
+                cv_scores_common['r2'].append(fold_common_metrics['r2'])
+            cv_scores_common['mae'].append(fold_common_metrics['mae'])
+            cv_scores_common['rmse'].append(fold_common_metrics['rmse'])
+
         cv_splits_to_run -= 1
         if cv_splits_to_run <= 0:
             break
@@ -925,30 +1017,55 @@ def train_and_evaluate_model(df, fast=False):
         'cv_r2_std': round(np.std(cv_scores['r2']), 4) if cv_scores['r2'] else None,
         'cv_mae_mean': round(np.mean(cv_scores['mae']), 4) if cv_scores['mae'] else None,
         'cv_rmse_mean': round(np.mean(cv_scores['rmse']), 4) if cv_scores['rmse'] else None,
+        'common_diagnoses': common_diagnoses,
+        'common_diagnoses_count': len(common_diagnoses),
+        'common_validation_row_count': int(common_validation_mask.sum()),
+        'common_validation_r2': common_validation_metrics['r2'],
+        'common_validation_mae': common_validation_metrics['mae'],
+        'common_validation_mse': common_validation_metrics['mse'],
+        'common_validation_rmse': common_validation_metrics['rmse'],
+        'common_cv_r2_mean': round(np.mean(cv_scores_common['r2']), 4) if cv_scores_common['r2'] else None,
+        'common_cv_mae_mean': round(np.mean(cv_scores_common['mae']), 4) if cv_scores_common['mae'] else None,
+        'common_cv_rmse_mean': round(np.mean(cv_scores_common['rmse']), 4) if cv_scores_common['rmse'] else None,
         'training_months': len(unique_periods) - holdout_months,
         'validation_months': holdout_months,
         'validation_period_start': str(validation_periods[0]),
         'validation_period_end': str(validation_periods[-1]),
         'best_params': best_params,
     }
-    try:
-        metrics['model_b_without_demographics'] = evaluate_model_without_demographics(df, fast=fast)
-    except Exception:
-        traceback.print_exc()
+    if compute_model_b:
+        try:
+            metrics['model_b_without_demographics'] = evaluate_model_without_demographics(df, fast=fast)
+        except Exception:
+            traceback.print_exc()
+            metrics['model_b_without_demographics'] = None
+    else:
         metrics['model_b_without_demographics'] = None
     metrics['model_verdict'] = _model_verdict(metrics)
     return final_model, metrics, feature_columns, label_mapping
 
 def generate_forecast_for_month(model, feature_columns, label_mapping, df, target_month, target_year):
-    training_df = build_forecasting_training_frame(df)
+    # Lag/rolling context intentionally does NOT re-apply the complete-year
+    # training rule: the model was already trained only on complete years
+    # (via train_and_evaluate_model's own, unmodified call), but forecasting
+    # "next month" needs the freshest available months -- even from an
+    # in-progress year -- to have real lag_1/lag_2/lag_3 signal instead of
+    # extrapolating across a multi-month gap. keep_diagnoses pins this frame
+    # to the trained model's own diagnosis vocabulary (label_mapping) so it
+    # can never disagree with the training frame about which diagnoses were
+    # grouped into the rare-diagnosis bucket.
+    keep_diagnoses = set(label_mapping.values()) - {RARE_DIAGNOSIS_BUCKET}
+    training_df = build_forecasting_training_frame(df, apply_year_filter=False, keep_diagnoses=keep_diagnoses)
     if training_df.empty:
         generate_forecast_for_month.last_demographic_forecast = {
             'age_group': [],
             'gender': [],
             'segments': [],
         }
+        generate_forecast_for_month.last_prediction_intervals = {}
         return []
 
+    time_index_anchor_year = training_df.attrs.get('time_index_anchor_year', int(training_df['year'].min()))
     target_period = pd.Period(year=target_year, month=target_month, freq='M')
     next_rows = []
     diagnosis_columns = [
@@ -975,7 +1092,7 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
             'month_sin': float(np.sin(2 * np.pi * target_month / 12)),
             'month_cos': float(np.cos(2 * np.pi * target_month / 12)),
             'season': (target_month - 1) // 3 + 1,
-            'time_index': int((target_period.year - training_df['year'].min()) * 12 + target_period.month),
+            'time_index': int((target_period.year - time_index_anchor_year) * 12 + target_period.month),
             'lag_1': lag_1,
             'lag_2': lag_2,
             'lag_3': lag_value(3),
@@ -1002,11 +1119,21 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
     preds = _predict_consultation_counts(model, pred_df[feature_columns])
     pred_df['predicted_cases'] = [max(0, round(value)) for value in preds]
 
+    low_preds, high_preds = _predict_consultation_count_interval(model, pred_df[feature_columns])
+    pred_df['predicted_cases_low'] = [
+        min(round(low), cases) for low, cases in zip(low_preds, pred_df['predicted_cases'])
+    ]
+    pred_df['predicted_cases_high'] = [
+        max(round(high), cases) for high, cases in zip(high_preds, pred_df['predicted_cases'])
+    ]
+
     diagnosis_totals = (
         pred_df.groupby('diagnosis')['predicted_cases']
         .sum()
         .sort_values(ascending=False)
     )
+    diagnosis_low_totals = pred_df.groupby('diagnosis')['predicted_cases_low'].sum()
+    diagnosis_high_totals = pred_df.groupby('diagnosis')['predicted_cases_high'].sum()
     age_totals = (
         pred_df.groupby('age_group')['predicted_cases']
         .sum()
@@ -1037,6 +1164,10 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
         'age_group': age_totals,
         'gender': gender_totals,
         'segments': segment_rows,
+    }
+    generate_forecast_for_month.last_prediction_intervals = {
+        diagnosis: (int(diagnosis_low_totals.get(diagnosis, count)), int(diagnosis_high_totals.get(diagnosis, count)))
+        for diagnosis, count in diagnosis_totals.items()
     }
     return results
 
@@ -1977,22 +2108,76 @@ def create_app():
                 'source': 'historical',
                 'support_count': matched,
                 'share': round(share, 4),
+                'confidence': None,
+                'nearest_diagnosis': None,
             }
         return historical_map
 
-    def role_lookup_for_diagnosis(diagnosis, historical_map):
-        """Evidence-based role lookup with a documented fallback: prefer the
-        historical physician-derived mapping, and only fall back to the static
-        keyword rule when historical support is insufficient."""
+    def build_diagnosis_role_classifier(historical_map):
+        """Fit a TF-IDF nearest-neighbor matcher over diagnoses that already have a
+        confident historical mapping, so a diagnosis with no exact historical match
+        can still be routed by text similarity to a known diagnosis, instead of
+        immediately collapsing to the generic keyword fallback. Character n-grams
+        (not word n-grams) are used because diagnosis strings here are short
+        (1-3 tokens), so char n-grams catch morphological near-duplicates
+        (e.g. "Hypertensive Urgency" ~ "Hypertension Monitoring") that whole-word
+        matching would miss. Returns None when there isn't enough historical
+        vocabulary to build a meaningful matcher."""
+        diagnoses = list((historical_map or {}).keys())
+        if len(diagnoses) < 2:
+            return None
+        vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(3, 5), min_df=1)
+        matrix = vectorizer.fit_transform(diagnoses)
+        return {
+            'vectorizer': vectorizer,
+            'matrix': matrix,
+            'diagnoses': diagnoses,
+            'historical_map': historical_map,
+        }
+
+    def _classify_diagnosis_role(diagnosis, classifier_state):
+        """Match a diagnosis against the fitted TF-IDF classifier state and return a
+        role_lookup_for_diagnosis-shaped result, or None if the best match is below
+        TIER2_MIN_SIMILARITY (not confident enough to trust)."""
+        if not classifier_state or not diagnosis:
+            return None
+        query_vector = classifier_state['vectorizer'].transform([diagnosis])
+        similarities = cosine_similarity(query_vector, classifier_state['matrix'])[0]
+        best_idx = int(np.argmax(similarities))
+        best_similarity = float(similarities[best_idx])
+        if best_similarity < TIER2_MIN_SIMILARITY:
+            return None
+        nearest_diagnosis = classifier_state['diagnoses'][best_idx]
+        matched = classifier_state['historical_map'][nearest_diagnosis]
+        return {
+            'roles': matched['roles'],
+            'source': 'classifier',
+            'support_count': matched['support_count'],
+            'share': None,
+            'confidence': round(best_similarity, 4),
+            'nearest_diagnosis': nearest_diagnosis,
+        }
+
+    def role_lookup_for_diagnosis(diagnosis, historical_map, classifier_state=None):
+        """Evidence-based role lookup with a documented three-tier fallback: prefer
+        the historical physician-derived mapping; if the diagnosis has no confident
+        historical match, try text-similarity matching against diagnoses that do
+        (classifier_state, optional); only fall back to the static keyword rule
+        when neither has enough evidence."""
         mapped = (historical_map or {}).get(diagnosis)
         if mapped:
             return mapped
+        classifier_match = _classify_diagnosis_role(diagnosis, classifier_state)
+        if classifier_match:
+            return classifier_match
         fallback_roles = infer_staff_and_equipment(diagnosis).get('roles') or ['General Physicians']
         return {
             'roles': fallback_roles,
             'source': 'fallback',
             'support_count': 0,
             'share': None,
+            'confidence': None,
+            'nearest_diagnosis': None,
         }
 
     def appointment_slot_conflict(branch_id, appointment_date, appointment_time, exclude_id=None):
@@ -2214,7 +2399,7 @@ def create_app():
             notes.append('No exact service mapping was found; general physician review is recommended.')
         return sorted(set(roles)), sorted(set(equipment)), notes
 
-    def build_daily_staff_prediction(branch, actual_staff_by_role, staff_capacity_per_month, historical_map=None):
+    def build_daily_staff_prediction(branch, actual_staff_by_role, staff_capacity_per_month, historical_map=None, classifier_state=None):
         """Forecast role demand for the current 7 days and the next 7 days."""
         historical_map = historical_map or {}
         today = datetime.now().date()
@@ -2233,7 +2418,7 @@ def create_app():
             consultation_date = parse_iso_date(record.consultation_date)
             if not consultation_date:
                 continue
-            mapped_roles = role_lookup_for_diagnosis(record.diagnosis, historical_map)['roles']
+            mapped_roles = role_lookup_for_diagnosis(record.diagnosis, historical_map, classifier_state)['roles']
             for role in mapped_roles:
                 observed_roles.add(role)
                 role_date_counts[(consultation_date, role)] += 1
@@ -2451,15 +2636,36 @@ def create_app():
     def build_staff_demand_forecast(predictions, branch, predicted_year, predicted_month, staff_capacity_per_month, actual_staff_by_role):
         """Translate forecasted cases and scheduled appointments into role demand."""
         historical_map = build_historical_role_map(branch)
+        classifier_state = build_diagnosis_role_classifier(historical_map)
         mapping_source_counts = Counter()
         forecast_role_demand = Counter()
+        forecast_role_demand_low = Counter()
+        forecast_role_demand_high = Counter()
+        attribution_rows = []
         for item in predictions or []:
             diagnosis = item.get('diagnosis', '')
             predicted_count = int(item.get('predicted_next_month') or 0)
-            mapping = role_lookup_for_diagnosis(diagnosis, historical_map)
+            predicted_low = item.get('predicted_low')
+            predicted_high = item.get('predicted_high')
+            predicted_low = int(predicted_low) if predicted_low is not None else predicted_count
+            predicted_high = int(predicted_high) if predicted_high is not None else predicted_count
+            mapping = role_lookup_for_diagnosis(diagnosis, historical_map, classifier_state)
             mapping_source_counts[mapping['source']] += 1
+            attribution_rows.append({
+                'diagnosis': diagnosis,
+                'source': mapping['source'],
+                'roles': mapping['roles'],
+                'support_count': mapping['support_count'],
+                'share': mapping['share'],
+                'confidence': mapping.get('confidence'),
+                'nearest_diagnosis': mapping.get('nearest_diagnosis'),
+                'predicted_next_month': predicted_count,
+                'trend': item.get('trend'),
+            })
             for role in mapping['roles']:
                 forecast_role_demand[role] += predicted_count
+                forecast_role_demand_low[role] += predicted_low
+                forecast_role_demand_high[role] += predicted_high
 
         appointment_query = Appointment.query.filter(Appointment.status.in_(['Pending', 'Confirmed']))
         if branch is not None:
@@ -2490,9 +2696,13 @@ def create_app():
             forecast_demand = int(forecast_role_demand.get(role, 0))
             appointment_demand = int(appointment_role_demand.get(role, 0))
             planning_demand = max(forecast_demand, appointment_demand)
+            planning_demand_low = max(int(forecast_role_demand_low.get(role, 0)), appointment_demand)
+            planning_demand_high = max(int(forecast_role_demand_high.get(role, 0)), appointment_demand)
             available = int(actual_staff_by_role.get(role, 0))
             role_capacity = available * staff_capacity_per_month
             required = int(np.ceil(planning_demand / max(1, staff_capacity_per_month))) if planning_demand else 0
+            required_low = int(np.ceil(planning_demand_low / max(1, staff_capacity_per_month))) if planning_demand_low else 0
+            required_high = int(np.ceil(planning_demand_high / max(1, staff_capacity_per_month))) if planning_demand_high else 0
             gap = max(0, required - available)
             pressure = planning_demand / max(1, role_capacity)
             if gap > 0 or pressure > 1:
@@ -2512,6 +2722,8 @@ def create_app():
                 'available_staff': available,
                 'role_capacity': role_capacity,
                 'estimated_required': required,
+                'required_low': required_low,
+                'required_high': required_high,
                 'gap': gap,
                 'status': status,
                 'status_class': status_class,
@@ -2556,7 +2768,7 @@ def create_app():
         }
 
         top_row = next((row for row in role_rows if row['planning_demand'] > 0), None)
-        daily_prediction = build_daily_staff_prediction(branch, actual_staff_by_role, staff_capacity_per_month, historical_map)
+        daily_prediction = build_daily_staff_prediction(branch, actual_staff_by_role, staff_capacity_per_month, historical_map, classifier_state)
         return {
             'top_role': top_row['staff_role'] if top_row else 'No demand yet',
             'top_role_demand': top_row['planning_demand'] if top_row else 0,
@@ -2569,13 +2781,16 @@ def create_app():
             'daily_rows': daily_rows,
             'daily_chart': daily_chart,
             'daily_prediction': daily_prediction,
+            'attribution_rows': attribution_rows,
             'mapping_historical_count': mapping_source_counts.get('historical', 0),
+            'mapping_classifier_count': mapping_source_counts.get('classifier', 0),
             'mapping_fallback_count': mapping_source_counts.get('fallback', 0),
             'mapping_min_support': MIN_HISTORICAL_ROLE_SUPPORT,
             'mapping_min_share_pct': round(MIN_HISTORICAL_ROLE_SHARE * 100),
+            'mapping_min_similarity_pct': round(TIER2_MIN_SIMILARITY * 100),
         }
 
-    def build_dashboard_context(records, staff_members, branch=None, include_forecast=False):
+    def build_dashboard_context(records, staff_members, branch=None, include_forecast=False, compute_model_b=True):
         total_consultations = len(records)
 
         monthly_counts = Counter()
@@ -2634,7 +2849,7 @@ def create_app():
                 'physician': r.physician,
                 'consultation_type': r.consultation_type,
             } for r in records])
-            total_pred, forecast, rf_metrics = generate_forecast_for_specific_month(df, predicted_month, predicted_year)
+            total_pred, forecast, rf_metrics = generate_forecast_for_specific_month(df, predicted_month, predicted_year, compute_model_b=compute_model_b)
             demographic_forecast = getattr(generate_forecast_for_month, 'last_demographic_forecast', {
                 'age_group': [],
                 'gender': [],
@@ -2646,21 +2861,38 @@ def create_app():
 
         if total_pred is not None and total_pred > 0:
             predicted_cases_next_month = total_pred
+            prediction_intervals = (rf_metrics or {}).get('prediction_intervals', {})
             predictions = []
-            for diag, count in forecast[:5]:
-                ref_count = reference_month_counts.get(diag, 0)
+            named_forecast = [(diag, count) for diag, count in forecast if diag != RARE_DIAGNOSIS_BUCKET]
+            for diag, count in named_forecast[:5]:
+                low, high = prediction_intervals.get(diag, (count, count))
+                if diag == RARE_DIAGNOSIS_BUCKET:
+                    # 'Other Services/Cases' is a synthetic training-time label
+                    # that is never actually stored as a diagnosis value, so a
+                    # reference-month lookup for it can never match anything --
+                    # show it honestly as not comparable instead of a fabricated
+                    # "0 -> N, Increasing" spike.
+                    ref_count = None
+                    trend = 'N/A'
+                else:
+                    ref_count = reference_month_counts.get(diag, 0)
+                    trend = 'Increasing' if count > ref_count else 'Decreasing' if count < ref_count else 'Stable'
                 predictions.append({
                     'diagnosis': diag,
                     'current_month': ref_count,
                     'predicted_next_month': count,
+                    'predicted_low': low,
+                    'predicted_high': high,
                     'predicted_month': predicted_month_label,
-                    'trend': 'Increasing' if count > ref_count else 'Decreasing' if count < ref_count else 'Stable'
+                    'trend': trend
                 })
             if not predictions:
                 predictions = [{
                     'diagnosis': 'No data',
                     'current_month': 0,
                     'predicted_next_month': 0,
+                    'predicted_low': 0,
+                    'predicted_high': 0,
                     'predicted_month': predicted_month_label,
                     'trend': 'Stable'
                 }]
@@ -2689,6 +2921,8 @@ def create_app():
                     'diagnosis': diag,
                     'current_month': ref_count,
                     'predicted_next_month': pred_cnt,
+                    'predicted_low': None,
+                    'predicted_high': None,
                     'predicted_month': predicted_month_label,
                     'trend': 'Increasing' if pred_cnt > ref_count else 'Decreasing' if pred_cnt < ref_count else 'Stable'
                 })
@@ -2775,9 +3009,24 @@ def create_app():
             'rf_metrics': rf_metrics,
         }
 
-    def get_dashboard_summary(force_refresh=False, branch_id='selected'):
+    def get_dashboard_summary(force_refresh=False, branch_id='selected', compute_model_b=True):
         if branch_id == 'selected':
             branch_id = selected_branch_scope()
+
+        # When a light write route skips the redundant Model B fit for speed,
+        # carry forward the last real comparison instead of letting the
+        # Predictions page's demographic-comparison section go dark after
+        # every routine write -- it doesn't meaningfully change between one
+        # appointment and the next, so the last real computation is more
+        # useful than "not available."
+        carried_model_b = None
+        if force_refresh and not compute_model_b:
+            previous_summary = load_cached_dashboard_summary(branch_id)
+            if previous_summary:
+                candidate = (previous_summary.get('rf_metrics') or {}).get('model_b_without_demographics')
+                if candidate:
+                    carried_model_b = candidate
+
         if force_refresh:
             remove_cached_dashboard_summary(branch_id)
             if branch_id is not None:
@@ -2790,12 +3039,45 @@ def create_app():
         branch = None if branch_id is None else (db.session.get(Branch, branch_id) or ensure_default_branch())
         records = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id).all()
         staff = scoped_query(StaffMember.query.filter_by(is_active=True), StaffMember, branch_id=branch_id).all()
-        summary = build_dashboard_context(records, staff, branch=branch, include_forecast=force_refresh)
+        summary = build_dashboard_context(records, staff, branch=branch, include_forecast=force_refresh, compute_model_b=compute_model_b)
+        if carried_model_b is not None and summary.get('rf_metrics') is not None:
+            summary['rf_metrics']['model_b_without_demographics'] = carried_model_b
+            summary['rf_metrics']['model_b_carried_forward'] = True
         if branch_id is None:
             summary['branch_name'] = 'All Branches'
             summary['branch_code'] = ALL_BRANCHES_SCOPE.upper()
+            summary['branch_breakdown'] = build_branch_breakdown()
         cache_dashboard_summary(summary, branch_id)
         return summary
+
+    def build_branch_breakdown():
+        """Per-branch rows for the 'All Branches' view, so aggregate numbers on
+        Dashboard/Resources/Predict aren't the only thing shown. Consultation and
+        staff counts are always live (cheap direct queries); forecast-derived
+        numbers (predicted cases, readiness, staffing gap) are read from each
+        branch's own cached dashboard summary rather than triggering a fresh
+        Random Forest run per branch on every 'All Branches' page load -- a
+        branch shows 'Not yet generated' until its own Predict/Retrain has run
+        at least once."""
+        rows = []
+        for branch in Branch.query.filter_by(is_active=True).order_by(Branch.is_main.desc(), Branch.name.asc()).all():
+            cached = load_cached_dashboard_summary(branch.id)
+            staffing_gap = None
+            if cached:
+                monthly_rows = cached.get('staff_demand_forecast', {}).get('monthly_rows', [])
+                staffing_gap = sum(int(row.get('gap', 0)) for row in monthly_rows)
+            rows.append({
+                'branch_id': branch.id,
+                'branch_name': branch.name,
+                'branch_code': branch.code,
+                'total_consultations': ConsultationRecord.query.filter_by(branch_id=branch.id).count(),
+                'staff_count': StaffMember.query.filter_by(branch_id=branch.id, is_active=True).count(),
+                'predicted_cases_next_month': cached.get('predicted_cases_next_month') if cached else None,
+                'resource_readiness': cached.get('resource_readiness') if cached else None,
+                'staffing_gap': staffing_gap,
+                'has_forecast': cached is not None,
+            })
+        return rows
 
     # -------------------------------------------------------------
     # Routes (unchanged except for dashboard/upload which use the new logic)
@@ -3933,7 +4215,13 @@ def create_app():
             db.session.flush()
             log_audit('create_consultation_record', 'ConsultationRecord', record.id, {'patient_id': patient.id, 'diagnosis': record.diagnosis, 'date': record.consultation_date})
             db.session.commit()
-            remove_cached_dashboard_summary(current_branch_id())
+            # New ConsultationRecord rows are genuinely new training data -- force a
+            # real dashboard/forecast refresh instead of just invalidating the cache,
+            # so the next view reflects this data rather than a stale fallback.
+            # Skip the redundant demographic-comparison model here (compute_model_b=False)
+            # -- it's not needed for this refresh and roughly doubles the cost; the
+            # Predictions page carries forward the last real comparison instead.
+            get_dashboard_summary(force_refresh=True, compute_model_b=False)
             flash('Consultation record added for patient.', 'success')
             return redirect(url_for('patient_detail', patient_id=patient.id))
         return render_template('patients/consultation_form.html', patient=patient, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'), today=datetime.now().strftime('%Y-%m-%d'))
@@ -4138,7 +4426,14 @@ def create_app():
             appointment.updated_at = datetime.now()
             log_audit('complete_appointment', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'records_created': len(services)})
             db.session.commit()
-            remove_cached_dashboard_summary(current_branch_id())
+            # Completing an appointment creates new ConsultationRecord rows -- this is
+            # the main automatic path into the model's training data, so force a real
+            # refresh rather than leaving the next viewer with a stale/fallback forecast.
+            # Skip the redundant demographic-comparison model here (compute_model_b=False)
+            # -- measured this as the difference between a 13s and a much faster response
+            # for a routine, high-frequency staff action; the Predictions page carries
+            # forward the last real comparison instead of losing it.
+            get_dashboard_summary(force_refresh=True, compute_model_b=False)
             flash(f'Appointment completed and {len(services)} consultation record(s) were created.', 'success')
             return redirect(url_for('appointments'))
         return render_template(
@@ -4479,7 +4774,10 @@ def create_app():
         deleted_count = ConsultationRecord.query.filter_by(branch_id=current_branch_id()).delete()
         log_audit('clear_consultation_records', 'ConsultationRecord', None, {'deleted_count': deleted_count})
         db.session.commit()
-        remove_cached_dashboard_summary(current_branch_id())
+        # All training data for this branch just changed (to none) -- force a real
+        # refresh so the dashboard resets to a correct empty state immediately,
+        # instead of continuing to serve a stale pre-deletion cached forecast.
+        get_dashboard_summary(force_refresh=True, compute_model_b=False)
         flash(f'Cleared {deleted_count} consultation records for the current branch.', 'success')
         return redirect(url_for('records'))
 
@@ -4598,7 +4896,11 @@ def create_app():
             else:
                 flash('No records to train model.', 'warning')
 
-            remove_cached_dashboard_summary(current_branch_id())
+            # Bulk-inserted ConsultationRecord rows are new training data -- force a
+            # real dashboard/forecast refresh (accepted minor inefficiency: this
+            # retrains a second time on top of the fast=True run just above, but
+            # upload is a low-frequency bulk action, not page-load-frequency).
+            get_dashboard_summary(force_refresh=True)
             log_audit('upload_consultation_data', 'ConsultationRecord', None, {'filename': filename, 'added_count': added_count, 'skipped_count': skipped_count})
             db.session.commit()
             flash(f'Data uploaded and model retrained successfully. Added {added_count} new records; skipped {skipped_count} duplicates.', 'success')
@@ -4862,6 +5164,10 @@ def create_app():
         'resource-recommendation': {
             'title': 'Resource Recommendation Report',
             'description': 'Forecast-based staff-role guidance, staffing capacity, and service readiness recommendations.'
+        },
+        'attribution-gaps': {
+            'title': 'Diagnosis Attribution Gap Report',
+            'description': 'Diagnoses not confidently mapped to a staff role from history, and staff roles the diagnosis data can never recommend.'
         },
     }
 
@@ -5313,12 +5619,13 @@ def create_app():
             staff_capacity = int(load_app_settings().get('staff_capacity_per_month', STAFF_CAPACITY_PER_MONTH))
             actual_staff_by_role = summary.get('actual_staff_by_role', {})
             report_historical_map = build_historical_role_map(current_branch())
+            report_classifier_state = build_diagnosis_role_classifier(report_historical_map)
             role_demand = Counter()
             forecast = summary.get('predictions', [])
             for item in forecast:
                 diagnosis = item.get('diagnosis', '')
                 predicted_count = int(item.get('predicted_next_month') or 0)
-                mapped_roles = role_lookup_for_diagnosis(diagnosis, report_historical_map)['roles']
+                mapped_roles = role_lookup_for_diagnosis(diagnosis, report_historical_map, report_classifier_state)['roles']
                 for role in mapped_roles:
                     role_demand[role] += predicted_count
             if not role_demand and summary.get('predicted_cases_next_month'):
@@ -5373,6 +5680,42 @@ def create_app():
             rows = role_rows
             details_title = 'Staff Role Capacity Gap'
             details_note = 'This table compares forecasted demand mapped to staff roles against current active staff counts and the configured staff capacity setting. It is a decision-support recommendation, not an independent clinical staffing diagnosis.'
+
+        elif report_key == 'attribution-gaps':
+            staff_forecast = summary.get('staff_demand_forecast', {}) or {}
+            attribution_rows = staff_forecast.get('attribution_rows', [])
+            non_historical_rows = [row for row in attribution_rows if row.get('source') != 'historical']
+            rising_rows = [row for row in non_historical_rows if row.get('trend') == 'Increasing']
+
+            gap_historical_map = build_historical_role_map(current_branch())
+            roles_seen_in_diagnoses = {info['roles'][0] for info in gap_historical_map.values() if info.get('roles')}
+            active_roles = {member.role for member in scoped_query(StaffMember.query.filter_by(is_active=True), StaffMember).all()}
+            diagnosis_invisible_roles = sorted(active_roles - roles_seen_in_diagnoses)
+
+            sections = [
+                {
+                    'metric': 'Diagnoses without a confident historical role match',
+                    'value': len(non_historical_rows),
+                    'explanation': f"Out of the top forecasted diagnoses for next month, this many did not have enough historical physician evidence (minimum {MIN_HISTORICAL_ROLE_SUPPORT} matched records and {round(MIN_HISTORICAL_ROLE_SHARE * 100)}% role share) for a confident match, and were routed by text-similarity matching or the fallback keyword rule instead."
+                },
+                {
+                    'metric': 'Of those, forecasted demand is increasing',
+                    'value': len(rising_rows),
+                    'explanation': 'Rising-volume diagnoses without a confident historical role mapping deserve priority review -- growing demand is being routed through a weaker attribution path.'
+                },
+                {
+                    'metric': 'Diagnosis-invisible staff roles',
+                    'value': ', '.join(diagnosis_invisible_roles) if diagnosis_invisible_roles else 'None currently',
+                    'explanation': 'Active staff roles with zero occurrences as a matched physician role across all recorded diagnosis history. No diagnosis-based method -- historical mapping, text-similarity matching, or the keyword fallback -- can ever recommend these roles from consultation/diagnosis data, because the clinic workflow does not record them as the consulting physician (e.g. laboratory and pathology roles process samples rather than being logged as the consulting physician for a diagnosis). This is a structural characteristic of how consultation records are captured, not something either attribution improvement is expected to fix; staffing decisions for these roles should be made from equipment/service volume instead of diagnosis attribution.'
+                },
+            ]
+            rows = non_historical_rows
+            details_title = 'Diagnoses Without a Confident Historical Role Match'
+            details_note = (f'Each row shows how a top forecasted diagnosis was routed when historical physician evidence was insufficient '
+                             f'(minimum {MIN_HISTORICAL_ROLE_SUPPORT} matched records and {round(MIN_HISTORICAL_ROLE_SHARE * 100)}% role share). '
+                             f'"classifier" rows were matched by text similarity to a known diagnosis (shown with a confidence score and the nearest '
+                             f'matching diagnosis); "fallback" rows used the static keyword rule as a last resort. This report only covers the current '
+                             f'top forecasted diagnoses, not the full diagnosis history.')
 
         return {
             'key': report_key,

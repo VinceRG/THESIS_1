@@ -6,6 +6,12 @@
 
 {% block content %}
 {% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
+{% set model_b = metrics.model_b_without_demographics or {} %}
+{% set verdict = metrics.model_verdict %}
+{% if verdict == 'Acceptable' %}{% set verdict_class = 'healthy' %}
+{% elif verdict and 'better than baseline' in verdict %}{% set verdict_class = 'moderate' %}
+{% elif verdict %}{% set verdict_class = 'high' %}
+{% else %}{% set verdict_class = 'moderate' %}{% endif %}
 <div class="section-stack">
 {% if not summary.rf_metrics %}
   <div class="flash-message flash-warning">
@@ -18,6 +24,7 @@
     <div>
       <h3>Model Controls</h3>
       <p class="muted-copy">Retrain the Random Forest model using the current consultation records for the selected branch.</p>
+      <p style="margin-top:8px;"><span class="status-pill status-{{ verdict_class }}">{{ verdict|default('Not yet evaluated') }}</span></p>
     </div>
     {% if summary.branch_code != 'ALL' %}
       <form method="post" action="{{ url_for('retrain') }}"
@@ -32,14 +39,16 @@
   </div>
 </div>
 
-<div class="grid cards">
+<div class="section-heading">Holdout Performance</div>
+<p class="section-subcopy">How the Random Forest model performed on consultation months it never saw during training. This is regression accuracy, not classification accuracy.</p>
+<div class="grid grid-auto-fit">
   <div class="card">
     <h3>Algorithm</h3>
     <div class="value">Random Forest</div>
     <p class="hint">Consultation-volume forecast, not a specialist classifier.</p>
   </div>
   <div class="card">
-    <h3>Validation R2</h3>
+    <h3>Holdout R2</h3>
     <div class="value">{{ metrics.r2_score }}</div>
     <p class="hint">Holdout performance — higher is better.</p>
   </div>
@@ -53,7 +62,14 @@
     <div class="value">{{ metrics.rmse }}</div>
     <p class="hint">Weights larger errors more — lower is better.</p>
   </div>
+  <div class="card">
+    <h3>Improvement vs Baseline</h3>
+    <div class="value">{{ metrics.improvement_vs_baseline_pct|default('N/A') }}%</div>
+    <p class="hint">How much better than repeating last month's count — higher is better.</p>
+  </div>
 </div>
+
+{% include 'partials/branch_breakdown.html' %}
 
 <div class="chart-card">
   <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
@@ -71,11 +87,11 @@
           <tr><th>Diagnosis</th><th>Reference Month</th><th>Forecasted Cases</th><th>Trend</th></tr>
         </thead>
         <tbody>
-          {% for item in summary.predictions %}
+          {% for item in summary.predictions if item.diagnosis != 'Other Services/Cases' %}
             <tr>
-              <td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td>
-              <td>{{ item.current_month }}</td>
-              <td><strong>{{ item.predicted_next_month }}</strong></td>
+              <td>{{ item.diagnosis }}</td>
+              <td>{{ item.current_month if item.current_month is not none else 'N/A' }}</td>
+              <td><strong>{{ item.predicted_next_month }}</strong>{% if item.predicted_low is not none and item.predicted_high is not none and item.predicted_low != item.predicted_high %} <span class="muted-copy" style="font-size:11px;">({{ item.predicted_low }}&ndash;{{ item.predicted_high }})</span>{% endif %}</td>
               <td>{{ item.trend }}</td>
             </tr>
           {% else %}
@@ -97,6 +113,50 @@
       </tbody>
     </table>
   </div>
+</div>
+
+<div class="chart-card">
+  <h3>Common-Diagnosis Forecast Accuracy</h3>
+  <table class="table">
+    <thead><tr><th>Metric</th><th>All Diagnoses (Overall)</th><th>Common Diagnoses Only</th></tr></thead>
+    <tbody>
+      <tr><th title="Explains unseen validation data; higher is better.">Validation R2</th><td>{{ metrics.r2_score }}</td><td>{{ metrics.common_validation_r2|default('N/A') }}</td></tr>
+      <tr><th title="Average prediction error in cases; lower is better.">Validation MAE</th><td>{{ metrics.mae }}</td><td>{{ metrics.common_validation_mae|default('N/A') }}</td></tr>
+      <tr><th title="Weights larger errors more; lower is better.">Validation RMSE</th><td>{{ metrics.rmse }}</td><td>{{ metrics.common_validation_rmse|default('N/A') }}</td></tr>
+      <tr><th title="Average of the cross-validation MAE across folds.">CV MAE Mean</th><td>{{ metrics.cv_mae_mean|default('N/A') }}</td><td>{{ metrics.common_cv_mae_mean|default('N/A') }}</td></tr>
+    </tbody>
+  </table>
+  <p class="muted-copy" style="margin-top:10px;">Common diagnoses considered: {{ metrics.common_diagnoses|join(', ') if metrics.common_diagnoses else 'Not available yet — retrain to compute.' }}</p>
+</div>
+
+<div class="chart-card">
+  <h3>With vs. Without Demographics (Model Comparison)</h3>
+  <p class="muted-copy" style="margin-bottom:14px;">
+    Model A (used for the forecasts on this page) includes age group and gender as predictive features.
+    Model B is a comparison model trained without demographic features, at diagnosis-by-month level only.
+  </p>
+  {% if model_b %}
+  <table class="table">
+    <thead><tr><th>Metric</th><th>Model A (With Demographics)</th><th>Model B (Without Demographics)</th></tr></thead>
+    <tbody>
+      <tr><th>Validation R2</th><td>{{ metrics.validation_r2 }}</td><td>{{ model_b.validation_r2 }}</td></tr>
+      <tr><th>Validation MAE</th><td>{{ metrics.validation_mae }} cases</td><td>{{ model_b.validation_mae }} cases</td></tr>
+      <tr><th>Validation RMSE</th><td>{{ metrics.validation_rmse }} cases</td><td>{{ model_b.validation_rmse }} cases</td></tr>
+      <tr><th>Improvement vs Baseline</th><td>{{ metrics.improvement_vs_baseline_pct|default('N/A') }}%</td><td>{{ model_b.improvement_vs_baseline_pct|default('N/A') }}%</td></tr>
+      <tr><th>Training Grain</th><td>Diagnosis x Age Group x Gender x Month</td><td>Diagnosis x Month</td></tr>
+    </tbody>
+  </table>
+  <p class="muted-copy" style="margin-top:10px;">
+    Since the two models operate at different levels of granularity, their R2 values should not be interpreted as a direct
+    measure of superiority. Model A was selected because it provides demographic-specific predictions that better support
+    clinic planning, staffing, and resource allocation.
+  </p>
+  {% if metrics.model_b_carried_forward %}
+  <p class="muted-copy" style="margin-top:6px;">Demographic comparison shown is from the last full retrain, not this refresh.</p>
+  {% endif %}
+  {% else %}
+  <p class="muted-copy">Demographic comparison not available yet. Use <strong>Retrain Model</strong> above to generate it.</p>
+  {% endif %}
 </div>
 
 <div class="grid section-grid">
@@ -124,8 +184,8 @@
           <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
         </thead>
         <tbody>
-          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'male' %}
-            <tr><td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'male' and item.diagnosis != 'Other Services/Cases' %}
+            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
           {% else %}
             <tr class="table-empty-state"><td colspan="3">No male segment forecast available yet.</td></tr>
           {% endfor %}
@@ -139,8 +199,8 @@
           <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
         </thead>
         <tbody>
-          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'female' %}
-            <tr><td>{{ item.diagnosis }}{% if item.diagnosis == 'Other Services/Cases' %} <span class="tag-pill" title="Aggregated total for less-common diagnoses grouped together for modeling, not a single diagnosis.">Aggregated</span>{% endif %}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
+          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'female' and item.diagnosis != 'Other Services/Cases' %}
+            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
           {% else %}
             <tr class="table-empty-state"><td colspan="3">No female segment forecast available yet.</td></tr>
           {% endfor %}
@@ -164,7 +224,7 @@
     <h3>Mapped Staff Role Demand</h3>
     <table class="table">
       <thead>
-        <tr><th>Staff Role</th><th>Planning Demand</th><th>Available</th><th>Status</th></tr>
+        <tr><th>Staff Role</th><th>Planning Demand</th><th>Available</th><th>Required</th><th>Gap</th><th>Status</th></tr>
       </thead>
       <tbody>
         {% for row in staff_forecast.get('monthly_rows', [])[:7] if row.planning_demand > 0 or row.available_staff > 0 %}
@@ -172,10 +232,12 @@
             <td>{{ row.staff_role }}</td>
             <td><strong>{{ row.planning_demand }}</strong></td>
             <td>{{ row.available_staff }}</td>
+            <td>{{ row.estimated_required }}{% if row.required_low is not none and row.required_high is not none and row.required_low != row.required_high %} <span class="muted-copy" style="font-size:11px;">({{ row.required_low }}&ndash;{{ row.required_high }})</span>{% endif %}</td>
+            <td class="{{ 'gap-warning' if row.gap and row.gap > 0 else '' }}">{{ row.gap }}</td>
             <td><span class="status-pill status-{{ row.status_class }}">{{ row.status }}</span></td>
           </tr>
         {% else %}
-          <tr class="table-empty-state"><td colspan="4">No staff role forecast available yet.</td></tr>
+          <tr class="table-empty-state"><td colspan="6">No staff role forecast available yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

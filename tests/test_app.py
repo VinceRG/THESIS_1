@@ -2,6 +2,7 @@ import os
 import re
 import tempfile
 import unittest
+from datetime import datetime
 from io import BytesIO
 
 # The app binds its SQLAlchemy engine to SQLALCHEMY_DATABASE_URI the moment
@@ -22,10 +23,15 @@ from app import (
     StaffMember,
     User,
     app,
+    apply_rare_diagnosis_grouping,
     build_forecasting_training_frame,
     build_training_frame,
     db,
+    generate_forecast_for_month,
     init_db,
+    train_and_evaluate_model,
+    RARE_DIAGNOSIS_BUCKET,
+    _predict_consultation_count_interval,
     _rate_limit_attempts,
 )
 
@@ -182,6 +188,53 @@ class SmartClinicAppTests(unittest.TestCase):
                 )
         return ('\n'.join(rows) + '\n').encode('utf-8')
 
+    @staticmethod
+    def _recent_consultation_csv():
+        """Like _sample_consultation_csv, but the 10-month window ends in the
+        current real-world month instead of a fixed past year (2024).
+        Needed for tests that check the *live* forecast rather than the
+        naive fallback: build_dashboard_context always forecasts "next
+        calendar month" relative to wall-clock time, so lag/rolling
+        features only carry real signal when training data extends close
+        to "now" -- a fixed-past-year fixture drifts further from "now"
+        every year the test suite is run, silently degrading into the
+        fallback path (verified empirically: with 2024-fixed dates, the RF
+        predicts a total of exactly 0 once "now" is far enough past 2024,
+        which build_dashboard_context then treats as "no usable forecast"
+        and discards rf_metrics entirely). A rolling window that doesn't
+        align to a Jan-Dec calendar year also sidesteps
+        REQUIRE_COMPLETE_TRAINING_YEARS filtering, which would otherwise
+        keep only a single complete calendar year and reintroduce the same
+        gap."""
+        diagnoses = [
+            'Hypertension', 'Diabetes', 'Upper Respiratory Infection', 'Asthma Monitoring',
+            'Gastritis', 'Dermatitis and Allergy', 'Fever', 'Routine Medical Consultation',
+            'Headache', 'Preventive Health Check-up',
+        ]
+        now = datetime.now()
+        months = []
+        year, month = now.year, now.month
+        for _ in range(10):
+            months.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        months.reverse()
+        rows = ['consultation_date,age_group,gender,diagnosis,department,physician,consultation_type']
+        for year, month in months:
+            for index, diagnosis in enumerate(diagnoses):
+                record_count = 3 if index < 5 else 1
+                for k in range(record_count):
+                    gender = 'Male' if index % 2 == 0 else 'Female'
+                    consultation_type = 'Follow-up' if index % 2 == 0 else 'New'
+                    day = (index + k) % 28 + 1
+                    rows.append(
+                        f'{year}-{month:02d}-{day:02d},Adult,{gender},{diagnosis},'
+                        f'General Medicine,Dr. Ada,{consultation_type}'
+                    )
+        return ('\n'.join(rows) + '\n').encode('utf-8')
+
     def test_upload_trains_model_and_writes_metrics_report(self):
         self._login()
         data = {'file': (BytesIO(self._sample_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
@@ -194,12 +247,11 @@ class SmartClinicAppTests(unittest.TestCase):
         self._login()
         data = {'file': (BytesIO(self._sample_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
         self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
-        # /upload retrains the model but does not force-refresh the cached
-        # dashboard/predict summary (see audit finding: "normal page loads
-        # don't retrain"), so metrics only become fresh after an explicit
-        # retrain -- exactly what the "Retrain Model" button on this page
-        # does. Mirroring that here keeps the test honest about current
-        # behavior instead of asserting on the un-refreshed zero values.
+        # /upload now force-refreshes the cached dashboard/predict summary as
+        # part of the forecast-freshness fix, so metrics are already fresh at
+        # this point -- the explicit /retrain call below is kept only to
+        # exercise the "Retrain Model" button's own code path, not because
+        # it's required for fresh metrics to appear.
         self.client.post('/retrain', data={'_csrf_token': self.csrf_token}, follow_redirects=True)
         response = self.client.get('/predict')
         self.assertEqual(response.status_code, 200)
@@ -208,6 +260,321 @@ class SmartClinicAppTests(unittest.TestCase):
         self.assertIn(b'MSE', response.data)
         self.assertIn(b'RMSE', response.data)
         self.assertNotIn(b'0.0', response.data)
+
+    def test_predict_page_shows_common_diagnosis_accuracy_section(self):
+        """RQ2: accuracy isolated to common (high-volume) diagnoses, separate
+        from the aggregate metric across all diagnoses, should be visible on
+        the live Predictions page, not just computed internally."""
+        self._login()
+        data = {'file': (BytesIO(self._recent_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        self.assertIn('Common-Diagnosis Forecast Accuracy', body)
+        self.assertIn('Common Diagnoses Only', body)
+        for diagnosis in ('Hypertension', 'Diabetes', 'Upper Respiratory Infection'):
+            self.assertIn(diagnosis, body)
+
+    def test_predict_page_shows_demographics_comparison_section(self):
+        """RQ3: the with-vs-without-demographics model comparison already
+        computed by evaluate_model_without_demographics should be visible on
+        the live Predictions page, not only in the offline training report."""
+        self._login()
+        data = {'file': (BytesIO(self._recent_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        self.assertIn('With vs. Without Demographics', body)
+        self.assertIn('Model B (Without Demographics)', body)
+        self.assertNotIn('Demographic comparison not available yet', body)
+
+    def test_predict_page_handles_missing_demographics_comparison_gracefully(self):
+        """Before any data has ever been uploaded, rf_metrics is the empty
+        fallback stub with no model_b_without_demographics key -- the new
+        sections must degrade gracefully instead of raising a template error."""
+        self._login()
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Demographic comparison not available yet', response.data)
+
+    @staticmethod
+    def _complete_years_plus_recent_gap_csv():
+        """Two full complete calendar years (safely in the past) for real
+        training signal, plus several more recent months of the current,
+        still-in-progress year extending up to today -- mirrors the real
+        production data's actual shape (which is exactly why the
+        training-year-cutoff bug went unnoticed until tested against real
+        data instead of a single-fixed-year fixture)."""
+        diagnoses = ['Hypertension', 'Diabetes', 'Upper Respiratory Infection']
+        rows = ['consultation_date,age_group,gender,diagnosis,department,physician,consultation_type']
+        now = datetime.now()
+
+        for year in (now.year - 3, now.year - 2):
+            for month in range(1, 13):
+                for index, diagnosis in enumerate(diagnoses):
+                    gender = 'Male' if index % 2 == 0 else 'Female'
+                    consultation_type = 'Follow-up' if index % 2 == 0 else 'New'
+                    rows.append(
+                        f'{year}-{month:02d}-{index + 1:02d},Adult,{gender},{diagnosis},'
+                        f'General Medicine,Dr. Ada,{consultation_type}'
+                    )
+
+        # Recent months of the current (incomplete) year, with a deliberately
+        # higher, distinctive volume so a real lag_1 signal is unambiguous
+        # once it's actually visible to the forecast.
+        for offset in range(6):
+            target_month = now.month - offset
+            target_year = now.year
+            if target_month <= 0:
+                target_month += 12
+                target_year -= 1
+            for k in range(10):
+                day = (k % 27) + 1
+                rows.append(
+                    f'{target_year}-{target_month:02d}-{day:02d},Adult,Male,Hypertension,'
+                    f'General Medicine,Dr. Ada,Follow-up'
+                )
+        return ('\n'.join(rows) + '\n').encode('utf-8')
+
+    def test_forecast_uses_recent_lag_signal_beyond_training_year_cutoff(self):
+        """RQ1 regression: forecasting 'next month' must be able to see lag
+        context from the current, still-in-progress year, not just fully
+        complete calendar years -- otherwise near-term forecasts
+        systematically collapse toward zero once 'now' drifts far enough
+        past the last complete year (verified against real production data
+        this session: Upper Respiratory Infection ran 40-58 cases/month as
+        of July 2026, forecast showed 4)."""
+        df = pd.read_csv(BytesIO(self._complete_years_plus_recent_gap_csv()))
+
+        now = datetime.now()
+        target_month = now.month + 1
+        target_year = now.year
+        if target_month > 12:
+            target_month = 1
+            target_year += 1
+        target_period = pd.Period(year=target_year, month=target_month, freq='M')
+
+        # Contrast: the OLD behavior (year-filtered lag context) cannot see
+        # the month immediately before the target at all.
+        filtered = build_forecasting_training_frame(df, apply_year_filter=True)
+        self.assertNotIn(target_period - 1, set(filtered['period']))
+
+        # The fix: an unfiltered lag-context frame CAN see it.
+        unfiltered = build_forecasting_training_frame(df, apply_year_filter=False)
+        self.assertIn(target_period - 1, set(unfiltered['period']))
+
+        model, metrics, feature_cols, label_mapping = train_and_evaluate_model(df, fast=True)
+        forecast = generate_forecast_for_month(model, feature_cols, label_mapping, df, target_month, target_year)
+        forecast_by_diagnosis = dict(forecast)
+        self.assertGreater(
+            forecast_by_diagnosis.get('Hypertension', 0), 0,
+            'Forecast should use recent lag signal instead of collapsing to zero across the training-year gap',
+        )
+
+    def test_apply_rare_diagnosis_grouping_respects_keep_diagnoses(self):
+        # Needs >= MIN_MODELED_DIAGNOSES_FOR_RF (10) distinct diagnoses, or
+        # the "keep at least 10" fallback rescues every diagnosis regardless
+        # of count and nothing gets grouped to demonstrate against.
+        diagnoses = {'A': 60}
+        diagnoses.update({f'Rare{i}': 2 for i in range(15)})
+        df = pd.DataFrame({'diagnosis': [d for d, count in diagnoses.items() for _ in range(count)]})
+
+        grouped_default, _ = apply_rare_diagnosis_grouping(df.copy())
+        self.assertIn('A', set(grouped_default['diagnosis']))
+        self.assertIn(RARE_DIAGNOSIS_BUCKET, set(grouped_default['diagnosis']))
+
+        # Pinning keep_diagnoses to exclude 'A' must group it regardless of
+        # its own count in this call's data -- this is what keeps a wider
+        # (unfiltered) lag-context frame from ever disagreeing with the
+        # trained model's own diagnosis vocabulary.
+        grouped_pinned, _ = apply_rare_diagnosis_grouping(df.copy(), keep_diagnoses={'Rare0'})
+        self.assertNotIn('A', set(grouped_pinned['diagnosis']))
+        self.assertIn(RARE_DIAGNOSIS_BUCKET, set(grouped_pinned['diagnosis']))
+
+    def test_time_index_anchor_consistent_between_filtered_and_unfiltered_frames(self):
+        df = pd.read_csv(BytesIO(self._complete_years_plus_recent_gap_csv()))
+        filtered = build_forecasting_training_frame(df, apply_year_filter=True)
+        unfiltered = build_forecasting_training_frame(df, apply_year_filter=False)
+        self.assertEqual(
+            filtered.attrs['time_index_anchor_year'],
+            unfiltered.attrs['time_index_anchor_year'],
+            'Both frames must anchor time_index to the same year so a trained model sees a '
+            'consistent numeric scale between training and prediction time',
+        )
+
+    def test_prediction_interval_bounds_are_sensible(self):
+        """Unit-level check of the new tree-spread interval helper: bounds
+        must never be negative and low must never exceed high."""
+        df = pd.read_csv(BytesIO(self._recent_consultation_csv()))
+        model, metrics, feature_cols, label_mapping = train_and_evaluate_model(df, fast=True)
+        training_df = build_forecasting_training_frame(df, apply_year_filter=False)
+        low, high = _predict_consultation_count_interval(model, training_df[feature_cols])
+        self.assertTrue((low >= 0).all())
+        self.assertTrue((high >= low).all())
+
+    @staticmethod
+    def _recent_consultation_csv_with_variance():
+        """Like _recent_consultation_csv, but with genuine month-to-month
+        variability in record counts (instead of an identical fixed pattern
+        every month) -- a perfectly deterministic fixture causes every tree
+        in the forest to agree exactly, which correctly collapses the
+        prediction interval to zero width and can't demonstrate the range
+        display. Real production data naturally has this kind of variance."""
+        import random
+        rng = random.Random(42)
+        diagnoses = [
+            'Hypertension', 'Diabetes', 'Upper Respiratory Infection', 'Asthma Monitoring',
+            'Gastritis', 'Dermatitis and Allergy', 'Fever', 'Routine Medical Consultation',
+            'Headache', 'Preventive Health Check-up',
+        ]
+        now = datetime.now()
+        months = []
+        year, month = now.year, now.month
+        for _ in range(10):
+            months.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        months.reverse()
+        rows = ['consultation_date,age_group,gender,diagnosis,department,physician,consultation_type']
+        for year, month in months:
+            for index, diagnosis in enumerate(diagnoses):
+                base_count = 6 if index < 5 else 2
+                record_count = max(1, base_count + rng.randint(-2, 3))
+                for k in range(record_count):
+                    gender = 'Male' if index % 2 == 0 else 'Female'
+                    consultation_type = 'Follow-up' if index % 2 == 0 else 'New'
+                    day = (index + k) % 27 + 1
+                    rows.append(
+                        f'{year}-{month:02d}-{day:02d},Adult,{gender},{diagnosis},'
+                        f'General Medicine,Dr. Ada,{consultation_type}'
+                    )
+        return ('\n'.join(rows) + '\n').encode('utf-8')
+
+    def test_predict_page_shows_forecast_range(self):
+        """RQ2-adjacent: a bare point forecast implies a precision the model
+        doesn't have. After a real retrain, the Predictions page should show
+        a (low-high) range alongside at least one forecasted count."""
+        self._login()
+        data = {'file': (BytesIO(self._recent_consultation_csv_with_variance()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        self.assertIn('muted-copy" style="font-size:11px;">(', body)
+
+    def test_predict_page_naive_fallback_has_no_crash_and_no_fabricated_range(self):
+        """With too little data for real training (fewer than 8 months), the
+        system falls back to a naive trend estimate -- it must render without
+        error and must not show a range it has no model behind."""
+        self._login()
+        with self.app.app_context():
+            branch = Branch.query.first()
+            for month in range(1, 4):
+                db.session.add(ConsultationRecord(
+                    branch_id=branch.id,
+                    consultation_date=f'2024-{month:02d}-01',
+                    age_group='Adult',
+                    gender='Male',
+                    diagnosis='Hypertension',
+                    department='General Medicine',
+                    physician='Dr. Ada',
+                    consultation_type='Follow-up',
+                ))
+            db.session.commit()
+        self.client.post('/retrain', data={'_csrf_token': self.csrf_token}, follow_redirects=True)
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Showing a cached or trend-based estimate', response.data)
+        self.assertNotIn(b'muted-copy" style="font-size:11px;">(', response.data)
+
+    def test_mapped_staff_role_demand_shows_required_range(self):
+        self._login()
+        data = {'file': (BytesIO(self._recent_consultation_csv_with_variance()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        idx = body.find('Mapped Staff Role Demand')
+        self.assertGreater(idx, -1)
+        section = body[idx:idx + 3000]
+        self.assertIn('muted-copy" style="font-size:11px;">(', section)
+
+    def test_common_diagnosis_metrics_exclude_rare_bucket(self):
+        """Unit-level check that common_diagnoses is computed from real
+        per-diagnosis volume and explicitly excludes the rare-diagnosis
+        aggregate bucket, which is a grab-bag of many diagnoses, not one
+        real common diagnosis."""
+        rows = []
+        for month in range(1, 13):
+            for day in range(1, 6):
+                rows.append({
+                    'consultation_date': f'2024-{month:02d}-{day:02d}',
+                    'age_group': 'Adult',
+                    'gender': 'Male' if day % 2 == 0 else 'Female',
+                    'diagnosis': 'Hypertension',
+                    'department': 'General Medicine',
+                    'physician': 'Dr. Ada',
+                    'consultation_type': 'Follow-up',
+                })
+            rows.append({
+                'consultation_date': f'2024-{month:02d}-15',
+                'age_group': 'Adult',
+                'gender': 'Male',
+                'diagnosis': 'Diabetes',
+                'department': 'General Medicine',
+                'physician': 'Dr. Ada',
+                'consultation_type': 'Follow-up',
+            })
+        # 20 distinct rare diagnoses, one record each -- well under
+        # MIN_DIAGNOSIS_RECORDS_FOR_RF, and enough distinct labels that the
+        # MIN_MODELED_DIAGNOSES_FOR_RF fallback doesn't keep them individually.
+        for i in range(20):
+            rows.append({
+                'consultation_date': '2024-06-01',
+                'age_group': 'Adult',
+                'gender': 'Female',
+                'diagnosis': f'Rare Condition {i}',
+                'department': 'General Medicine',
+                'physician': 'Dr. Ada',
+                'consultation_type': 'New',
+            })
+        df = pd.DataFrame(rows)
+        _, metrics, _, _ = train_and_evaluate_model(df, fast=True)
+        self.assertNotIn(RARE_DIAGNOSIS_BUCKET, metrics['common_diagnoses'])
+        self.assertIn('Hypertension', metrics['common_diagnoses'])
+        self.assertLessEqual(metrics['common_diagnoses_count'], 10)
+
+    def test_dashboard_shows_section_headings_and_pipeline_explainer(self):
+        self._login()
+        response = self.client.get('/dashboard')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        for heading in ('Forecast Overview', 'Consultation Trend', 'Diagnosis Forecast', 'Demographic Forecast Detail', 'How the Prediction Works'):
+            self.assertIn(heading, body)
+
+    def test_resources_page_shows_source_badges(self):
+        self._login()
+        with self.app.app_context():
+            branch = Branch.query.first()
+            db.session.add(StaffMember(
+                branch_id=branch.id, name='Dr. Ada', role='Internal Medicine Physicians', is_active=True,
+            ))
+            db.session.commit()
+        csv_bytes = self._consultation_csv_with_physicians({
+            'Hypertension': 'Dr. Ada',
+            'Upper Respiratory Infection': 'Dr. Unlisted',
+        })
+        data = {'file': (BytesIO(csv_bytes), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        response = self.client.get('/resources')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        self.assertIn('pill-source-historical', body)
+        self.assertIn('pill-source-fallback', body)
 
     @staticmethod
     def _consultation_csv_with_physicians(physician_by_diagnosis):
@@ -253,15 +620,91 @@ class SmartClinicAppTests(unittest.TestCase):
         response = self.client.get('/resources')
         self.assertEqual(response.status_code, 200)
         body = response.data.decode('utf-8')
-        match = re.search(
-            r'<strong>(\d+)</strong>\s*diagnos\w+ used historical staffing data.*?'
-            r'<strong>(\d+)</strong>\s*used the fallback keyword rule',
-            body, re.S,
-        )
-        self.assertIsNotNone(match, 'Expected the diagnosis-to-role mapping transparency line on the Resources page')
-        historical_count, fallback_count = int(match.group(1)), int(match.group(2))
+        historical_match = re.search(r'pill-source-historical">\s*(\d+)\s*historical', body)
+        fallback_match = re.search(r'pill-source-fallback">\s*(\d+)\s*fallback keyword', body)
+        self.assertIsNotNone(historical_match, 'Expected the historical source badge on the Resources page')
+        self.assertIsNotNone(fallback_match, 'Expected the fallback source badge on the Resources page')
+        historical_count, fallback_count = int(historical_match.group(1)), int(fallback_match.group(1))
         self.assertGreaterEqual(historical_count, 1, 'Hypertension/Diabetes should be mapped from historical physician data')
         self.assertGreaterEqual(fallback_count, 1, 'Upper Respiratory Infection has no matching staff member and should fall back')
+
+    def test_diagnosis_classifier_matches_unseen_diagnosis_by_text_similarity(self):
+        """A diagnosis with no matching physician (so it never enters the
+        historical map) should still be routed to a sensible role via TF-IDF
+        text-similarity to a diagnosis that *does* have a confident historical
+        mapping, instead of immediately collapsing to the generic keyword
+        fallback."""
+        self._login()
+        with self.app.app_context():
+            branch = Branch.query.first()
+            db.session.add_all([
+                StaffMember(branch_id=branch.id, name='Dr. Ada', role='Internal Medicine Physicians', is_active=True),
+                StaffMember(branch_id=branch.id, name='Dr. Ben', role='General Physicians', is_active=True),
+            ])
+            db.session.commit()
+
+        csv_bytes = self._consultation_csv_with_physicians({
+            'Hypertension Monitoring': 'Dr. Ada',       # matches -> historical, Internal Medicine Physicians
+            'Routine Medical Consultation': 'Dr. Ben',  # matches -> historical, General Physicians
+            'Hypertensive Urgency': 'Dr. Unlisted',     # no matching staff -> absent from historical map,
+                                                         # but textually close to 'Hypertension Monitoring'
+        })
+        data = {'file': (BytesIO(csv_bytes), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        self.client.post('/retrain', data={'_csrf_token': self.csrf_token}, follow_redirects=True)
+
+        response = self.client.get('/resources')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        historical_match = re.search(r'pill-source-historical">\s*(\d+)\s*historical', body)
+        classifier_match = re.search(r'pill-source-classifier">\s*(\d+)\s*text-similarity', body)
+        self.assertIsNotNone(historical_match, 'Expected the historical source badge on the Resources page')
+        self.assertIsNotNone(classifier_match, 'Expected the text-similarity source badge on the Resources page')
+        historical_count, classifier_count = int(historical_match.group(1)), int(classifier_match.group(1))
+        self.assertGreaterEqual(historical_count, 1)
+        self.assertGreaterEqual(
+            classifier_count, 1,
+            'Hypertensive Urgency should be routed by text-similarity to Hypertension Monitoring, not immediately fall back',
+        )
+
+    def test_attribution_gap_report_lists_non_historical_diagnoses_and_invisible_roles(self):
+        """The Diagnosis Attribution Gap Report should surface diagnoses that were
+        not confidently matched from history, and should dynamically list staff
+        roles that never appear as a diagnosis's attributed role -- roles no
+        diagnosis-based method (historical, classifier, or fallback) can ever
+        recommend from this data."""
+        self._login()
+        with self.app.app_context():
+            branch = Branch.query.first()
+            db.session.add_all([
+                StaffMember(branch_id=branch.id, name='Dr. Ada', role='Internal Medicine Physicians', is_active=True),
+                StaffMember(branch_id=branch.id, name='Dr. Ben', role='General Physicians', is_active=True),
+                # Never referenced as any diagnosis's physician -> a diagnosis-invisible role.
+                StaffMember(branch_id=branch.id, name='Liza Ramos', role='Laboratory Technicians', is_active=True),
+            ])
+            db.session.commit()
+
+        csv_bytes = self._consultation_csv_with_physicians({
+            'Hypertension Monitoring': 'Dr. Ada',
+            'Routine Medical Consultation': 'Dr. Ben',
+            'Hypertensive Urgency': 'Dr. Unlisted',
+        })
+        data = {'file': (BytesIO(csv_bytes), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        self.client.post('/retrain', data={'_csrf_token': self.csrf_token}, follow_redirects=True)
+
+        response = self.client.get('/reports/attribution-gaps')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        self.assertIn('Diagnosis Attribution Gap Report', body)
+        self.assertIn('Laboratory Technicians', body)
+        self.assertIn('not something either attribution improvement is expected to fix', body)
+
+    def test_attribution_gap_report_listed_on_reports_index(self):
+        self._login()
+        response = self.client.get('/reports')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Diagnosis Attribution Gap Report', response.data)
 
     def test_retrain_runs_real_hyperparameter_search(self):
         """/retrain now trains with fast=False, so RandomizedSearchCV actually
@@ -392,6 +835,177 @@ class SmartClinicAppTests(unittest.TestCase):
             record_count, 1,
             'Completing an already-completed appointment should not create duplicate consultation records.'
         )
+
+    # ------------------------------------------------------------------
+    # RQ1 forecast-freshness fix: routes that add/remove ConsultationRecord
+    # rows should force a real dashboard/forecast refresh, not just
+    # invalidate the cache and leave the next viewer with a stale fallback.
+    # ------------------------------------------------------------------
+
+    def test_upload_force_refreshes_dashboard_without_manual_retrain(self):
+        self._login()
+        data = {'file': (BytesIO(self._recent_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        # No explicit /retrain call -- the fix is that /upload itself should
+        # already force a real refresh.
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b'Showing a cached or trend-based estimate', response.data)
+        self.assertIn(b'Common-Diagnosis Forecast Accuracy', response.data)
+
+    def test_completing_appointment_refreshes_dashboard_forecast(self):
+        self._login()
+        data = {'file': (BytesIO(self._recent_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        baseline = self.client.get('/dashboard')
+        self.assertNotIn(b'Showing a cached or trend-based estimate', baseline.data)
+
+        with self.app.app_context():
+            branch = Branch.query.first()
+            patient = Patient(
+                branch_id=branch.id,
+                patient_number='P-TEST-FRESH-0001',
+                full_name='Freshness Test Patient',
+                birthdate='1990-01-01',
+                age=34,
+                age_group='Adult',
+                gender='Male',
+            )
+            db.session.add(patient)
+            db.session.commit()
+            appointment = Appointment(
+                branch_id=branch.id,
+                patient_id=patient.id,
+                appointment_date='2024-01-02',
+                status='Confirmed',
+            )
+            db.session.add(appointment)
+            db.session.commit()
+            appointment_id = appointment.id
+
+        self.client.post(f'/appointments/{appointment_id}/complete', data={
+            '_csrf_token': self.csrf_token,
+            'completed_date': '2024-01-02',
+            'assigned_staff_0': 'Dr. Ada',
+            'final_diagnosis_0': 'Check-up',
+            'service_notes_0': '',
+        }, follow_redirects=True)
+
+        # No manual retrain -- completing the appointment should have already
+        # force-refreshed the dashboard with the newly added consultation record.
+        response = self.client.get('/dashboard')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b'Showing a cached or trend-based estimate', response.data)
+
+    def test_clear_records_resets_dashboard_to_empty_state(self):
+        self._login()
+        data = {'file': (BytesIO(self._sample_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        with self.app.app_context():
+            self.assertGreater(ConsultationRecord.query.count(), 0)
+
+        self.client.post('/records/clear', data={'_csrf_token': self.csrf_token}, follow_redirects=True)
+
+        response = self.client.get('/dashboard')
+        self.assertEqual(response.status_code, 200)
+        with self.app.app_context():
+            remaining = ConsultationRecord.query.count()
+        self.assertEqual(remaining, 0)
+        self.assertIn(b'<div class="value">0</div>', response.data)
+
+    @staticmethod
+    def _csv_with_dominant_rare_bucket():
+        """A rolling window ending in the current real month (so the RF
+        forecast branch, not the naive fallback, is exercised) with 2
+        clearly-common diagnoses and 25 individually-rare ones whose combined
+        volume dominates -- guarantees 'Other Services/Cases' both forms and
+        lands near the top of the forecasted-diagnosis list."""
+        rows = ['consultation_date,age_group,gender,diagnosis,department,physician,consultation_type']
+        now = datetime.now()
+        months = []
+        year, month = now.year, now.month
+        for _ in range(10):
+            months.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        months.reverse()
+
+        common_diagnoses = ['Hypertension', 'Diabetes']
+        rare_diagnoses = [f'Rare Condition {i}' for i in range(25)]
+        for year, month in months:
+            for index, diagnosis in enumerate(common_diagnoses):
+                for k in range(6):
+                    day = (index * 6 + k) % 27 + 1
+                    rows.append(f'{year}-{month:02d}-{day:02d},Adult,Male,{diagnosis},General Medicine,Dr. Ada,Follow-up')
+            for index, diagnosis in enumerate(rare_diagnoses):
+                for k in range(2):
+                    day = (index * 2 + k) % 27 + 1
+                    rows.append(f'{year}-{month:02d}-{day:02d},Adult,Female,{diagnosis},General Medicine,Dr. Ada,New')
+        return ('\n'.join(rows) + '\n').encode('utf-8')
+
+    def test_other_services_cases_hidden_from_forecast_table(self):
+        """The rare-diagnosis aggregate bucket is a synthetic training-time
+        label -- a grab-bag of unrelated low-volume diagnoses, not a real
+        clinical need -- so it's excluded from the forecasted-diagnosis
+        table entirely rather than shown with a fabricated trend."""
+        self._login()
+        data = {'file': (BytesIO(self._csv_with_dominant_rare_bucket()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        row_match = re.search(r'<tr>\s*<td>Other Services/Cases.*?</tr>', body, re.S)
+        self.assertIsNone(row_match, "Expected 'Other Services/Cases' to be excluded from the forecasted diagnosis table")
+
+    def test_appointment_completion_carries_forward_demographic_comparison(self):
+        """After completing an appointment (which skips the redundant Model B
+        fit for speed), the Predictions page should still show the last real
+        With-vs-Without-Demographics comparison instead of going dark until
+        the next manual retrain."""
+        self._login()
+        data = {'file': (BytesIO(self._recent_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
+        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
+        self.client.post('/retrain', data={'_csrf_token': self.csrf_token}, follow_redirects=True)
+        baseline = self.client.get('/predict')
+        self.assertIn(b'Model B (Without Demographics)', baseline.data)
+
+        with self.app.app_context():
+            branch = Branch.query.first()
+            patient = Patient(
+                branch_id=branch.id,
+                patient_number='P-TEST-CARRY-0001',
+                full_name='Carry Forward Test Patient',
+                birthdate='1990-01-01',
+                age=34,
+                age_group='Adult',
+                gender='Male',
+            )
+            db.session.add(patient)
+            db.session.commit()
+            appointment = Appointment(
+                branch_id=branch.id,
+                patient_id=patient.id,
+                appointment_date=datetime.now().strftime('%Y-%m-%d'),
+                status='Confirmed',
+            )
+            db.session.add(appointment)
+            db.session.commit()
+            appointment_id = appointment.id
+
+        self.client.post(f'/appointments/{appointment_id}/complete', data={
+            '_csrf_token': self.csrf_token,
+            'completed_date': datetime.now().strftime('%Y-%m-%d'),
+            'assigned_staff_0': 'Dr. Ada',
+            'final_diagnosis_0': 'Check-up',
+            'service_notes_0': '',
+        }, follow_redirects=True)
+
+        response = self.client.get('/predict')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Model B (Without Demographics)', response.data)
+        self.assertIn(b'from the last full retrain', response.data)
 
 
 if __name__ == '__main__':
