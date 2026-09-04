@@ -15,6 +15,10 @@
       <input type="text" name="name" value="{{ staff_member.name if staff_member else '' }}" required>
     </label>
     <label>
+      Email
+      <input type="email" name="email" value="{{ staff_member.email if staff_member else '' }}" placeholder="Used for staffing-gap notifications">
+    </label>
+    <label>
       Role
       {% set selected_role = staff_member.role if staff_member else '' %}
       <select name="role" required>

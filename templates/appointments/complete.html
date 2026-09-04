@@ -86,14 +86,34 @@
           <div class="form-grid patient-form">
             <label>
               Assigned Medical Staff
-              <select name="assigned_staff_{{ loop.index0 }}" required>
-                <option value="" selected disabled>Select attending staff</option>
-                {% for staff in staff_members %}
-                  <option value="{{ staff.name }}">
-                    {{ staff.name }} - {{ staff.role }}{% if staff.role in service_roles[service] %} (recommended){% endif %}
-                  </option>
-                {% endfor %}
-              </select>
+              <div class="staff-combobox" data-staff-combobox>
+                <input type="text" class="staff-combobox-input" data-staff-search placeholder="Search by name or role" autocomplete="off" {% if not staff_members %}disabled{% endif %}>
+                <input type="hidden" name="assigned_staff_{{ loop.index0 }}" data-staff-value required>
+                <div class="staff-combobox-list" data-staff-list hidden>
+                  {% set recommended_staff = staff_members|selectattr('role', 'in', service_roles[service])|list %}
+                  {% set other_staff = staff_members|rejectattr('role', 'in', service_roles[service])|list %}
+                  {% if recommended_staff %}
+                    <div class="staff-combobox-group-label">Recommended</div>
+                    {% for staff in recommended_staff %}
+                      <div class="staff-combobox-option is-recommended" data-value="{{ staff.name }}" data-label="{{ staff.name }} - {{ staff.role }}" data-search="{{ (staff.name ~ ' ' ~ staff.role)|lower }}">
+                        <span class="staff-combobox-name">{{ staff.name }}</span>
+                        <span class="staff-combobox-role">{{ staff.role }}</span>
+                        <span class="staff-combobox-badge">Recommended</span>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                  {% if other_staff %}
+                    <div class="staff-combobox-group-label">Other Staff</div>
+                    {% for staff in other_staff %}
+                      <div class="staff-combobox-option" data-value="{{ staff.name }}" data-label="{{ staff.name }} - {{ staff.role }}" data-search="{{ (staff.name ~ ' ' ~ staff.role)|lower }}">
+                        <span class="staff-combobox-name">{{ staff.name }}</span>
+                        <span class="staff-combobox-role">{{ staff.role }}</span>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                  <div class="staff-combobox-empty" data-staff-empty hidden>No staff match your search.</div>
+                </div>
+              </div>
             </label>
             <label>
               Final Diagnosis or Case
@@ -124,6 +144,7 @@
 </form>
 
 <script src="{{ url_for('static', filename='js/age-calculator.js') }}"></script>
+<script src="{{ url_for('static', filename='js/staff-combobox.js') }}"></script>
 <script>
   function consultationAgeGroup(age) {
     if (age === null) return '';

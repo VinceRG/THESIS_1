@@ -17,16 +17,29 @@
     <div class="form-grid">
       <label>
         Category
-        <input type="text" name="category" value="{{ service.category if service else '' }}" list="categoryOptions" required>
-        <datalist id="categoryOptions">
+        <select name="category" id="categorySelect" onchange="toggleOtherField(this, 'categoryOtherWrap')" required>
+          <option value="" disabled {% if not service %}selected{% endif %}>Select category</option>
           {% for category in categories %}
-            <option value="{{ category }}"></option>
+            <option value="{{ category }}" {% if service and service.category == category %}selected{% endif %}>{{ category }}</option>
           {% endfor %}
-        </datalist>
+          <option value="__other__" {% if service and service.category not in categories %}selected{% endif %}>Other (add new)</option>
+        </select>
+        <div id="categoryOtherWrap" style="display:none; margin-top:8px;">
+          <input type="text" name="category_other" placeholder="New category name" value="{% if service and service.category not in categories %}{{ service.category }}{% endif %}">
+        </div>
       </label>
       <label>
         Section
-        <input type="text" name="section" value="{{ service.section if service else '' }}" placeholder="Example: Hematology">
+        <select name="section" id="sectionSelect" onchange="toggleOtherField(this, 'sectionOtherWrap')">
+          <option value="" {% if not service or not service.section %}selected{% endif %}>No section</option>
+          {% for section in sections %}
+            <option value="{{ section }}" {% if service and service.section == section %}selected{% endif %}>{{ section }}</option>
+          {% endfor %}
+          <option value="__other__" {% if service and service.section and service.section not in sections %}selected{% endif %}>Other (add new)</option>
+        </select>
+        <div id="sectionOtherWrap" style="display:none; margin-top:8px;">
+          <input type="text" name="section_other" placeholder="Example: Hematology" value="{% if service and service.section and service.section not in sections %}{{ service.section }}{% endif %}">
+        </div>
       </label>
       <label>
         Service Name
@@ -86,4 +99,12 @@
     </div>
   </div>
 </form>
+
+<script>
+  function toggleOtherField(selectEl, wrapId) {
+    document.getElementById(wrapId).style.display = selectEl.value === '__other__' ? 'block' : 'none';
+  }
+  toggleOtherField(document.getElementById('categorySelect'), 'categoryOtherWrap');
+  toggleOtherField(document.getElementById('sectionSelect'), 'sectionOtherWrap');
+</script>
 {% endblock %}

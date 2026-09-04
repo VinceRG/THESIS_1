@@ -1,9 +1,11 @@
+import json
 import os
 import re
 import tempfile
 import unittest
 from datetime import datetime
 from io import BytesIO
+from unittest.mock import patch
 
 # The app binds its SQLAlchemy engine to SQLALCHEMY_DATABASE_URI the moment
 # app.py is imported (create_app() -> init_db() run at module load time).
@@ -14,10 +16,16 @@ _TEST_DB_PATH = os.path.join(tempfile.gettempdir(), 'smart_clinic_test.db')
 os.environ['DATABASE_URL'] = 'sqlite:///' + _TEST_DB_PATH.replace('\\', '/')
 
 import pandas as pd
+from flask import session
+from werkzeug.security import generate_password_hash
+
+from chatbot import GeminiError
 
 from app import (
     Appointment,
+    AuditLog,
     Branch,
+    ChatbotInteraction,
     ConsultationRecord,
     Patient,
     StaffMember,
@@ -260,21 +268,6 @@ class SmartClinicAppTests(unittest.TestCase):
         self.assertIn(b'MSE', response.data)
         self.assertIn(b'RMSE', response.data)
         self.assertNotIn(b'0.0', response.data)
-
-    def test_predict_page_shows_common_diagnosis_accuracy_section(self):
-        """RQ2: accuracy isolated to common (high-volume) diagnoses, separate
-        from the aggregate metric across all diagnoses, should be visible on
-        the live Predictions page, not just computed internally."""
-        self._login()
-        data = {'file': (BytesIO(self._recent_consultation_csv()), 'sample.csv'), '_csrf_token': self.csrf_token}
-        self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
-        response = self.client.get('/predict')
-        self.assertEqual(response.status_code, 200)
-        body = response.data.decode('utf-8')
-        self.assertIn('Common-Diagnosis Forecast Accuracy', body)
-        self.assertIn('Common Diagnoses Only', body)
-        for diagnosis in ('Hypertension', 'Diabetes', 'Upper Respiratory Infection'):
-            self.assertIn(diagnosis, body)
 
     def test_predict_page_shows_demographics_comparison_section(self):
         """RQ3: the with-vs-without-demographics model comparison already
@@ -851,7 +844,7 @@ class SmartClinicAppTests(unittest.TestCase):
         response = self.client.get('/predict')
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b'Showing a cached or trend-based estimate', response.data)
-        self.assertIn(b'Common-Diagnosis Forecast Accuracy', response.data)
+        self.assertIn(b'Model Validation Results', response.data)
 
     def test_completing_appointment_refreshes_dashboard_forecast(self):
         self._login()
@@ -1006,6 +999,457 @@ class SmartClinicAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Model B (Without Demographics)', response.data)
         self.assertIn(b'from the last full retrain', response.data)
+
+
+class ChatbotApiTests(unittest.TestCase):
+    """The admin-only analytics chatbot: /api/chatbot/ask and its read-only
+    tool registry (exposed on the app instance as app.chatbot_tools since the
+    tools are closures over create_app()'s locals). LLM backend is the Gemini
+    API -- run_chatbot_turn is mocked in every test here so the suite never
+    makes a real API call or depends on a configured GEMINI_API_KEY."""
+
+    def setUp(self):
+        self.app = app
+        self.app.config.update(
+            TESTING=True,
+            SECRET_KEY='test-secret',
+            UPLOAD_FOLDER=tempfile.mkdtemp(prefix='clinic_test_uploads_'),
+            GEMINI_API_KEY='test-key',
+            GEMINI_MODEL='gemini-3.6-flash',
+        )
+        self.client = self.app.test_client()
+        self.csrf_token = None
+        _rate_limit_attempts.clear()
+        with self.app.app_context():
+            db.drop_all()
+            db.create_all()
+            init_db()
+
+    @staticmethod
+    def _extract_csrf_token(html):
+        match = re.search(rb'name="_csrf_token"\s+value="([^"]*)"', html)
+        return match.group(1).decode() if match else ''
+
+    def _fresh_csrf_token(self):
+        """A valid CSRF token without logging in (just enough to reach the
+        route's own auth check instead of getting rejected earlier by the
+        blanket CSRF check that runs before it)."""
+        return self._extract_csrf_token(self.client.get('/login').data)
+
+    def _login(self, username='admin', password='admin123'):
+        login_page = self.client.get('/login')
+        self.csrf_token = self._extract_csrf_token(login_page.data)
+        response = self.client.post(
+            '/login',
+            data={'username': username, 'password': password, '_csrf_token': self.csrf_token},
+            follow_redirects=True,
+        )
+        if b'name="new_password"' in response.data:
+            response = self.client.post(
+                '/change-password',
+                data={
+                    '_csrf_token': self.csrf_token,
+                    'new_password': 'test-password-123',
+                    'confirm_password': 'test-password-123',
+                },
+                follow_redirects=True,
+            )
+        return response
+
+    def _ask(self, question, conversation_id=None, csrf_token=None):
+        return self.client.post(
+            '/api/chatbot/ask',
+            json={'question': question, 'conversation_id': conversation_id},
+            headers={'X-CSRFToken': csrf_token if csrf_token is not None else self.csrf_token},
+        )
+
+    def test_unauthenticated_request_is_rejected(self):
+        token = self._fresh_csrf_token()
+        response = self._ask('What is the top diagnosis?', csrf_token=token)
+        # Not logged in: require_login()'s protected_endpoints check redirects
+        # to /login before the route body's own role check ever runs.
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login', response.headers.get('Location', ''))
+
+    def test_missing_csrf_token_is_rejected_as_json(self):
+        self._login()
+        response = self._ask('What is the top diagnosis?', csrf_token='not-the-real-token')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json().get('error'), 'csrf')
+
+    def test_non_main_admin_role_is_rejected(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            db.session.add(User(
+                username='branchstaff', password=generate_password_hash('pass12345'),
+                role='staff', branch_id=branch.id, must_change_password=False,
+            ))
+            db.session.commit()
+        self._login(username='branchstaff', password='pass12345')
+        response = self._ask('What is the top diagnosis?')
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json().get('error'), 'forbidden')
+
+    def test_gemini_unreachable_returns_friendly_message(self):
+        """Reproduces what happens when the Gemini API can't be reached or
+        the API key is missing/invalid -- the route should degrade
+        gracefully, not 500."""
+        self._login()
+        with patch('app.run_chatbot_turn') as mock_turn:
+            mock_turn.side_effect = GeminiError('GEMINI_API_KEY is not configured.')
+            response = self._ask('What is the top diagnosis?')
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertIn('not reachable', data['answer'])
+        self.assertIn('An internal error occurred', data['warnings'][0])
+
+    def test_real_tool_backed_round_trip_is_logged(self):
+        self._login()
+        with self.app.app_context():
+            db.session.add(ConsultationRecord(
+                consultation_date='2024-01-01', age_group='Adult', gender='Male',
+                diagnosis='Hypertension Monitoring', department='General Medicine',
+                physician='Dr. Ada', consultation_type='New',
+            ))
+            db.session.commit()
+
+        with patch('app.run_chatbot_turn') as mock_turn:
+            mock_turn.return_value = (
+                'Hypertension Monitoring has the most consultations.',
+                [{'tool': 'tool_dashboard_summary', 'args': {}}],
+            )
+            response = self._ask('What is the most common diagnosis?')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data['answer'], 'Hypertension Monitoring has the most consultations.')
+        self.assertTrue(data['conversation_id'])
+        self.assertEqual(data['tools_used'], ['tool_dashboard_summary'])
+
+        with self.app.app_context():
+            interaction = ChatbotInteraction.query.order_by(ChatbotInteraction.id.desc()).first()
+            self.assertIsNotNone(interaction)
+            self.assertEqual(interaction.answer, 'Hypertension Monitoring has the most consultations.')
+            self.assertIn('tool_dashboard_summary', interaction.tools_used)
+            audit_row = AuditLog.query.filter_by(action='chatbot_query').order_by(AuditLog.id.desc()).first()
+            self.assertIsNotNone(audit_row)
+            self.assertEqual(audit_row.entity_type, 'ChatbotInteraction')
+
+    def test_followup_question_receives_prior_turn_as_history(self):
+        self._login()
+
+        with patch('app.run_chatbot_turn') as mock_turn:
+            mock_turn.return_value = ('Hypertension Monitoring.', [{'tool': 'tool_predictions', 'args': {}}])
+            first = self._ask('What diagnosis is predicted to be highest?')
+        conversation_id = first.get_json()['conversation_id']
+
+        with patch('app.run_chatbot_turn') as mock_turn:
+            mock_turn.return_value = (
+                'Because it has the highest predicted case count with strong historical support.',
+                [{'tool': 'tool_staff_recommendation', 'args': {'diagnosis': 'Hypertension Monitoring'}}],
+            )
+            second = self._ask('Why?', conversation_id=conversation_id)
+
+        self.assertEqual(second.status_code, 200)
+        _args, kwargs = mock_turn.call_args
+        history = kwargs.get('history')
+        self.assertTrue(history, 'expected the prior turn to be passed as history')
+        self.assertEqual(history[-1]['q'], 'What diagnosis is predicted to be highest?')
+        self.assertEqual(history[-1]['a'], 'Hypertension Monitoring.')
+
+    def test_tool_outputs_never_contain_patient_identifying_info(self):
+        """The most important guardrail: whatever the LLM decides to call,
+        no tool may ever surface patient name/contact/address, regardless of
+        the arguments passed in."""
+        with self.app.app_context():
+            branch = Branch.query.first()
+            patient = Patient(
+                branch_id=branch.id, patient_number='P-CHATBOT-0001',
+                full_name='Extremely Unique Patient Name Zzyzx', birthdate='1990-01-01', age=34,
+                age_group='Adult', gender='Male', contact_number='0917-555-0199',
+                email='zzyzx.patient@example.com',
+            )
+            db.session.add(patient)
+            db.session.commit()
+            db.session.add(ConsultationRecord(
+                branch_id=branch.id, consultation_date='2024-01-01', age_group='Adult', gender='Male',
+                diagnosis='Hypertension Monitoring', department='General Medicine', physician='Dr. Ada',
+                consultation_type='New', patient_id=patient.id,
+            ))
+            db.session.commit()
+            branch_id = branch.id
+
+        forbidden_strings = ['Extremely Unique Patient Name Zzyzx', '0917-555-0199', 'zzyzx.patient@example.com']
+
+        with self.app.test_request_context('/'):
+            session['user_id'] = 1
+            session['role'] = 'superadmin'
+            session['branch_id'] = branch_id
+
+            calls = [
+                ('tool_dashboard_summary', {}),
+                ('tool_predictions', {}),
+                ('tool_diagnosis_trends', {'diagnosis': 'Hypertension Monitoring'}),
+                ('tool_staff_recommendation', {'diagnosis': 'Hypertension Monitoring'}),
+                ('tool_department_demand', {}),
+                ('tool_resource_capacity', {}),
+                ('tool_query_consultations', {'diagnosis': 'Hypertension'}),
+                ('tool_historical_analysis', {'date_from': '2024-01-01', 'date_to': '2024-12-31'}),
+                ('tool_model_metrics', {}),
+            ]
+            for tool_name, kwargs in calls:
+                result = self.app.chatbot_tools[tool_name](**kwargs)
+                serialized = json.dumps(result, default=str)
+                for forbidden in forbidden_strings:
+                    self.assertNotIn(
+                        forbidden, serialized,
+                        msg=f'{tool_name} leaked patient-identifying info: {forbidden!r}',
+                    )
+
+    def test_staff_recommendation_flags_low_evidence(self):
+        with self.app.test_request_context('/'):
+            session['user_id'] = 1
+            session['role'] = 'superadmin'
+            result = self.app.chatbot_tools['tool_staff_recommendation'](diagnosis='Totally Unseen Diagnosis Xyzzy')
+        self.assertEqual(result['source'], 'fallback')
+        self.assertTrue(result['low_evidence'])
+
+    def test_backtest_forecast_excludes_target_month_and_reports_actual(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            branch_id = branch.id
+            # A handful of records is intentionally below the tool's
+            # minimum-training-rows threshold, exercising the safe
+            # "not enough data" path rather than a full (slow) RF retrain --
+            # the 'actual' count and training-cutoff exclusion are checked
+            # either way.
+            for day in ('01', '02', '03'):
+                db.session.add(ConsultationRecord(
+                    branch_id=branch.id, consultation_date=f'2024-02-{day}', age_group='Adult', gender='Male',
+                    diagnosis='Hypertension Monitoring', department='General Medicine', physician='Dr. Ada',
+                    consultation_type='New',
+                ))
+            db.session.add(ConsultationRecord(
+                branch_id=branch.id, consultation_date='2024-01-15', age_group='Adult', gender='Male',
+                diagnosis='Hypertension Monitoring', department='General Medicine', physician='Dr. Ada',
+                consultation_type='New',
+            ))
+            db.session.commit()
+
+        with self.app.test_request_context('/'):
+            session['user_id'] = 1
+            session['role'] = 'superadmin'
+            session['branch_id'] = branch_id
+            result = self.app.chatbot_tools['tool_backtest_forecast'](
+                diagnosis='Hypertension Monitoring', target_month=2, target_year=2024,
+            )
+
+        self.assertEqual(result['actual'], 3)
+        self.assertEqual(result['training_cutoff'], '2024-02-01')
+
+    def test_future_forecast_rejects_a_month_that_is_not_in_the_future(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            branch_id = branch.id
+            db.session.add(ConsultationRecord(
+                branch_id=branch.id, consultation_date='2024-01-15', age_group='Adult', gender='Male',
+                diagnosis='Hypertension Monitoring', department='General Medicine', physician='Dr. Ada',
+                consultation_type='New',
+            ))
+            db.session.commit()
+
+        with self.app.test_request_context('/'):
+            session['user_id'] = 1
+            session['role'] = 'superadmin'
+            session['branch_id'] = branch_id
+            # A definitely-past month regardless of when this test runs.
+            result = self.app.chatbot_tools['tool_future_forecast'](target_month=1, target_year=2000)
+
+        self.assertIn('error', result)
+        self.assertIn('tool_predictions', result['error'])
+
+    def test_future_forecast_rejects_a_month_too_far_out(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            branch_id = branch.id
+            db.session.add(ConsultationRecord(
+                branch_id=branch.id, consultation_date='2024-01-15', age_group='Adult', gender='Male',
+                diagnosis='Hypertension Monitoring', department='General Medicine', physician='Dr. Ada',
+                consultation_type='New',
+            ))
+            db.session.commit()
+
+        with self.app.test_request_context('/'):
+            session['user_id'] = 1
+            session['role'] = 'superadmin'
+            session['branch_id'] = branch_id
+            # Decades out regardless of when this test runs -- must exceed
+            # MAX_FUTURE_FORECAST_MONTHS from "next month".
+            result = self.app.chatbot_tools['tool_future_forecast'](target_month=1, target_year=2099)
+
+        self.assertIn('error', result)
+        self.assertIn('too far', result['error'])
+
+
+class StaffingGapNotificationTests(unittest.TestCase):
+    """The 'Staffing Gap This Week' dashboard banner and its per-role
+    'Notify' button (POST /staff/notify-gap). Email sending is always
+    mocked here -- never exercise the real SMTP path in tests."""
+
+    def setUp(self):
+        self.app = app
+        self.app.config.update(TESTING=True, SECRET_KEY='test-secret')
+        self.client = self.app.test_client()
+        _rate_limit_attempts.clear()
+        with self.app.app_context():
+            db.drop_all()
+            db.create_all()
+            init_db()
+
+    @staticmethod
+    def _extract_csrf_token(html):
+        match = re.search(rb'name="_csrf_token"\s+value="([^"]*)"', html)
+        return match.group(1).decode() if match else ''
+
+    def _login(self, username='admin', password='admin123'):
+        login_page = self.client.get('/login')
+        self.csrf_token = self._extract_csrf_token(login_page.data)
+        response = self.client.post(
+            '/login',
+            data={'username': username, 'password': password, '_csrf_token': self.csrf_token},
+            follow_redirects=True,
+        )
+        if b'name="new_password"' in response.data:
+            response = self.client.post(
+                '/change-password',
+                data={'_csrf_token': self.csrf_token, 'new_password': 'test-password-123', 'confirm_password': 'test-password-123'},
+                follow_redirects=True,
+            )
+        return response
+
+    def test_notify_requires_a_specific_branch(self):
+        self._login()
+        with self.client.session_transaction() as sess:
+            sess['selected_branch_id'] = 'all'
+        response = self.client.post(
+            '/staff/notify-gap',
+            data={'role': 'General Physicians', '_csrf_token': self.csrf_token},
+            follow_redirects=True,
+        )
+        self.assertIn(b'Select a specific branch', response.data)
+
+    def test_notify_with_no_matching_staff_flashes_error(self):
+        self._login()
+        response = self.client.post(
+            '/staff/notify-gap',
+            data={'role': 'Nonexistent Role', '_csrf_token': self.csrf_token},
+            follow_redirects=True,
+        )
+        self.assertIn(b'No active Nonexistent Role staff found', response.data)
+
+    def test_notify_staff_without_email_never_calls_send_and_flags_missing(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            db.session.add(StaffMember(branch_id=branch.id, name='Dr. No Email', role='General Physicians', is_active=True))
+            db.session.commit()
+        self._login()
+        with patch.object(self.app, 'send_appointment_email') as mock_send:
+            response = self.client.post(
+                '/staff/notify-gap',
+                data={'role': 'General Physicians', '_csrf_token': self.csrf_token},
+                follow_redirects=True,
+            )
+        mock_send.assert_not_called()
+        self.assertIn(b'none of them have an email on file', response.data)
+
+    def test_notify_sends_to_staff_with_email_and_logs_audit(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            db.session.add(StaffMember(
+                branch_id=branch.id, name='Dr. Ada', role='General Physicians',
+                email='dr.ada@example.com', is_active=True,
+            ))
+            db.session.commit()
+        self._login()
+        with patch.object(self.app, 'send_appointment_email', return_value=True) as mock_send:
+            response = self.client.post(
+                '/staff/notify-gap',
+                data={'role': 'General Physicians', '_csrf_token': self.csrf_token},
+                follow_redirects=True,
+            )
+        mock_send.assert_called_once()
+        recipient = mock_send.call_args[0][0]
+        self.assertEqual(recipient, 'dr.ada@example.com')
+        self.assertIn(b'1 General Physicians staff member(s) were notified', response.data)
+
+        with self.app.app_context():
+            audit_row = AuditLog.query.filter_by(action='notify_staffing_gap').order_by(AuditLog.id.desc()).first()
+            self.assertIsNotNone(audit_row)
+            self.assertIn('General Physicians', audit_row.details)
+
+    def test_weekly_staffing_gaps_only_includes_needs_staff_rows(self):
+        summary = {
+            'staff_demand_forecast': {
+                'daily_prediction': {
+                    'current_week_rows': [
+                        {'staff_role': 'General Physicians', 'required_staff': 3, 'available_staff': 1, 'status_class': 'high', 'date': '2026-09-01', 'day_name': 'Tue'},
+                        {'staff_role': 'General Physicians', 'required_staff': 2, 'available_staff': 1, 'status_class': 'high', 'date': '2026-09-02', 'day_name': 'Wed'},
+                        {'staff_role': 'Laboratory Technicians', 'required_staff': 2, 'available_staff': 3, 'status_class': 'healthy', 'date': '2026-09-01', 'day_name': 'Tue'},
+                    ],
+                },
+            },
+        }
+        gaps = self.app.weekly_staffing_gaps(summary)
+        self.assertEqual(len(gaps), 1)
+        self.assertEqual(gaps[0]['role'], 'General Physicians')
+        self.assertEqual(gaps[0]['gap'], 2)  # the worse of the two "high" days (3-1), not the milder one (2-1)
+
+    def test_staff_page_renders_selection_checkboxes(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            db.session.add(StaffMember(branch_id=branch.id, name='Dr. Ada', role='General Physicians', email='dr.ada@example.com', is_active=True))
+            db.session.commit()
+        self._login()
+        response = self.client.get('/staff')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'notifySelectedForm', response.data)
+        self.assertIn(b'staff_ids', response.data)
+        self.assertIn(b'dr.ada@example.com', response.data)
+
+    def test_notify_selected_with_no_selection_flashes_error(self):
+        self._login()
+        response = self.client.post(
+            '/staff/notify-selected',
+            data={'_csrf_token': self.csrf_token},
+            follow_redirects=True,
+        )
+        self.assertIn(b'Select at least one staff member', response.data)
+
+    def test_notify_selected_sends_custom_message_to_chosen_staff_only(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            picked = StaffMember(branch_id=branch.id, name='Dr. Ada', role='General Physicians', email='dr.ada@example.com', is_active=True)
+            not_picked = StaffMember(branch_id=branch.id, name='Dr. Ben', role='General Physicians', email='dr.ben@example.com', is_active=True)
+            db.session.add_all([picked, not_picked])
+            db.session.commit()
+            picked_id = picked.id
+        self._login()
+        with patch.object(self.app, 'send_appointment_email', return_value=True) as mock_send:
+            response = self.client.post(
+                '/staff/notify-selected',
+                data={'staff_ids': [str(picked_id)], 'message': 'Can you cover Friday?', '_csrf_token': self.csrf_token},
+                follow_redirects=True,
+            )
+        mock_send.assert_called_once()
+        args = mock_send.call_args[0]
+        self.assertEqual(args[0], 'dr.ada@example.com')
+        self.assertEqual(args[2], 'Can you cover Friday?')
+        self.assertIn(b'1 staff member(s) were notified', response.data)
+        self.assertIn(b'Dr. Ada', response.data)
+
+        with self.app.app_context():
+            audit_row = AuditLog.query.filter_by(action='notify_selected_staff').order_by(AuditLog.id.desc()).first()
+            self.assertIsNotNone(audit_row)
 
 
 if __name__ == '__main__':

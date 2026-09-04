@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="brand">
         <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo" class="brand-logo">
         <div>
@@ -50,9 +50,14 @@
     </aside>
     <main class="main-panel">
       <header class="topbar">
-        <div>
-          <h1>{% block page_title %}Operations Dashboard{% endblock %}</h1>
-          <p>{% block page_subtitle %}Hospital operations and consultation forecasting{% endblock %}</p>
+        <div class="topbar-title-row">
+          <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+          <div>
+            <h1>{% block page_title %}Operations Dashboard{% endblock %}</h1>
+            <p>{% block page_subtitle %}Hospital operations and consultation forecasting{% endblock %}</p>
+          </div>
         </div>
         <div class="topbar-actions">
           {% if branch_options %}
@@ -88,6 +93,7 @@
       </section>
     </main>
   </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
   <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-hidden="true">
     <div class="loading-panel">
       <div class="loading-heading" id="loadingTitle">Processing request</div>
@@ -108,6 +114,34 @@
       </div>
     </div>
   </div>
+  {% if can_use_chatbot %}
+  <div class="chatbot-widget" id="chatbotWidget">
+    <button type="button" class="chatbot-toggle" id="chatbotToggle" aria-label="Open DeteK" aria-expanded="false">
+      <span class="chatbot-toggle-icon" aria-hidden="true">&#128172;</span>
+    </button>
+    <div class="chatbot-panel" id="chatbotPanel" aria-hidden="true">
+      <div class="chatbot-panel-header">
+        <div>
+          <strong>DeteK</strong>
+          <span>Local model &mdash; answers can take up to a minute</span>
+        </div>
+        <div class="chatbot-panel-actions">
+          <button type="button" class="chatbot-icon-btn" id="chatbotNewChat" title="New chat" aria-label="Start a new chat">&#8635;</button>
+          <button type="button" class="chatbot-icon-btn" id="chatbotClose" title="Close" aria-label="Close assistant">&times;</button>
+        </div>
+      </div>
+      <div class="chatbot-messages" id="chatbotMessages">
+        <div class="chatbot-message chatbot-message-assistant">
+          Hi, I'm DeteK! Ask me about consultation records, forecasts, staffing, or resource planning. I can only answer and analyze &mdash; I never modify any data. I run on a local model, so answers can take up to a minute.
+        </div>
+      </div>
+      <form class="chatbot-input-row" id="chatbotForm">
+        <input type="text" id="chatbotInput" placeholder="Ask a question..." autocomplete="off" maxlength="1000">
+        <button type="submit" class="btn" id="chatbotSend">Send</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
   <script>
     const CSRF_TOKEN = {{ csrf_token()|tojson }};
     function injectCsrfTokens(container = document) {
@@ -335,11 +369,37 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+      function openSidebar() {
+        sidebar.classList.add('is-open');
+        sidebarBackdrop.hidden = false;
+        sidebarToggle.setAttribute('aria-expanded', 'true');
+      }
+      function closeSidebar() {
+        sidebar.classList.remove('is-open');
+        sidebarBackdrop.hidden = true;
+        sidebarToggle.setAttribute('aria-expanded', 'false');
+      }
+      if (sidebarToggle && sidebar && sidebarBackdrop) {
+        sidebarToggle.addEventListener('click', () => {
+          if (sidebar.classList.contains('is-open')) {
+            closeSidebar();
+          } else {
+            openSidebar();
+          }
+        });
+        sidebarBackdrop.addEventListener('click', closeSidebar);
+      }
+
       document.querySelectorAll('.nav-links a').forEach(link => {
         const href = link.getAttribute('href');
         if (!href || href === '/logout' || href.startsWith('http')) return;
         link.addEventListener('click', event => {
           event.preventDefault();
+          closeSidebar();
           if (shouldFullReload(href)) {
             startLoading('Loading dashboard', 'Refreshing dashboard summaries and charts.');
             window.location.href = href;
@@ -379,6 +439,7 @@
       document.addEventListener('submit', event => {
         const form = event.target;
         if (!(form instanceof HTMLFormElement)) return;
+        if (form.id === 'chatbotForm') return;
         if (form.dataset.confirm && form.dataset.confirmed !== 'true') {
           event.preventDefault();
           openConfirmModal(form, form.dataset.confirm, form.dataset.confirmTitle || 'Confirm action');
@@ -417,5 +478,8 @@
       });
     });
   </script>
+  {% if can_use_chatbot %}
+  <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+  {% endif %}
 </body>
 </html>

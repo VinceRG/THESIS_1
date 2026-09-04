@@ -3,7 +3,9 @@ import os
 import re
 import secrets
 import smtplib
+import time
 import traceback
+import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from email.message import EmailMessage
@@ -11,8 +13,10 @@ from email.message import EmailMessage
 import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
-from flask import Flask, Response, abort, flash, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Flask, Response, abort, flash, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from flask_sqlalchemy import SQLAlchemy
+
+from chatbot import GeminiError, run_chatbot_turn
 from sqlalchemy import or_, text
 from sqlalchemy.exc import IntegrityError
 from sklearn.ensemble import RandomForestRegressor
@@ -139,6 +143,14 @@ TIER2_MIN_SIMILARITY = 0.55
 ROOM_COUNT = 5
 AVG_CONSULTATION_MINUTES = 20
 WORKING_HOURS_PER_DAY = 8
+
+# Chatbot multi-month forecasting: how many months beyond the immediate next
+# month tool_future_forecast will chain predictions for. Each step reuses the
+# prior step's own prediction as if it were real data (no other way to fill
+# lag_1/lag_2/lag_3 for a month that hasn't happened yet), so error compounds
+# with every step -- this cap keeps the chatbot from presenting a distant,
+# heavily-compounded guess as a real forecast.
+MAX_FUTURE_FORECAST_MONTHS = 6
 DAYS_PER_MONTH = 22
 STAFF_CAPACITY_PER_MONTH = 40
 DEFAULT_BRANCH_CODE = 'MAIN'
@@ -214,6 +226,23 @@ class AuditLog(db.Model):
     branch = db.relationship('Branch', backref='audit_logs')
     user = db.relationship('User', backref='audit_logs')
 
+class ChatbotInteraction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
+    conversation_id = db.Column(db.String(64), nullable=False)
+    turn_index = db.Column(db.Integer, nullable=False, default=0)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+    tools_used = db.Column(db.Text, nullable=True)
+    evidence_summary = db.Column(db.Text, nullable=True)
+    model_name = db.Column(db.String(80), nullable=True)
+    latency_ms = db.Column(db.Integer, nullable=True)
+    error = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    user = db.relationship('User', backref='chatbot_interactions')
+    branch = db.relationship('Branch', backref='chatbot_interactions')
+
 class ConsultationRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
@@ -234,6 +263,7 @@ class StaffMember(db.Model):
     branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(60), nullable=False)
+    email = db.Column(db.String(140), nullable=True)
     availability = db.Column(db.String(20), default='Available')
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -1156,7 +1186,7 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
         .sort_values('predicted_cases', ascending=False)
         [['diagnosis', 'age_group', 'gender', 'predicted_cases']]
         .rename(columns={'predicted_cases': 'forecasted_cases'})
-        .head(15)
+        .head(40)
         .to_dict('records')
     )
 
@@ -1171,6 +1201,47 @@ def generate_forecast_for_month(model, feature_columns, label_mapping, df, targe
         for diagnosis, count in diagnosis_totals.items()
     }
     return results
+
+
+def build_grouped_demographic_segments(segments):
+    """Merge per-gender segment rows into one row per (diagnosis, age group) pair
+    with separate male/female counts and a combined total, for a consolidated
+    forecast summary table (instead of two separate per-gender tables)."""
+    grouped = {}
+    order = []
+    for item in segments:
+        diagnosis = item.get('diagnosis')
+        if not diagnosis or diagnosis == RARE_DIAGNOSIS_BUCKET:
+            continue
+        age_group = item.get('age_group')
+        key = (diagnosis, age_group)
+        if key not in grouped:
+            grouped[key] = {'diagnosis': diagnosis, 'age_group': age_group, 'male_cases': 0, 'female_cases': 0}
+            order.append(key)
+        gender = (item.get('gender') or '').lower()
+        cases = item.get('forecasted_cases') or 0
+        if gender == 'male':
+            grouped[key]['male_cases'] += cases
+        elif gender == 'female':
+            grouped[key]['female_cases'] += cases
+
+    rows = []
+    for key in order:
+        row = grouped[key]
+        row['total_cases'] = row['male_cases'] + row['female_cases']
+        rows.append(row)
+
+    # Only keep rows with a genuine forecast on both sides of the gender split;
+    # a 0 there reads as an incomplete/empty row rather than a real segment.
+    rows = [row for row in rows if row['male_cases'] > 0 and row['female_cases'] > 0]
+    rows.sort(key=lambda r: r['total_cases'], reverse=True)
+    rows = rows[:5]
+
+    max_total = max((r['total_cases'] for r in rows), default=0)
+    for row in rows:
+        row['bar_percent'] = round((row['total_cases'] / max_total) * 100) if max_total else 0
+    return rows
+
 
 def write_training_report(report_path, metrics):
     def month_label(value):
@@ -1738,6 +1809,8 @@ def create_app():
     app.config['SMTP_USERNAME'] = os.getenv('SMTP_USERNAME', '')
     app.config['SMTP_PASSWORD'] = os.getenv('SMTP_PASSWORD', '')
     app.config['SMTP_FROM'] = os.getenv('SMTP_FROM', os.getenv('SMTP_USERNAME', ''))
+    app.config['GEMINI_API_KEY'] = os.getenv('GEMINI_API_KEY', '')
+    app.config['GEMINI_MODEL'] = os.getenv('GEMINI_MODEL', 'gemini-3.6-flash')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     def profile_photo_extension(photo):
@@ -1840,6 +1913,13 @@ def create_app():
         except Exception:
             app.logger.exception('Appointment email could not be sent')
             return False
+
+    # Exposed on the app instance (closure over create_app()'s locals) so
+    # tests can patch it via patch.object(app, 'send_appointment_email', ...)
+    # without ever hitting real SMTP; callers should invoke it through
+    # app.send_appointment_email(...) rather than the bare name so a patched
+    # attribute is actually honored.
+    app.send_appointment_email = send_appointment_email
 
     def new_appointment_code():
         while True:
@@ -3072,6 +3152,8 @@ def create_app():
                 'segments': [],
             }
 
+        demographic_forecast['segments_grouped'] = build_grouped_demographic_segments(demographic_forecast['segments'])
+
         top_diagnosis = diagnosis_counts.most_common(1)[0][0] if diagnosis_counts else 'None'
         facility_staff_count = len(staff_members) if branch is None else sum(item['count'] for item in FACILITY_STAFF_COMPLEMENT)
         app_settings = load_app_settings()
@@ -3217,6 +3299,8 @@ def create_app():
     @app.before_request
     def require_login():
         if request.method == 'POST' and not validate_csrf_token():
+            if request.endpoint == 'chatbot_ask':
+                return jsonify({'error': 'csrf'}), 400
             flash('Security check failed. Please reload the page and try again.', 'error')
             csrf_fallbacks = {
                 'retrain': 'predict',
@@ -3236,7 +3320,7 @@ def create_app():
         protected_endpoints = {
             'dashboard', 'records', 'clear_records', 'upload', 'predict', 'retrain',
             'staff', 'load_facility_complement', 'create_staff', 'edit_staff',
-            'delete_staff', 'restore_staff', 'permanent_delete_staff',
+            'delete_staff', 'restore_staff', 'permanent_delete_staff', 'notify_staffing_gap', 'notify_selected_staff',
             'reports', 'report_view', 'report_print', 'report_pdf',
             'settings', 'resources',
             'branches', 'create_branch', 'edit_branch', 'toggle_branch', 'select_branch',
@@ -3247,6 +3331,7 @@ def create_app():
             'appointments', 'create_appointment', 'update_appointment_status', 'complete_appointment',
             'services', 'create_service', 'edit_service', 'delete_service', 'import_services', 'update_branch_service',
             'packages', 'create_package', 'edit_package', 'delete_package', 'import_packages', 'update_branch_package',
+            'chatbot_ask',
         }
         if request.endpoint in protected_endpoints and 'user_id' not in session:
             return redirect(url_for('login'))
@@ -3269,6 +3354,7 @@ def create_app():
                 'branch_options': branch_options,
                 'can_view_all_branches': can_view_all_branches(),
                 'can_manage_services': session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin',
+                'can_use_chatbot': can_view_all_branches(),
                 'current_user_name': current_user.username if current_user else None,
                 'current_user_role_label': (session.get('role') or '').replace('_', ' ').title(),
                 'current_access_label': 'All branches' if can_view_all_branches() else branch_scope_label(),
@@ -3282,6 +3368,7 @@ def create_app():
                 'branch_options': [],
                 'can_view_all_branches': False,
                 'can_manage_services': False,
+                'can_use_chatbot': False,
                 'current_user_name': None,
                 'current_user_role_label': '',
                 'current_access_label': DEFAULT_BRANCH_NAME,
@@ -5112,9 +5199,15 @@ def create_app():
                 return redirect(url_for('create_service'))
             roles = request.form.getlist('required_roles') + [item.strip() for item in request.form.get('custom_roles', '').split(',') if item.strip()]
             equipment = request.form.getlist('required_equipment') + [item.strip() for item in request.form.get('custom_equipment', '').split(',') if item.strip()]
+            category = request.form.get('category', '').strip()
+            if category == '__other__':
+                category = request.form.get('category_other', '').strip()
+            section = request.form.get('section', '').strip()
+            if section == '__other__':
+                section = request.form.get('section_other', '').strip()
             service = MedicalService(
-                category=request.form.get('category', '').strip() or 'Services',
-                section=request.form.get('section', '').strip(),
+                category=category or 'Services',
+                section=section,
                 service_name=name,
                 price_php=request.form.get('price_php', '').strip(),
                 source_page=request.form.get('source_page', 'manual').strip() or 'manual',
@@ -5136,7 +5229,8 @@ def create_app():
             flash('Service added successfully.', 'success')
             return redirect(url_for('services'))
         categories = [row[0] for row in db.session.query(MedicalService.category).distinct().order_by(MedicalService.category.asc()).all()]
-        return render_template('services/form.html', service=None, categories=categories, role_options=[item['role'] for item in FACILITY_STAFF_COMPLEMENT], equipment_options=EQUIPMENT_INVENTORY, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+        sections = [row[0] for row in db.session.query(MedicalService.section).filter(MedicalService.section != '').distinct().order_by(MedicalService.section.asc()).all()]
+        return render_template('services/form.html', service=None, categories=categories, sections=sections, role_options=[item['role'] for item in FACILITY_STAFF_COMPLEMENT], equipment_options=EQUIPMENT_INVENTORY, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
 
     @app.route('/services/<int:service_id>/edit', methods=['GET', 'POST'])
     def edit_service(service_id):
@@ -5147,8 +5241,14 @@ def create_app():
         if request.method == 'POST':
             roles = request.form.getlist('required_roles') + [item.strip() for item in request.form.get('custom_roles', '').split(',') if item.strip()]
             equipment = request.form.getlist('required_equipment') + [item.strip() for item in request.form.get('custom_equipment', '').split(',') if item.strip()]
-            service.category = request.form.get('category', '').strip() or 'Services'
-            service.section = request.form.get('section', '').strip()
+            category = request.form.get('category', '').strip()
+            if category == '__other__':
+                category = request.form.get('category_other', '').strip()
+            section = request.form.get('section', '').strip()
+            if section == '__other__':
+                section = request.form.get('section_other', '').strip()
+            service.category = category or 'Services'
+            service.section = section
             service.service_name = request.form.get('service_name', '').strip()
             service.price_php = request.form.get('price_php', '').strip()
             service.source_page = request.form.get('source_page', 'manual').strip() or 'manual'
@@ -5161,7 +5261,8 @@ def create_app():
             flash('Service updated successfully.', 'success')
             return redirect(url_for('services'))
         categories = [row[0] for row in db.session.query(MedicalService.category).distinct().order_by(MedicalService.category.asc()).all()]
-        return render_template('services/form.html', service=service, categories=categories, role_options=[item['role'] for item in FACILITY_STAFF_COMPLEMENT], equipment_options=EQUIPMENT_INVENTORY, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
+        sections = [row[0] for row in db.session.query(MedicalService.section).filter(MedicalService.section != '').distinct().order_by(MedicalService.section.asc()).all()]
+        return render_template('services/form.html', service=service, categories=categories, sections=sections, role_options=[item['role'] for item in FACILITY_STAFF_COMPLEMENT], equipment_options=EQUIPMENT_INVENTORY, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'))
 
     @app.route('/services/<int:service_id>/delete', methods=['POST'])
     def delete_service(service_id):
@@ -5349,12 +5450,42 @@ def create_app():
         flash('Branch package setting updated.', 'success')
         return redirect(url_for('packages', page=request.form.get('page', 1), q=request.form.get('q', '')))
 
+    def weekly_staffing_gaps(summary):
+        """Roles where this week's forecasted patient volume exceeds
+        available staff (status_class == 'high', i.e. 'Needs Staff') in the
+        existing daily staffing forecast -- the worst single day's gap per
+        role, most severe first."""
+        daily = (summary.get('staff_demand_forecast') or {}).get('daily_prediction') or {}
+        rows = daily.get('current_week_rows') or []
+        worst_by_role = {}
+        for row in rows:
+            if row.get('status_class') != 'high':
+                continue
+            role = row.get('staff_role')
+            gap = int(row.get('required_staff') or 0) - int(row.get('available_staff') or 0)
+            existing = worst_by_role.get(role)
+            if existing is None or gap > existing['gap']:
+                worst_by_role[role] = {
+                    'role': role,
+                    'gap': gap,
+                    'required_staff': row.get('required_staff'),
+                    'available_staff': row.get('available_staff'),
+                    'date': row.get('date'),
+                    'day_name': row.get('day_name'),
+                }
+        return sorted(worst_by_role.values(), key=lambda item: -item['gap'])
+
+    # Exposed on the app instance (it's a closure over create_app()'s
+    # locals) so tests can call it directly with a synthetic summary dict.
+    app.weekly_staffing_gaps = weekly_staffing_gaps
+
     @app.route('/dashboard')
     def dashboard():
         summary = get_dashboard_summary()
         return render_template(
             'dashboard/index.html',
             summary=summary,
+            weekly_gaps=weekly_staffing_gaps(summary),
             current_date=datetime.now().strftime('%Y-%m-%d'),
             current_time=datetime.now().strftime('%H:%M'),
         )
@@ -5539,7 +5670,7 @@ def create_app():
                                    summary={
                                        'predicted_month_full_label': 'Next Month',
                                        'predictions': [],
-                                       'demographic_forecast': {'age_group': [], 'gender': [], 'segments': []}
+                                       'demographic_forecast': {'age_group': [], 'gender': [], 'segments': [], 'segments_grouped': []}
                                    })
 
         metrics = summary.get('rf_metrics') or {'r2_score': 0, 'mae': 0, 'mse': 0, 'rmse': 0}
@@ -5623,9 +5754,23 @@ def create_app():
             db.session.commit()
             get_dashboard_summary(force_refresh=True)
 
+        search_query = request.args.get('q', '').strip()
+        role_filter = request.args.get('role', '').strip()
+        availability_filter = request.args.get('availability', '').strip()
+        filter_args = {'q': search_query, 'role': role_filter, 'availability': availability_filter}
+
+        base_active_query = scoped_query(StaffMember.query.filter_by(is_active=True), StaffMember)
+        filtered_query = base_active_query
+        if search_query:
+            filtered_query = filtered_query.filter(StaffMember.name.ilike(f'%{search_query}%'))
+        if role_filter:
+            filtered_query = filtered_query.filter(StaffMember.role == role_filter)
+        if availability_filter:
+            filtered_query = filtered_query.filter(StaffMember.availability == availability_filter)
+
         page = request.args.get('page', 1, type=int)
         active_staff = (
-            scoped_query(StaffMember.query.filter_by(is_active=True), StaffMember)
+            filtered_query
             .order_by(StaffMember.role.asc(), StaffMember.name.asc())
             .paginate(page=page, per_page=DEFAULT_PAGE_SIZE, error_out=False)
         )
@@ -5635,11 +5780,36 @@ def create_app():
             .order_by(StaffMember.deleted_at.desc(), StaffMember.name.asc())
             .paginate(page=former_page_num, per_page=DEFAULT_PAGE_SIZE, error_out=False)
         )
+
+        total_active = base_active_query.count()
+        available_count = base_active_query.filter(StaffMember.availability == 'Available').count()
+
+        recommendation = None
+        if selected_branch_scope() is not None:
+            summary = get_dashboard_summary()
+            staff_demand = (summary or {}).get('staff_demand_forecast') or {}
+            if staff_demand.get('top_role') and staff_demand.get('top_role_demand'):
+                recommendation = {
+                    'role': staff_demand.get('top_role'),
+                    'demand': staff_demand.get('top_role_demand'),
+                    'predicted_month_label': summary.get('predicted_month_label'),
+                }
+
         return render_template(
             'staff/index.html',
             active_staff=active_staff,
             inactive_staff=inactive_staff,
             all_branches_view=selected_branch_scope() is None,
+            search_query=search_query,
+            role_filter=role_filter,
+            availability_filter=availability_filter,
+            filter_args=filter_args,
+            role_options=staff_role_options,
+            availability_options=staff_availability_options,
+            total_active=total_active,
+            available_count=available_count,
+            unavailable_count=total_active - available_count,
+            recommendation=recommendation,
         )
 
     staff_role_options = [item['role'] for item in FACILITY_STAFF_COMPLEMENT]
@@ -5681,6 +5851,7 @@ def create_app():
                 branch_id=current_branch_id(),
                 name=name,
                 role=role,
+                email=request.form.get('email', '').strip() or None,
                 availability=request.form.get('availability', 'Available').strip(),
                 is_active=True,
                 deleted_at=None,
@@ -5713,6 +5884,7 @@ def create_app():
                 return redirect(url_for('edit_staff', staff_id=staff_id))
             staff_member.name = name
             staff_member.role = role
+            staff_member.email = request.form.get('email', '').strip() or None
             staff_member.availability = request.form.get('availability', staff_member.availability).strip()
             log_audit('edit_staff', 'StaffMember', staff_member.id, {'name': staff_member.name, 'role': staff_member.role, 'availability': staff_member.availability})
             db.session.commit()
@@ -5725,6 +5897,107 @@ def create_app():
             role_options=staff_role_options,
             availability_options=staff_availability_options,
         )
+
+    @app.route('/staff/notify-gap', methods=['POST'])
+    def notify_staffing_gap():
+        redirect_response = require_specific_branch('dashboard')
+        if redirect_response:
+            return redirect_response
+        role = request.form.get('role', '').strip()
+        if not role:
+            flash('No role specified.', 'error')
+            return redirect(url_for('dashboard'))
+
+        branch = current_branch()
+        branch_label = branch.name if branch else 'your branch'
+        staff_members = StaffMember.query.filter_by(
+            branch_id=current_branch_id(), role=role, is_active=True,
+        ).all()
+
+        notified = 0
+        missing_email = 0
+        for member in staff_members:
+            if not member.email:
+                missing_email += 1
+                continue
+            sent = app.send_appointment_email(
+                member.email,
+                f'Staffing need this week: {role}',
+                (
+                    f'Hi {member.name},\n\n'
+                    f"Based on this week's forecasted patient volume, {branch_label} needs additional {role} coverage. "
+                    'If you are able to pick up extra shifts this week, please coordinate with your supervisor.\n\n'
+                    'Thank you,\nAccudetek Scheduling'
+                ),
+            )
+            if sent:
+                notified += 1
+        log_audit('notify_staffing_gap', 'StaffMember', None, {'role': role, 'notified': notified, 'missing_email': missing_email, 'branch_id': current_branch_id()})
+        db.session.commit()
+
+        if notified:
+            message = f'Notification sent successfully. {notified} {role} staff member(s) were notified.'
+            if missing_email:
+                message += f' {missing_email} were skipped because no email address was available.'
+            flash(message, 'success')
+        elif missing_email:
+            flash(f'Could not notify any {role} staff -- none of them have an email on file yet. Add one from Staff Management.', 'error')
+        else:
+            flash(f'No active {role} staff found for this branch.', 'error')
+        return redirect(url_for('dashboard'))
+
+    @app.route('/staff/notify-selected', methods=['POST'])
+    def notify_selected_staff():
+        """Human-in-the-loop counterpart to /staff/notify-gap: lets an admin
+        hand-pick specific staff to email, independent of whether the
+        automatic weekly-gap forecast flagged anything."""
+        redirect_response = require_specific_branch('staff')
+        if redirect_response:
+            return redirect_response
+        staff_ids = request.form.getlist('staff_ids', type=int)
+        if not staff_ids:
+            flash('Select at least one staff member to notify.', 'error')
+            return redirect(url_for('staff'))
+
+        custom_message = request.form.get('message', '').strip()
+        branch = current_branch()
+        branch_label = branch.name if branch else 'your branch'
+        staff_members = StaffMember.query.filter(
+            StaffMember.id.in_(staff_ids),
+            StaffMember.branch_id == current_branch_id(),
+            StaffMember.is_active.is_(True),
+        ).all()
+
+        notified_names = []
+        missing_email = 0
+        for member in staff_members:
+            if not member.email:
+                missing_email += 1
+                continue
+            body = custom_message or (
+                f'Hi {member.name},\n\n'
+                "Please be advised that additional staffing support may be needed this week based on the clinic's current resource requirements. "
+                f'If you are able to assist, please coordinate with your supervisor at {branch_label}.\n\n'
+                'Thank you,\nAccudetek Scheduling'
+            )
+            if app.send_appointment_email(member.email, f'You are needed this week at {branch_label}', body):
+                notified_names.append(member.name)
+
+        log_audit('notify_selected_staff', 'StaffMember', None, {
+            'staff_ids': staff_ids, 'notified': len(notified_names), 'missing_email': missing_email, 'branch_id': current_branch_id(),
+        })
+        db.session.commit()
+
+        if notified_names:
+            message = f'Notification sent successfully. {len(notified_names)} staff member(s) were notified: {", ".join(notified_names)}.'
+            if missing_email:
+                message += f' {missing_email} were skipped because no email address was available.'
+            flash(message, 'success')
+        elif missing_email:
+            flash('None of the selected staff have an email on file -- add one from Edit Staff first.', 'error')
+        else:
+            flash('No matching active staff found for this branch.', 'error')
+        return redirect(url_for('staff'))
 
     @app.route('/staff/<int:staff_id>/delete', methods=['POST'])
     def delete_staff(staff_id):
@@ -6368,6 +6641,576 @@ def create_app():
                     lines.append(str(row))
         return lines
 
+    # -------------------------------------------------------------
+    # Chatbot tools (read-only wrappers around the functions above).
+    # Every tool here must only ever read data -- none may call
+    # db.session.add/delete/commit -- since this is the registry the
+    # Gemini-backed chatbot is allowed to call.
+    # -------------------------------------------------------------
+    def resolve_branch_for_chatbot(branch_name):
+        """Returns (branch_or_None, branch_id_or_None, error_dict_or_None).
+        A None branch/branch_id means 'All Branches'. When branch_name is
+        omitted, falls back to whatever scope the admin currently has
+        selected in the topbar, matching every other page in the app."""
+        if not branch_name:
+            branch_id = selected_branch_scope()
+            branch = None if branch_id is None else (db.session.get(Branch, branch_id) or ensure_default_branch())
+            return branch, branch_id, None
+        needle = branch_name.strip()
+        match = Branch.query.filter(db.func.lower(Branch.name) == needle.lower()).first()
+        if not match:
+            match = Branch.query.filter(Branch.name.ilike(f'%{needle}%')).first()
+        if not match:
+            available = [b.name for b in Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()]
+            return None, None, {'error': f'No branch found matching "{branch_name}".', 'available_branches': available}
+        return match, match.id, None
+
+    def _consultation_frame_for_branch(branch_id):
+        if branch_id is None:
+            return records_to_dataframe()
+        rows = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id).all()
+        return pd.DataFrame([{
+            'consultation_date': r.consultation_date, 'age_group': r.age_group, 'gender': r.gender,
+            'diagnosis': r.diagnosis, 'department': r.department, 'physician': r.physician,
+            'consultation_type': r.consultation_type,
+        } for r in rows])
+
+    def tool_dashboard_summary(branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        summary = get_dashboard_summary(branch_id=branch_id)
+        result = {
+            'branch_name': summary.get('branch_name'),
+            'total_consultations': summary.get('total_consultations'),
+            'staff_count': summary.get('staff_count'),
+            'facility_staff_count': summary.get('facility_staff_count'),
+            'top_diagnosis': summary.get('top_diagnosis'),
+            'predicted_cases_next_month': summary.get('predicted_cases_next_month'),
+            'predicted_month_label': summary.get('predicted_month_label'),
+            'resource_readiness': summary.get('resource_readiness'),
+            'capacity_status': summary.get('capacity_status'),
+            'forecast_pressure': summary.get('forecast_pressure'),
+            'staff_gap': summary.get('staff_gap'),
+            'recommended_staff_count': summary.get('recommended_staff_count'),
+            'top_cases': summary.get('top_cases'),
+            'gender_distribution': summary.get('gender_distribution'),
+            'age_group_distribution': summary.get('age_group_distribution'),
+            'monthly_trend': (summary.get('monthly_trend') or [])[-6:],
+        }
+        if summary.get('branch_breakdown') is not None:
+            result['branch_breakdown'] = summary.get('branch_breakdown')
+        return result
+
+    def tool_predictions(branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        summary = get_dashboard_summary(branch_id=branch_id)
+        rf_metrics = summary.get('rf_metrics') or {}
+        return {
+            'branch_name': summary.get('branch_name'),
+            'predicted_month_label': summary.get('predicted_month_label'),
+            'reference_month': summary.get('reference_month'),
+            'predictions': summary.get('predictions'),
+            'demographic_forecast': summary.get('demographic_forecast'),
+            'model_verdict': rf_metrics.get('model_verdict'),
+            'has_ml_forecast': bool(rf_metrics),
+        }
+
+    def tool_diagnosis_trends(diagnosis=None, branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        summary = get_dashboard_summary(branch_id=branch_id)
+        predictions = summary.get('predictions') or []
+        top_cases = summary.get('top_cases') or []
+        if not diagnosis:
+            return {
+                'branch_name': summary.get('branch_name'),
+                'predicted_month_label': summary.get('predicted_month_label'),
+                'predictions': predictions,
+                'top_cases': top_cases,
+            }
+        needle = diagnosis.strip().lower()
+        match = next((p for p in predictions if (p.get('diagnosis') or '').lower() == needle), None)
+        if match:
+            return {'branch_name': summary.get('branch_name'), 'found_in_forecast': True, **match}
+        historical = next((count for diag, count in top_cases if diag.lower() == needle), None)
+        if historical is not None:
+            return {
+                'branch_name': summary.get('branch_name'),
+                'found_in_forecast': False,
+                'diagnosis': diagnosis,
+                'historical_total_count': historical,
+                'note': 'This diagnosis has historical records but is not among the top forecasted diagnoses for next month.',
+            }
+        return {
+            'branch_name': summary.get('branch_name'),
+            'found_in_forecast': False,
+            'diagnosis': diagnosis,
+            'note': 'No matching records found for this diagnosis in the current branch scope.',
+        }
+
+    def tool_staff_recommendation(diagnosis):
+        branch, _branch_id, _error = resolve_branch_for_chatbot(None)
+        historical_map = build_historical_role_map(branch)
+        classifier_state = build_diagnosis_role_classifier(historical_map)
+        result = dict(role_lookup_for_diagnosis(diagnosis, historical_map, classifier_state))
+        result['diagnosis'] = diagnosis
+        result['low_evidence'] = result.get('source') != 'historical'
+        return result
+
+    def tool_department_demand(branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        summary = get_dashboard_summary(branch_id=branch_id)
+        sdf = summary.get('staff_demand_forecast') or {}
+        return {
+            'branch_name': summary.get('branch_name'),
+            'top_role': sdf.get('top_role'),
+            'top_role_demand': sdf.get('top_role_demand'),
+            'monthly_rows': sdf.get('monthly_rows'),
+            'mapping_historical_count': sdf.get('mapping_historical_count'),
+            'mapping_classifier_count': sdf.get('mapping_classifier_count'),
+            'mapping_fallback_count': sdf.get('mapping_fallback_count'),
+            'mapping_min_support': sdf.get('mapping_min_support'),
+        }
+
+    def tool_resource_capacity(branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        summary = get_dashboard_summary(branch_id=branch_id)
+        sdf = summary.get('staff_demand_forecast') or {}
+        daily = sdf.get('daily_prediction') or {}
+        return {
+            'branch_name': summary.get('branch_name'),
+            'room_count': ROOM_COUNT,
+            'room_note': 'Only a fixed total room count is tracked; there is no per-room scheduling or occupancy data.',
+            'current_period': daily.get('current_period'),
+            'next_period': daily.get('next_period'),
+            'current_week_summary': daily.get('current_week_summary'),
+            'next_week_summary': daily.get('next_week_summary'),
+            'alert_count': len(daily.get('alert_rows') or []),
+        }
+
+    def tool_query_consultations(diagnosis=None, department=None, date_from=None, date_to=None, branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        query = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id)
+        if diagnosis:
+            query = query.filter(ConsultationRecord.diagnosis.ilike(f'%{diagnosis.strip()}%'))
+        if department:
+            query = query.filter(ConsultationRecord.department.ilike(f'%{department.strip()}%'))
+        if date_from:
+            query = query.filter(ConsultationRecord.consultation_date >= date_from)
+        if date_to:
+            query = query.filter(ConsultationRecord.consultation_date <= date_to)
+        rows = query.with_entities(
+            ConsultationRecord.consultation_date, ConsultationRecord.diagnosis, ConsultationRecord.department,
+            ConsultationRecord.consultation_type, ConsultationRecord.age_group, ConsultationRecord.gender,
+        ).all()
+        total = len(rows)
+        diagnosis_counts = Counter(r.diagnosis for r in rows).most_common(10)
+        department_counts = Counter(r.department for r in rows).most_common(10)
+        sample = [
+            {
+                'consultation_date': r.consultation_date, 'diagnosis': r.diagnosis, 'department': r.department,
+                'consultation_type': r.consultation_type, 'age_group': r.age_group, 'gender': r.gender,
+            }
+            for r in rows[:20]
+        ]
+        return {
+            'total_matching': total,
+            'diagnosis_counts': diagnosis_counts,
+            'department_counts': department_counts,
+            'sample_records': sample,
+            'sample_truncated': total > len(sample),
+        }
+
+    def tool_historical_analysis(date_from, date_to, group_by='diagnosis', branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        group_by = (group_by or 'diagnosis').strip().lower()
+        if group_by not in {'diagnosis', 'department', 'age_group', 'gender', 'month'}:
+            return {'error': f"group_by must be one of diagnosis, department, age_group, gender, month (got '{group_by}')."}
+        df = _consultation_frame_for_branch(branch_id)
+        if df.empty:
+            return {'total': 0, 'groups': [], 'note': 'No consultation records in this scope.'}
+        dates = pd.to_datetime(df['consultation_date'], errors='coerce')
+        mask = pd.Series(True, index=df.index)
+        if date_from:
+            mask &= dates >= pd.Timestamp(date_from)
+        if date_to:
+            mask &= dates <= pd.Timestamp(date_to)
+        filtered = df[mask]
+        if filtered.empty:
+            return {'total': 0, 'groups': [], 'note': 'No consultation records in this date range.'}
+        if group_by == 'month':
+            counts = dates[mask].dt.strftime('%Y-%m').value_counts().sort_index()
+        else:
+            counts = filtered[group_by].value_counts()
+        return {
+            'total': int(len(filtered)),
+            'group_by': group_by,
+            'groups': [{'key': str(k), 'count': int(v)} for k, v in counts.items()],
+        }
+
+    def tool_backtest_forecast(diagnosis, target_month, target_year, branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        target_month = int(target_month)
+        target_year = int(target_year)
+        full_df = _consultation_frame_for_branch(branch_id)
+        if full_df.empty:
+            return {'error': 'No consultation records available in this scope.'}
+        dates = pd.to_datetime(full_df['consultation_date'], errors='coerce')
+        cutoff = pd.Timestamp(year=target_year, month=target_month, day=1)
+        training_df = full_df[dates < cutoff].copy()
+        actual_mask = (dates.dt.year == target_year) & (dates.dt.month == target_month) & (full_df['diagnosis'].str.lower() == diagnosis.strip().lower())
+        actual = int(actual_mask.sum())
+        if len(training_df) < 30:
+            return {
+                'diagnosis': diagnosis, 'target_month': target_month, 'target_year': target_year,
+                'actual': actual, 'predicted': None,
+                'training_cutoff': cutoff.strftime('%Y-%m-%d'), 'training_row_count': int(len(training_df)),
+                'note': 'Not enough historical data before this month to produce a reliable backtest forecast.',
+            }
+        total_pred, forecast, _metrics = generate_forecast_for_specific_month(training_df, target_month, target_year, fast=True, compute_model_b=False)
+        predicted = None
+        if forecast:
+            predicted = next((count for diag, count in forecast if diag.strip().lower() == diagnosis.strip().lower()), None)
+        result = {
+            'diagnosis': diagnosis, 'target_month': target_month, 'target_year': target_year,
+            'actual': actual, 'predicted': predicted,
+            'training_cutoff': cutoff.strftime('%Y-%m-%d'), 'training_row_count': int(len(training_df)),
+        }
+        if predicted is None:
+            result['note'] = "This diagnosis was not among the model's forecasted diagnoses for that month (likely grouped into the rare-diagnosis bucket or absent from training data)."
+        else:
+            result['abs_error'] = abs(predicted - actual)
+            result['pct_error'] = round((abs(predicted - actual) / actual) * 100, 1) if actual else None
+        return result
+
+    def tool_future_forecast(target_month, target_year, branch_name=None):
+        """Forecasts a month further out than the standard 'next month'
+        prediction, by recursively chaining single-month forecasts: each
+        intermediate month's prediction is fed back in as if it were real
+        data so the next step's lag features aren't blank. Error compounds
+        with every step, so this is capped at MAX_FUTURE_FORECAST_MONTHS and
+        always reports how many steps out it went so the answer can be
+        presented with appropriately reduced confidence, not as a firm number."""
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        target_month = int(target_month)
+        target_year = int(target_year)
+
+        full_df = _consultation_frame_for_branch(branch_id)
+        if full_df.empty:
+            return {'error': 'No consultation records available in this scope.'}
+
+        now = datetime.now()
+        next_month, next_year = now.month + 1, now.year
+        if next_month > 12:
+            next_month, next_year = 1, next_year + 1
+
+        months_out = (target_year - next_year) * 12 + (target_month - next_month)
+        if months_out < 0:
+            return {
+                'error': 'This tool is for a future month beyond the immediate next one. '
+                         'For the upcoming month use tool_predictions; for a past month use tool_backtest_forecast.',
+            }
+        if months_out > MAX_FUTURE_FORECAST_MONTHS - 1:
+            return {
+                'error': f'{target_month}/{target_year} is more than {MAX_FUTURE_FORECAST_MONTHS} months ahead of the '
+                         'next forecastable month, which is too far out to forecast with any reliability. Ask about a nearer month.',
+            }
+
+        # Historical (age_group, gender) mix per diagnosis -- used to split
+        # each intermediate month's diagnosis-level prediction back into
+        # synthetic per-segment rows, since the model trains on
+        # (diagnosis, age_group, gender) segments and would otherwise see a
+        # blank lag_1/lag_2/lag_3 for any month that hasn't happened yet.
+        segment_counts = full_df.groupby(['diagnosis', 'age_group', 'gender']).size().rename('n').reset_index()
+        diagnosis_totals = full_df.groupby('diagnosis').size().rename('total').reset_index()
+        shares = segment_counts.merge(diagnosis_totals, on='diagnosis')
+        shares['share'] = shares['n'] / shares['total']
+        shares_by_diagnosis = {
+            diag: list(zip(group['age_group'], group['gender'], group['share']))
+            for diag, group in shares.groupby('diagnosis')
+        }
+
+        working_df = full_df.copy()
+        step_month, step_year = next_month, next_year
+        for _ in range(months_out):
+            _total, forecast, _metrics = generate_forecast_for_specific_month(
+                working_df, step_month, step_year, fast=True, compute_model_b=False,
+            )
+            if not forecast:
+                return {'error': f'Could not chain a forecast through {step_month}/{step_year}; not enough data to project that far.'}
+            step_date = f'{step_year:04d}-{step_month:02d}-01'
+            synthetic_rows = []
+            for diagnosis, count in forecast:
+                segments = shares_by_diagnosis.get(diagnosis) or [('Adult', 'Unknown', 1.0)]
+                for age_group, gender, share in segments:
+                    n = int(round(count * share))
+                    synthetic_rows.extend([{
+                        'consultation_date': step_date, 'diagnosis': diagnosis,
+                        'age_group': age_group, 'gender': gender,
+                        'department': '', 'physician': '', 'consultation_type': '',
+                    }] * max(0, n))
+            if synthetic_rows:
+                working_df = pd.concat([working_df, pd.DataFrame(synthetic_rows)], ignore_index=True)
+            step_month += 1
+            if step_month > 12:
+                step_month, step_year = 1, step_year + 1
+
+        total_pred, forecast, _metrics = generate_forecast_for_specific_month(
+            working_df, target_month, target_year, fast=True, compute_model_b=False,
+        )
+        if not forecast:
+            return {'error': 'Could not generate a forecast for this month even after chaining -- not enough historical data.'}
+
+        if months_out == 0:
+            confidence = 'High -- this is the standard next-month forecast, based entirely on real historical data.'
+        elif months_out <= 2:
+            confidence = f'Moderate -- {months_out} intermediate month(s) had to be predicted first and chained forward, so treat this as a trend estimate rather than a precise number.'
+        else:
+            confidence = f'Low -- {months_out} intermediate months were predicted and chained forward to reach this far out. Forecast error compounds with each step, so treat this only as a rough directional trend, not a reliable number.'
+
+        # RARE_DIAGNOSIS_BUCKET is a synthetic training-time grouping for
+        # low-volume diagnoses, never an actual diagnosis on any record --
+        # excluded here the same way the standard next-month forecast list
+        # already excludes it (app.py ~3029), so "top cases" never surfaces
+        # this vague catch-all as if it were a real, named condition.
+        named_forecast = [(diag, count) for diag, count in forecast if diag != RARE_DIAGNOSIS_BUCKET]
+
+        return {
+            'target_month': target_month,
+            'target_year': target_year,
+            'months_out_from_next_forecastable_month': months_out,
+            'total_predicted_cases': total_pred,
+            'top_predicted_diagnoses': [{'diagnosis': diag, 'predicted_cases': count} for diag, count in named_forecast[:10]],
+            'confidence': confidence,
+            'method': "Recursive multi-step forecast: each month between the next forecastable month and the target was predicted in turn and fed forward as if it were real data for the next step.",
+        }
+
+    def tool_model_metrics(branch_name=None):
+        branch, branch_id, error = resolve_branch_for_chatbot(branch_name)
+        if error:
+            return error
+        summary = get_dashboard_summary(branch_id=branch_id)
+        rf_metrics = summary.get('rf_metrics')
+        if not rf_metrics:
+            return {
+                'available': False,
+                'note': 'No freshly-trained model metrics are cached for this scope yet. Metrics are computed when the dashboard/predictions are refreshed (e.g. via Retrain).',
+            }
+        return {
+            'available': True,
+            'r2_score': rf_metrics.get('r2_score'),
+            'mae': rf_metrics.get('mae'),
+            'mse': rf_metrics.get('mse'),
+            'rmse': rf_metrics.get('validation_rmse'),
+            'cv_r2_mean': rf_metrics.get('cv_r2_mean'),
+            'cv_mae_mean': rf_metrics.get('cv_mae_mean'),
+            'improvement_vs_baseline_pct': rf_metrics.get('improvement_vs_baseline_pct'),
+            'model_verdict': rf_metrics.get('model_verdict'),
+            'training_months': rf_metrics.get('training_months'),
+            'validation_months': rf_metrics.get('validation_months'),
+            'data_period_start': rf_metrics.get('data_period_start'),
+            'data_period_end': rf_metrics.get('data_period_end'),
+        }
+
+    def tool_generate_report(report_key):
+        if report_key not in report_definitions:
+            return {'error': f'Unknown report_key "{report_key}".', 'available_reports': list(report_definitions.keys())}
+        payload = build_report_payload(report_key)
+        if payload is None:
+            return {'error': f'Could not generate report "{report_key}".'}
+        return {
+            'title': payload.get('title'),
+            'generated_at': payload.get('generated_at'),
+            'sections': payload.get('sections'),
+        }
+
+    def tool_chatbot_help():
+        return {
+            'capabilities': [
+                'Dashboard stats and KPIs', 'Consultation record search/aggregation', 'ML forecasts and predictions',
+                'Diagnosis and consultation trends', 'Staff/physician role recommendations with evidence',
+                'Department and specialist demand', 'Daily/weekly resource and staffing capacity',
+                'Historical data analysis', 'Predicted-vs-actual backtesting', 'Model performance metrics (R2/MAE/MSE/RMSE)',
+                'Report generation (monthly, quarterly, prediction, resource-recommendation, attribution-gaps)',
+                f'Multi-month-ahead forecasting (up to {MAX_FUTURE_FORECAST_MONTHS} months out), with confidence that decreases the further out the request goes',
+            ],
+            'limitations': [
+                'Read-only: cannot create, edit, or delete any record.',
+                'Never reveals patient names, contact info, or other identifying details.',
+                'Per-room scheduling is not tracked, only a total room count.',
+                'Diagnosis-level forecasting is monthly, not daily/weekly.',
+                f'Forecasts more than {MAX_FUTURE_FORECAST_MONTHS} months ahead are refused -- chained multi-step predictions get unreliable beyond that.',
+                'Runs on a small local model -- may occasionally mis-fill an optional argument or take up to a minute to respond.',
+            ],
+        }
+
+    CHATBOT_TOOLS = {
+        'tool_dashboard_summary': tool_dashboard_summary,
+        'tool_predictions': tool_predictions,
+        'tool_diagnosis_trends': tool_diagnosis_trends,
+        'tool_staff_recommendation': tool_staff_recommendation,
+        'tool_department_demand': tool_department_demand,
+        'tool_resource_capacity': tool_resource_capacity,
+        'tool_query_consultations': tool_query_consultations,
+        'tool_historical_analysis': tool_historical_analysis,
+        'tool_backtest_forecast': tool_backtest_forecast,
+        'tool_future_forecast': tool_future_forecast,
+        'tool_model_metrics': tool_model_metrics,
+        'tool_generate_report': tool_generate_report,
+        'tool_chatbot_help': tool_chatbot_help,
+    }
+    # Plain-English status text shown in the typing indicator while a tool
+    # runs, keyed by tool name -- never the raw tool/function name itself.
+    CHATBOT_TOOL_STATUS_LABELS = {
+        'tool_dashboard_summary': "Checking today's dashboard numbers...",
+        'tool_predictions': 'Checking next month\'s forecast...',
+        'tool_diagnosis_trends': 'Checking diagnosis trends...',
+        'tool_staff_recommendation': 'Checking staffing recommendations...',
+        'tool_department_demand': 'Checking staffing demand...',
+        'tool_resource_capacity': 'Checking capacity and room availability...',
+        'tool_query_consultations': 'Searching consultation records...',
+        'tool_historical_analysis': 'Analyzing historical data...',
+        'tool_backtest_forecast': 'Comparing past forecasts to what actually happened...',
+        'tool_future_forecast': 'Running the forecast model -- this one can take a bit...',
+        'tool_model_metrics': 'Checking model accuracy...',
+        'tool_generate_report': 'Putting together the report...',
+        'tool_chatbot_help': 'Getting help info...',
+    }
+
+    # In-memory "what is this conversation's in-flight request doing right
+    # now" store, polled by the frontend so the typing indicator can show
+    # real status text instead of a static spinner. Deliberately not
+    # persisted -- it only needs to live for the duration of one request,
+    # and losing it on a restart is harmless (the poll just falls back to
+    # the default "Thinking..." label).
+    CHATBOT_PROGRESS = {}
+
+    # Exposed on the app instance (rather than at module level) because these
+    # are closures over create_app()'s locals -- this lets tests call tools
+    # directly (e.g. to assert no PII ever leaks) without going through the
+    # LLM. Never call anything in this registry from outside a request/test
+    # context expecting it to be pure -- each tool reads live session/db state.
+    app.chatbot_tools = CHATBOT_TOOLS
+
+    def get_chatbot_context():
+        return session.get('chatbot_turn_context', {'conversation_id': None, 'turns': []})
+
+    def save_chatbot_turn(conversation_id, question, answer, tools_used):
+        ctx = get_chatbot_context()
+        ctx['conversation_id'] = conversation_id
+        ctx['turns'] = (ctx['turns'] + [{'q': question, 'a': answer, 'tools': tools_used}])[-6:]
+        session['chatbot_turn_context'] = ctx
+
+    def clear_chatbot_context():
+        session.pop('chatbot_turn_context', None)
+
+    @app.route('/api/chatbot/ask', methods=['POST'])
+    def chatbot_ask():
+        if not can_view_all_branches():
+            return jsonify({'error': 'forbidden'}), 403
+
+        payload = request.get_json(silent=True) or {}
+        question = (payload.get('question') or '').strip()
+        conversation_id = payload.get('conversation_id') or None
+        if not question:
+            return jsonify({'error': 'question is required'}), 400
+
+        ctx = get_chatbot_context()
+        if not conversation_id or conversation_id != ctx.get('conversation_id'):
+            clear_chatbot_context()
+            conversation_id = conversation_id or uuid.uuid4().hex
+            ctx = {'conversation_id': conversation_id, 'turns': []}
+
+        user_context = {
+            'role_label': (session.get('role') or '').replace('_', ' ').title() or 'Superadmin',
+            'branch_label': branch_scope_label(),
+        }
+
+        def report_progress(tool_name):
+            CHATBOT_PROGRESS[conversation_id] = CHATBOT_TOOL_STATUS_LABELS.get(tool_name, 'Reviewing the data...')
+
+        CHATBOT_PROGRESS[conversation_id] = 'Thinking...'
+        started_at = time.monotonic()
+        error_text = None
+        try:
+            answer, tools_used = run_chatbot_turn(
+                question=question,
+                tool_registry=CHATBOT_TOOLS,
+                history=ctx.get('turns', []),
+                user_context=user_context,
+                api_key=app.config['GEMINI_API_KEY'],
+                model_name=app.config['GEMINI_MODEL'],
+                on_tool_call=report_progress,
+            )
+        except GeminiError as exc:
+            traceback.print_exc()
+            error_text = str(exc)
+            answer = 'The Gemini chatbot is not reachable right now. Check that GEMINI_API_KEY is set and valid, and try again.'
+            tools_used = []
+        except Exception as exc:
+            traceback.print_exc()
+            error_text = str(exc)
+            answer = 'Sorry, something went wrong answering that. Please try again.'
+            tools_used = []
+        finally:
+            CHATBOT_PROGRESS.pop(conversation_id, None)
+        latency_ms = int((time.monotonic() - started_at) * 1000)
+
+        low_evidence_calls = [call for call in tools_used if call.get('tool') == 'tool_staff_recommendation']
+        warnings = []
+        if error_text:
+            warnings.append('An internal error occurred while generating this answer.')
+
+        interaction = ChatbotInteraction(
+            user_id=session.get('user_id'),
+            branch_id=current_branch_id(),
+            conversation_id=conversation_id,
+            turn_index=len(ctx.get('turns', [])),
+            question=question,
+            answer=answer,
+            tools_used=json.dumps(tools_used, default=str),
+            evidence_summary=json.dumps(low_evidence_calls, default=str) if low_evidence_calls else None,
+            model_name=app.config.get('GEMINI_MODEL'),
+            latency_ms=latency_ms,
+            error=error_text,
+        )
+        db.session.add(interaction)
+        db.session.flush()
+        log_audit('chatbot_query', 'ChatbotInteraction', interaction.id, {'question': question[:200]})
+        db.session.commit()
+
+        save_chatbot_turn(conversation_id, question, answer, tools_used)
+
+        return jsonify({
+            'answer': answer,
+            'conversation_id': conversation_id,
+            'tools_used': [call.get('tool') for call in tools_used],
+            'warnings': warnings,
+        })
+
+    @app.route('/api/chatbot/progress')
+    def chatbot_progress():
+        if not can_view_all_branches():
+            return jsonify({'error': 'forbidden'}), 403
+        conversation_id = request.args.get('conversation_id') or ''
+        return jsonify({'status': CHATBOT_PROGRESS.get(conversation_id, 'Thinking...')})
+
     @app.route('/reports')
     def reports():
         return render_template(
@@ -6483,6 +7326,8 @@ def migrate_staff_member_schema(app):
                 conn.execute(text("ALTER TABLE staff_member ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"))
             if 'deleted_at' not in columns:
                 conn.execute(text("ALTER TABLE staff_member ADD COLUMN deleted_at DATETIME"))
+            if 'email' not in columns:
+                conn.execute(text("ALTER TABLE staff_member ADD COLUMN email VARCHAR(140)"))
             if 'department' in columns:
                 conn.execute(text("DROP TABLE IF EXISTS staff_member_new"))
                 conn.execute(text("""
