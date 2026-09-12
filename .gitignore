@@ -18,3 +18,8 @@ instance/
 # Local uploads and generated reports/data
 uploads/
 screeshots/
+
+# Local-only reference docs (not for GitHub)
+AI_HANDOFF.md
+docs/HANDOFF.md
+CS114_Theme_Submission_Draft.txt
