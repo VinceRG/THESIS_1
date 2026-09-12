@@ -7,6 +7,7 @@ import traceback
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from email.message import EmailMessage
+from html import escape as html_escape
 
 import pandas as pd
 import numpy as np
@@ -1801,41 +1802,89 @@ def create_app():
 
     OTP_RESEND_COOLDOWN_SECONDS = 60
 
-    def send_patient_verification_email(recipient, code):
-        """Deliver a short-lived sign-up code using the configured SMTP provider."""
+    EMAIL_CODE_PATTERN = re.compile(r'\b(\d{6})\b')
+    EMAIL_DETAIL_LINE_PATTERN = re.compile(r'^[A-Za-z][A-Za-z0-9 /]{0,30}: .+$')
+
+    def render_brand_email_html(heading, text_body):
+        """Lightly format a plain-text email body into a branded HTML layout: paragraphs,
+        a detail table for consecutive "Label: value" lines, and emphasized 6-digit codes."""
+        sections = []
+        for paragraph in text_body.strip().split('\n\n'):
+            lines = [line for line in paragraph.split('\n') if line.strip()]
+            if not lines:
+                continue
+            if len(lines) > 1 and all(EMAIL_DETAIL_LINE_PATTERN.match(line) for line in lines):
+                rows = ''.join(
+                    f'<tr><td style="padding:8px 0;font-size:13px;color:#5b7788;white-space:nowrap;">{html_escape(label)}</td>'
+                    f'<td style="padding:8px 0 8px 16px;font-size:14px;color:#11354f;font-weight:600;text-align:right;">{html_escape(value)}</td></tr>'
+                    for label, value in (line.split(': ', 1) for line in lines)
+                )
+                sections.append(
+                    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+                    f'style="margin:0 0 20px;border-top:1px solid #e5eef2;border-bottom:1px solid #e5eef2;">{rows}</table>'
+                )
+            else:
+                escaped = '<br>'.join(html_escape(line) for line in lines)
+                escaped = EMAIL_CODE_PATTERN.sub(
+                    r'<span style="font-weight:700;letter-spacing:0.1em;color:#0f5b8a;">\1</span>', escaped
+                )
+                sections.append(f'<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#11354f;">{escaped}</p>')
+        body_html = ''.join(sections)
+        return f'''<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f5fbfd;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5fbfd;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(15,91,138,0.08);">
+<tr><td style="background:#0f5b8a;padding:24px 32px;">
+<span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.02em;">Accudetek</span>
+<span style="color:#d9f4fb;font-size:12px;display:block;margin-top:2px;">Health Diagnostics</span>
+</td></tr>
+<tr><td style="padding:32px;">
+<h1 style="margin:0 0 20px;font-size:19px;color:#073b58;">{html_escape(heading)}</h1>
+{body_html}
+</td></tr>
+<tr><td style="padding:20px 32px;background:#f5fbfd;border-top:1px solid #e5eef2;">
+<p style="margin:0;color:#5b7788;font-size:12px;">Care you can trust, from booking to results.</p>
+<p style="margin:6px 0 0;color:#8fa5b3;font-size:11px;">This is an automated message from Accudetek Health Diagnostics. Please do not reply to this email.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>'''
+
+    def deliver_email(recipient, subject, text_body):
+        """Send a branded, multipart (plain text + HTML) email through the configured SMTP provider."""
         if not all([app.config['SMTP_HOST'], app.config['SMTP_FROM']]):
             raise RuntimeError('Email delivery is not configured. Set SMTP_HOST, SMTP_FROM, SMTP_USERNAME, and SMTP_PASSWORD.')
         message = EmailMessage()
-        message['Subject'] = 'Your Accudetek patient portal verification code'
+        message['Subject'] = subject
         message['From'] = app.config['SMTP_FROM']
         message['To'] = recipient
-        message.set_content(
-            f'Your Accudetek patient portal verification code is: {code}\n\n'
-            'It expires in 10 minutes. Do not share this code with anyone.'
-        )
+        message.set_content(text_body)
+        message.add_alternative(render_brand_email_html(subject, text_body), subtype='html')
         with smtplib.SMTP(app.config['SMTP_HOST'], app.config['SMTP_PORT'], timeout=20) as smtp:
             smtp.starttls()
             if app.config['SMTP_USERNAME']:
                 smtp.login(app.config['SMTP_USERNAME'], app.config['SMTP_PASSWORD'])
             smtp.send_message(message)
 
+    def send_patient_verification_email(recipient, code):
+        """Deliver a short-lived sign-up code using the configured SMTP provider."""
+        deliver_email(
+            recipient,
+            'Your Accudetek patient portal verification code',
+            f'Your Accudetek patient portal verification code is: {code}\n\n'
+            'It expires in 10 minutes. Do not share this code with anyone.',
+        )
+
     def send_appointment_email(recipient, subject, message_text):
         """Send transactional appointment messages without exposing SMTP details."""
         if not recipient:
             return False
         try:
-            if not all([app.config['SMTP_HOST'], app.config['SMTP_FROM']]):
-                raise RuntimeError('Email delivery is not configured.')
-            message = EmailMessage()
-            message['Subject'] = subject
-            message['From'] = app.config['SMTP_FROM']
-            message['To'] = recipient
-            message.set_content(message_text)
-            with smtplib.SMTP(app.config['SMTP_HOST'], app.config['SMTP_PORT'], timeout=20) as smtp:
-                smtp.starttls()
-                if app.config['SMTP_USERNAME']:
-                    smtp.login(app.config['SMTP_USERNAME'], app.config['SMTP_PASSWORD'])
-                smtp.send_message(message)
+            deliver_email(recipient, subject, message_text)
             return True
         except Exception:
             app.logger.exception('Appointment email could not be sent')

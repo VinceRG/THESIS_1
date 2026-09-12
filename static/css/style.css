@@ -674,6 +674,44 @@ label.has-error > textarea {
   font-weight:600;
   line-height:1.35;
 }
+.patient-time-trigger {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  width:100%; padding:11px 12px; border:1px solid #d1dce4; border-radius:12px;
+  background:#f8fafc; color:var(--text); font:inherit; font-weight:600; cursor:pointer; text-align:left;
+}
+.patient-time-trigger:hover { border-color:var(--accent); }
+.patient-time-trigger:focus-visible { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(43,167,197,0.16); }
+.patient-time-trigger[data-empty="true"] { color:#94a3b8; font-weight:500; }
+.patient-time-trigger svg { flex:0 0 auto; color:var(--primary); }
+label.has-error > .patient-time-trigger { border-color:#f2a5a5; background:#fff7f7; }
+
+.patient-clock-overlay { position:fixed; inset:0; z-index:10001; display:none; align-items:center; justify-content:center; background:rgba(7,59,88,0.46); backdrop-filter:blur(4px); padding:24px; }
+.patient-clock-overlay.active { display:flex; }
+.patient-clock-panel { width:min(300px, 100%); background:#ffffff; border-radius:20px; padding:22px; box-shadow:0 24px 80px rgba(15,23,42,0.24); border:1px solid #d9f4fb; animation:patient-panel-in 160ms ease; }
+.patient-clock-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.patient-clock-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#5b7788; }
+.patient-clock-ampm { display:flex; gap:4px; }
+.patient-clock-ampm button { border:1px solid #d1dce4; background:#f8fafc; color:#5b7788; font:inherit; font-size:11px; font-weight:800; padding:5px 9px; border-radius:8px; cursor:pointer; }
+.patient-clock-ampm button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+.patient-clock-ampm button:disabled { opacity:0.35; cursor:not-allowed; }
+.patient-clock-readout-time { display:flex; align-items:center; justify-content:center; gap:2px; margin-bottom:18px; font-size:32px; font-weight:800; color:#c7d3da; }
+.patient-clock-readout-time button { border:none; background:none; font:inherit; font-size:32px; font-weight:800; color:inherit; cursor:pointer; padding:2px 6px; border-radius:8px; line-height:1; }
+.patient-clock-readout-time button.active { color:var(--primary); background:var(--accent-soft); }
+.patient-clock-readout-time button:hover { background:var(--accent-soft); }
+.patient-clock-face { position:relative; width:240px; height:240px; margin:0 auto 20px; border-radius:50%; background:#f0f8fb; }
+.patient-clock-center { position:absolute; left:50%; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%; background:var(--primary); z-index:3; }
+.patient-clock-hand { position:absolute; left:50%; top:50%; width:2px; margin-left:-1px; background:var(--primary); transform-origin:50% 100%; transition:transform 140ms ease, height 140ms ease, opacity 140ms ease; z-index:1; }
+.patient-clock-hand-dot { position:absolute; top:-16px; left:50%; margin-left:-16px; width:32px; height:32px; border-radius:50%; background:var(--primary); opacity:0.16; }
+.patient-clock-number {
+  position:absolute; width:36px; height:36px; margin:-18px 0 0 -18px; border-radius:50%; border:none;
+  display:flex; align-items:center; justify-content:center; font:inherit; font-size:14px; font-weight:700;
+  color:var(--text); background:transparent; cursor:pointer; z-index:2;
+}
+.patient-clock-number:hover:not(:disabled) { background:var(--accent-soft); }
+.patient-clock-number.selected { background:var(--primary); color:#fff; z-index:4; }
+.patient-clock-number:disabled { color:#c7d3da; cursor:not-allowed; }
+.patient-clock-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
+.patient-clock-actions .patient-primary-button:disabled { opacity:0.45; cursor:not-allowed; }
 .patient-service-tabs {
   position:sticky;
   top:78px;
