@@ -267,7 +267,11 @@ class SmartClinicAppTests(unittest.TestCase):
         self.assertIn(b'MAE', response.data)
         self.assertIn(b'MSE', response.data)
         self.assertIn(b'RMSE', response.data)
-        self.assertNotIn(b'0.0', response.data)
+        # /predict falls back to {'r2_score': 0, 'mae': 0, ...} when no forecast
+        # exists, which renders as a bare "0" in the metric cards. Match that
+        # placeholder exactly -- scanning for "0.0" also matches a genuinely
+        # small error such as an MAE of 0.0444.
+        self.assertNotIn(b'<div class="value">0</div>', response.data)
 
     def test_predict_page_shows_demographics_comparison_section(self):
         """RQ3: the with-vs-without-demographics model comparison already

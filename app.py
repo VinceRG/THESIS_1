@@ -124,6 +124,14 @@ REQUIRE_COMPLETE_TRAINING_YEARS = True
 # separate from the aggregate accuracy across all diagnoses.
 TOP_N_COMMON_DIAGNOSES = 10
 
+# A month is only usable as the forecast anchor if it has ended AND carries at least
+# this share of the median volume of the preceding months. Without the volume check a
+# month that merely started collecting data (or holds a handful of manually-entered
+# records) would be treated as a real observation, and its near-zero count would flow
+# into lag_1 / rolling_mean_3 and drag the whole forecast down.
+ANCHOR_MIN_VOLUME_SHARE = 0.5
+ANCHOR_VOLUME_LOOKBACK_MONTHS = 6
+
 # Evidence-based diagnosis-to-role attribution: a diagnosis is only mapped from
 # historical ConsultationRecord.physician data (instead of the SERVICE_CATEGORY_KEYWORDS
 # fallback) when at least this many historical records for it matched a current
@@ -466,6 +474,35 @@ def build_training_frame(df):
         df['diagnosis'] = LabelEncoder().fit_transform(df['diagnosis'].astype(str))
 
     return df
+
+def resolve_forecast_anchor(monthly_counts, today):
+    """Most recent month that is safe to forecast forward from.
+
+    The month in progress is unknown, not empty -- counting it as zero is what makes
+    lag_1 and the rolling means collapse and turns a flat series into a fake downward
+    trend. So the in-progress month is dropped, and finished months are walked
+    backwards until one clears ANCHOR_MIN_VOLUME_SHARE of its predecessors' median.
+
+    Returns (year, month), or None when no month qualifies.
+    """
+    current_period = today.strftime('%Y-%m')
+    finished = sorted(period for period in monthly_counts if period < current_period)
+    if not finished:
+        return None
+
+    for index in range(len(finished) - 1, -1, -1):
+        preceding = [
+            monthly_counts[period]
+            for period in finished[max(0, index - ANCHOR_VOLUME_LOOKBACK_MONTHS):index]
+        ]
+        if not preceding:
+            break
+        if monthly_counts[finished[index]] >= float(np.median(preceding)) * ANCHOR_MIN_VOLUME_SHARE:
+            year, month = finished[index].split('-')
+            return int(year), int(month)
+
+    year, month = finished[0].split('-')
+    return int(year), int(month)
 
 def generate_forecast_for_specific_month(df, target_month, target_year, fast=True, compute_model_b=True):
     """Wrapper to generate forecast for a specific month."""
@@ -3028,10 +3065,17 @@ def create_app():
             for month, count in sorted(monthly_counts.items())
         ]
 
-        # Forecast the next calendar month from today's date.
+        # Forecast one month past the latest complete data, not one month past today's
+        # date: the lag and rolling features can only be built from months that are
+        # actually finished and populated.
         now = datetime.now()
-        predicted_month = now.month + 1
-        predicted_year = now.year
+        anchor = resolve_forecast_anchor(monthly_counts, now.date())
+        if anchor:
+            anchor_year, anchor_month = anchor
+        else:
+            anchor_year, anchor_month = now.year, now.month
+        predicted_month = anchor_month + 1
+        predicted_year = anchor_year
         if predicted_month > 12:
             predicted_month = 1
             predicted_year += 1
