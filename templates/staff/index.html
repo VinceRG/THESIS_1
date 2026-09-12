@@ -3,57 +3,162 @@
 
 {% block title %}Staff Management · Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Staff Management{% endblock %}
-{% block page_subtitle %}Coordinate staff roles, availability, and clinic coverage{% endblock %}
+{% block page_subtitle %}Manage clinic staff, availability, and staff notifications{% endblock %}
 
 {% block content %}
 <div class="section-stack">
 <div class="page-actions">
   {% if not all_branches_view %}
-    <a href="{{ url_for('create_staff') }}" class="btn">Add New Staff</a>
+    <a href="{{ url_for('create_staff') }}" class="btn">+ Add Staff</a>
   {% else %}
     <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit staff.</span>
   {% endif %}
 </div>
 
+<div class="grid cards">
+  <div class="card">
+    <h3>Total Staff</h3>
+    <div class="value">{{ total_active }}</div>
+  </div>
+  <div class="card">
+    <h3>Available</h3>
+    <div class="value">{{ available_count }}</div>
+  </div>
+  <div class="card">
+    <h3>Unavailable</h3>
+    <div class="value">{{ unavailable_count }}</div>
+  </div>
+  <div class="card">
+    <h3>Selected</h3>
+    <div class="value" id="selectedCountCard">0</div>
+  </div>
+</div>
+
+{% if recommendation %}
+  <div class="chart-card staffing-recommendation-banner">
+    <strong>Staffing recommendation</strong>
+    <p class="muted-copy" style="margin:6px 0 10px;">
+      {{ recommendation.role }} is projected to have the highest demand for {{ recommendation.predicted_month_label }}
+      (~{{ recommendation.demand }} forecasted cases). Review capacity on Resource Planning, then select the staff below to notify.
+    </p>
+    <a href="{{ url_for('resources') }}" class="btn secondary">View Resource Planning</a>
+  </div>
+{% endif %}
+
+{% if not all_branches_view %}
+  <form method="post" action="{{ url_for('notify_selected_staff') }}" id="notifySelectedForm"
+        data-confirm-title="Notify selected staff?"
+        data-confirm="This will email every selected staff member who has an address on file. Continue?"></form>
+{% endif %}
+
 <div class="chart-card">
-  <h3>Active Staff</h3>
+  <div class="page-heading-row">
+    <h3 style="margin:0;">Active Staff</h3>
+    <span class="muted-copy">
+      {% if search_query or role_filter or availability_filter %}
+        {{ active_staff.total }} of {{ total_active }} staff member{{ '' if total_active == 1 else 's' }} (filtered)
+      {% else %}
+        {{ total_active }} staff member{{ '' if total_active == 1 else 's' }}
+      {% endif %}
+    </span>
+  </div>
+
+  <form method="get" class="filter-form staff-filter">
+    <label>
+      Search
+      <input type="search" name="q" value="{{ search_query }}" placeholder="Search staff by name">
+    </label>
+    <label>
+      Position
+      <select name="role">
+        <option value="">All Positions</option>
+        {% for role in role_options %}
+          <option value="{{ role }}" {% if role_filter == role %}selected{% endif %}>{{ role }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Status
+      <select name="availability">
+        <option value="">All Statuses</option>
+        {% for option in availability_options %}
+          <option value="{{ option }}" {% if availability_filter == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="submit" class="btn">Apply Filters</button>
+      <a href="{{ url_for('staff') }}" class="btn secondary">Reset</a>
+    </div>
+  </form>
+
   <div class="table-scroll">
     <table class="table table-sticky-head">
       <thead>
-        <tr>{% if all_branches_view %}<th>Branch</th>{% endif %}<th>Name</th><th>Position</th><th>Status</th><th>Actions</th></tr>
+        <tr>
+          {% if not all_branches_view %}<th><input type="checkbox" id="selectAllStaff" title="Select all"></th>{% endif %}
+          {% if all_branches_view %}<th>Branch</th>{% endif %}<th>Staff Member</th><th>Email</th><th>Position</th><th>Status</th><th>Actions</th>
+        </tr>
       </thead>
       <tbody>
         {% for person in active_staff.items %}
-          <tr>
+          <tr class="staff-row" data-staff-row>
+            {% if not all_branches_view %}
+              <td><input type="checkbox" class="staff-select-checkbox" form="notifySelectedForm" name="staff_ids" value="{{ person.id }}"></td>
+            {% endif %}
             {% if all_branches_view %}<td>{{ person.branch.name if person.branch else 'Unassigned' }}</td>{% endif %}
             <td>{{ person.name }}</td>
+            <td>{{ person.email or '—' }}</td>
             <td>{{ person.role }}</td>
             <td>
               <span class="staff-status status-{{ person.availability|lower|replace(' ', '-') }}">
                 {{ person.availability }}
               </span>
             </td>
-            <td>
+            <td class="staff-actions-cell">
               {% if not all_branches_view %}
                 <a class="btn secondary" href="{{ url_for('edit_staff', staff_id=person.id) }}">Edit</a>
-                <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
-                      data-confirm-title="Remove staff member?"
-                      data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
-                  <button type="submit" class="btn secondary">Remove</button>
-                </form>
+                <div class="staff-kebab">
+                  <button type="button" class="btn secondary staff-kebab-toggle" aria-label="More actions" aria-expanded="false">&#8942;</button>
+                  <div class="staff-kebab-menu" hidden>
+                    <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}"
+                          data-confirm-title="Remove staff member?"
+                          data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
+                      <button type="submit" class="staff-kebab-item">Remove Staff</button>
+                    </form>
+                  </div>
+                </div>
               {% else %}
                 <span class="muted-copy">Select branch to edit</span>
               {% endif %}
             </td>
           </tr>
         {% else %}
-          <tr class="table-empty-state"><td colspan="{{ 5 if all_branches_view else 4 }}"><strong>No active staff yet.</strong>Add a staff member to start tracking roles and availability.</td></tr>
+          <tr class="table-empty-state"><td colspan="6"><strong>No active staff yet.</strong>Add a staff member to start tracking roles and availability.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {{ render_pagination(active_staff, 'staff', {'former_page': inactive_staff.page}) }}
+  {{ render_pagination(active_staff, 'staff', dict(filter_args, former_page=inactive_staff.page)) }}
 </div>
+
+{% if not all_branches_view %}
+  <div class="chart-card" id="notifyPanel" hidden>
+    <div class="page-heading-row">
+      <strong id="notifySelectedSummary">0 staff selected</strong>
+      <button type="button" class="btn secondary" id="notifyCancelBtn">Cancel</button>
+    </div>
+    <label style="display:block; margin-top:10px;">
+      Message to selected staff
+      <textarea form="notifySelectedForm" name="message" id="notifyMessageInput" rows="3" maxlength="1000"
+                placeholder="Please be advised that additional staffing support may be needed this week based on the clinic's current resource requirements."></textarea>
+    </label>
+    <div class="form-actions" style="margin-top:10px;">
+      <button type="button" class="btn secondary" id="useDefaultMessageBtn">Use Default Message</button>
+      <button type="submit" form="notifySelectedForm" class="btn" id="notifySubmitBtn">Notify Selected Staff</button>
+    </div>
+  </div>
+{% endif %}
 
 <div class="chart-card">
   <div class="page-heading-row">
@@ -114,6 +219,77 @@
       toggleFormerStaff.textContent = isHidden ? 'Hide Former Staff' : 'Show Former Staff';
     });
   }
+
+  const selectAllStaff = document.getElementById('selectAllStaff');
+  const staffCheckboxes = Array.from(document.querySelectorAll('.staff-select-checkbox'));
+  const selectedCountCard = document.getElementById('selectedCountCard');
+  const notifyPanel = document.getElementById('notifyPanel');
+  const notifySelectedSummary = document.getElementById('notifySelectedSummary');
+  const notifyCancelBtn = document.getElementById('notifyCancelBtn');
+  const useDefaultMessageBtn = document.getElementById('useDefaultMessageBtn');
+  const notifyMessageInput = document.getElementById('notifyMessageInput');
+
+  function updateSelectionState() {
+    const checked = staffCheckboxes.filter(box => box.checked);
+    const count = checked.length;
+    if (selectedCountCard) selectedCountCard.textContent = String(count);
+    staffCheckboxes.forEach(box => {
+      const row = box.closest('[data-staff-row]');
+      if (row) row.classList.toggle('is-selected', box.checked);
+    });
+    if (notifyPanel) {
+      notifyPanel.hidden = count === 0;
+    }
+    if (notifySelectedSummary) {
+      notifySelectedSummary.textContent = count === 1 ? '1 staff selected' : `${count} staff selected`;
+    }
+    if (selectAllStaff) {
+      selectAllStaff.checked = count > 0 && count === staffCheckboxes.length;
+      selectAllStaff.indeterminate = count > 0 && count < staffCheckboxes.length;
+    }
+  }
+
+  if (selectAllStaff) {
+    selectAllStaff.addEventListener('change', () => {
+      staffCheckboxes.forEach(box => { box.checked = selectAllStaff.checked; });
+      updateSelectionState();
+    });
+  }
+  staffCheckboxes.forEach(box => box.addEventListener('change', updateSelectionState));
+
+  if (notifyCancelBtn) {
+    notifyCancelBtn.addEventListener('click', () => {
+      staffCheckboxes.forEach(box => { box.checked = false; });
+      if (notifyMessageInput) notifyMessageInput.value = '';
+      updateSelectionState();
+    });
+  }
+
+  if (useDefaultMessageBtn && notifyMessageInput) {
+    useDefaultMessageBtn.addEventListener('click', () => {
+      notifyMessageInput.value = "Please be advised that additional staffing support may be needed this week based on the clinic's current resource requirements.";
+    });
+  }
+
+  updateSelectionState();
+
+  document.querySelectorAll('.staff-kebab-toggle').forEach(toggle => {
+    toggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const menu = toggle.nextElementSibling;
+      const isOpen = !menu.hidden;
+      document.querySelectorAll('.staff-kebab-menu').forEach(m => { m.hidden = true; });
+      document.querySelectorAll('.staff-kebab-toggle').forEach(t => t.setAttribute('aria-expanded', 'false'));
+      if (!isOpen) {
+        menu.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.staff-kebab-menu').forEach(m => { m.hidden = true; });
+    document.querySelectorAll('.staff-kebab-toggle').forEach(t => t.setAttribute('aria-expanded', 'false'));
+  });
 </script>
 </div>
 {% endblock %}

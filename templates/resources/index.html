@@ -84,11 +84,12 @@
 
 {% include 'partials/branch_breakdown.html' %}
 
+{% set week_alert_rows = daily_prediction.get('current_week_rows', []) | selectattr('status_class', 'equalto', 'high') | list %}
 <div class="grid section-grid" style="margin-top:20px;">
   <div class="chart-card">
     <h3>Predicted Daily Staff Demand</h3>
     <p class="muted-copy" style="margin-bottom:14px;">
-      This view predicts staff-role demand for the current 7 days and the next 7 days using historical daily consultation patterns, day-of-week behavior, service/diagnosis role mapping, and already scheduled appointments.
+      This view predicts staff-role demand for the current 7 days using historical daily consultation patterns, day-of-week behavior, service/diagnosis role mapping, and already scheduled appointments.
     </p>
     <div class="planning-metric">
       <div>
@@ -96,8 +97,8 @@
         <span>patients per staff per day from your capacity setting</span>
       </div>
       <div>
-        <strong>{{ daily_prediction.get('alert_rows', [])|length }}</strong>
-        <span>admin staffing alerts in the next 14 days</span>
+        <strong>{{ week_alert_rows|length }}</strong>
+        <span>admin staffing alerts this week</span>
       </div>
     </div>
     <div class="chart-container staff-forecast-chart">
@@ -116,7 +117,7 @@
         <tr><th>Date</th><th>Role</th><th>Need</th><th>Available</th></tr>
       </thead>
       <tbody>
-        {% for row in daily_prediction.get('alert_rows', [])[:8] %}
+        {% for row in week_alert_rows[:8] %}
           <tr>
             <td>{{ row.date }} <span class="muted-copy">{{ row.day_name }}</span></td>
             <td>{{ row.staff_role }}</td>
@@ -124,7 +125,7 @@
             <td>{{ row.available_staff }}</td>
           </tr>
         {% else %}
-          <tr><td colspan="4">No daily staffing shortage predicted for the next 14 days.</td></tr>
+          <tr><td colspan="4">No daily staffing shortage predicted for this week.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -132,7 +133,7 @@
 </div>
 
 <div class="grid section-grid" style="margin-top:20px;">
-  <div class="chart-card">
+  <div class="chart-card" style="grid-column:1 / -1;">
     <h3>Current 7 Days: {{ daily_prediction.get('current_period', '') }}</h3>
     <div class="table-scroll">
       <table class="table resource-table daily-summary-table">
@@ -151,31 +152,6 @@
             </tr>
           {% else %}
             <tr><td colspan="6">No predicted daily staff demand is available for the current 7 days.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="chart-card">
-    <h3>Next 7 Days: {{ daily_prediction.get('next_period', '') }}</h3>
-    <div class="table-scroll">
-      <table class="table resource-table daily-summary-table">
-        <thead>
-          <tr><th>Date</th><th>Predicted Patients</th><th>Booked</th><th>Staff Needed / Available</th><th>Role Breakdown</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          {% for row in daily_prediction.get('next_week_summary', []) %}
-            <tr>
-              <td>{{ row.date }} <span class="muted-copy">{{ row.day_name }}</span></td>
-              <td><strong>{{ row.predicted_patients }}</strong></td>
-              <td>{{ row.scheduled_appointments }}</td>
-              <td><strong>{{ row.required_staff_total }}</strong> / {{ row.available_staff_total }}</td>
-              <td title="{{ row.role_summary_text }}">{{ row.short_role_summary }}</td>
-              <td><span class="status-pill status-{{ row.status_class }}">{{ row.status }}</span></td>
-            </tr>
-          {% else %}
-            <tr><td colspan="6">No predicted daily staff demand is available for the next 7 days.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -390,10 +366,10 @@
       renderChartSafely('predictedDailyStaffChart', {
         type: 'bar',
         data: {
-          labels: predictedDailyPayload.labels,
+          labels: predictedDailyPayload.labels.slice(0, 7),
           datasets: predictedDailyPayload.datasets.map((dataset, index) => ({
             label: dataset.label,
-            data: dataset.data,
+            data: dataset.data.slice(0, 7),
             backgroundColor: colors[index % colors.length],
             borderRadius: 6
           }))

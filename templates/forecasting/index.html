@@ -116,20 +116,6 @@
 </div>
 
 <div class="chart-card">
-  <h3>Common-Diagnosis Forecast Accuracy</h3>
-  <table class="table">
-    <thead><tr><th>Metric</th><th>All Diagnoses (Overall)</th><th>Common Diagnoses Only</th></tr></thead>
-    <tbody>
-      <tr><th title="Explains unseen validation data; higher is better.">Validation R2</th><td>{{ metrics.r2_score }}</td><td>{{ metrics.common_validation_r2|default('N/A') }}</td></tr>
-      <tr><th title="Average prediction error in cases; lower is better.">Validation MAE</th><td>{{ metrics.mae }}</td><td>{{ metrics.common_validation_mae|default('N/A') }}</td></tr>
-      <tr><th title="Weights larger errors more; lower is better.">Validation RMSE</th><td>{{ metrics.rmse }}</td><td>{{ metrics.common_validation_rmse|default('N/A') }}</td></tr>
-      <tr><th title="Average of the cross-validation MAE across folds.">CV MAE Mean</th><td>{{ metrics.cv_mae_mean|default('N/A') }}</td><td>{{ metrics.common_cv_mae_mean|default('N/A') }}</td></tr>
-    </tbody>
-  </table>
-  <p class="muted-copy" style="margin-top:10px;">Common diagnoses considered: {{ metrics.common_diagnoses|join(', ') if metrics.common_diagnoses else 'Not available yet — retrain to compute.' }}</p>
-</div>
-
-<div class="chart-card">
   <h3>With vs. Without Demographics (Model Comparison)</h3>
   <p class="muted-copy" style="margin-bottom:14px;">
     Model A (used for the forecasts on this page) includes age group and gender as predictive features.
@@ -159,7 +145,7 @@
   {% endif %}
 </div>
 
-<div class="grid section-grid">
+<div class="grid demographic-forecast-grid">
   <div class="chart-card">
     <h3>Forecast by Age Group</h3>
     <div class="chart-container">
@@ -176,37 +162,37 @@
 
 <div class="chart-card">
   <h3>Top Diagnosis-Demographic Segments</h3>
-  <div class="grid demographic-comparison">
-    <div>
-      <h4 style="margin:0 0 10px;">Male</h4>
-      <table class="table">
-        <thead>
-          <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
-        </thead>
-        <tbody>
-          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'male' and item.diagnosis != 'Other Services/Cases' %}
-            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
-          {% else %}
-            <tr class="table-empty-state"><td colspan="3">No male segment forecast available yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div>
-      <h4 style="margin:0 0 10px;">Female</h4>
-      <table class="table">
-        <thead>
-          <tr><th>Diagnosis</th><th>Age Group</th><th>Forecasted Cases</th></tr>
-        </thead>
-        <tbody>
-          {% for item in summary.demographic_forecast.segments if item.gender|lower == 'female' and item.diagnosis != 'Other Services/Cases' %}
-            <tr><td>{{ item.diagnosis }}</td><td>{{ item.age_group }}</td><td>{{ item.forecasted_cases }}</td></tr>
-          {% else %}
-            <tr class="table-empty-state"><td colspan="3">No female segment forecast available yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <p class="muted-copy" style="margin-bottom:14px;">A consolidated view of the highest-impact diagnoses and their demographic breakdowns, sorted by total forecasted cases.</p>
+  <div class="table-scroll">
+    <table class="table demographic-segments-table">
+      <thead>
+        <tr>
+          <th>Diagnosis</th>
+          <th>Age Group</th>
+          <th class="gender-col">Forecasted Cases (Male)</th>
+          <th class="gender-col">Forecasted Cases (Female)</th>
+          <th>Total Cases</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in summary.demographic_forecast.segments_grouped %}
+          <tr>
+            <td><span class="diagnosis-cell">{{ row.diagnosis }}</span></td>
+            <td>{{ row.age_group }}</td>
+            <td>{{ row.male_cases }}</td>
+            <td>{{ row.female_cases }}</td>
+            <td>
+              <div class="total-cases-cell">
+                <span class="total-cases-value">{{ row.total_cases }}</span>
+                <span class="total-cases-track"><span class="total-cases-fill" style="width: {{ row.bar_percent }}%;"></span></span>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr class="table-empty-state"><td colspan="5">No demographic segment forecast available yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -263,52 +249,71 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
+  Chart.register(ChartDataLabels);
+
+  const demographicBarColor = '#0f5b8a';
+  const demographicLabelColor = '#11354f';
+
+  const demographicBarDefaults = {
+    type: 'bar',
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 36 } },
+      barPercentage: 0.65,
+      categoryPercentage: 0.8,
+      maxBarThickness: 24,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          color: demographicLabelColor,
+          font: { weight: '600' },
+          formatter: (value) => Number(value).toLocaleString()
+        }
+      },
+      scales: {
+        x: { display: false, beginAtZero: true },
+        y: { grid: { display: false } }
+      }
+    }
+  };
+
   const predictionAgeCtx = document.getElementById('predictionAgeForecastChart');
   if (predictionAgeCtx) {
+    const ageOrder = ['Child', 'Adult', 'Senior'];
+    const ageData = [...{{ summary.demographic_forecast.age_group | tojson }}].sort(
+      (a, b) => ageOrder.indexOf(a.age_group) - ageOrder.indexOf(b.age_group)
+    );
     new Chart(predictionAgeCtx, {
-      type: 'bar',
+      ...demographicBarDefaults,
       data: {
-        labels: [{% for item in summary.demographic_forecast.age_group %}'{{ item.age_group }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: ageData.map((item) => item.age_group),
         datasets: [{
-          data: [{% for item in summary.demographic_forecast.age_group %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
-          backgroundColor: ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706'],
-          borderRadius: 8
+          data: ageData.map((item) => item.forecasted_cases),
+          backgroundColor: demographicBarColor,
+          borderRadius: 4
         }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { beginAtZero: true, title: { display: true, text: 'Forecasted Cases' }, ticks: { precision: 0 } },
-          y: { grid: { display: false } }
-        }
       }
     });
   }
 
   const predictionGenderCtx = document.getElementById('predictionGenderForecastChart');
   if (predictionGenderCtx) {
+    const genderData = {{ summary.demographic_forecast.gender | tojson }};
     new Chart(predictionGenderCtx, {
-      type: 'bar',
+      ...demographicBarDefaults,
       data: {
-        labels: [{% for item in summary.demographic_forecast.gender %}'{{ item.gender }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+        labels: genderData.map((item) => item.gender),
         datasets: [{
-          data: [{% for item in summary.demographic_forecast.gender %}{{ item.forecasted_cases }}{% if not loop.last %}, {% endif %}{% endfor %}],
-          backgroundColor: ['#0f5b8a', '#c026d3', '#2ba7c5'],
-          borderRadius: 8
+          data: genderData.map((item) => item.forecasted_cases),
+          backgroundColor: demographicBarColor,
+          borderRadius: 4
         }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false } },
-          y: { beginAtZero: true, title: { display: true, text: 'Forecasted Cases' }, ticks: { precision: 0 } }
-        }
       }
     });
   }
