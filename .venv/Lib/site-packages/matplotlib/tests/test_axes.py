@@ -37,6 +37,7 @@ import matplotlib.path as mpath
 from matplotlib.projections.geo import HammerAxes
 from matplotlib.projections.polar import PolarAxes
 import matplotlib.pyplot as plt
+import matplotlib.scale as mscales
 import matplotlib.text as mtext
 import matplotlib.ticker as mticker
 import matplotlib.transforms as mtransforms
@@ -3218,6 +3219,24 @@ class TestScatter:
             plt.scatter([1, 2, 3], [1, 2, 3],
                         facecolors=["#ffffff", "#000000", "#f0f0f0"],
                             facecolor="#ffffff")
+
+    @pytest.mark.parametrize('edgecolor, facecolor, linestyle',
+                             [('red', 'blue', 'solid'),
+                              ('red', 'blue', 'dashed'),
+                              ('red', 'none', 'solid'),
+                              ('none', 'blue', 'solid')])
+    @check_figures_equal()
+    def test_empty_scatter(self, fig_test, fig_ref, edgecolor, facecolor, linestyle):
+        # Verify that a spurious marker is not plotted in the bottom-left corner
+        # https://github.com/matplotlib/matplotlib/issues/32219
+        ax_test = fig_test.subplots()
+        ax_test.scatter([], [], ec=edgecolor, fc=facecolor, ls=linestyle, clip_on=False)
+        ax_test.set_xlim(0, 1)
+        ax_test.set_ylim(0, 1)
+
+        ax_ref = fig_ref.subplots()
+        ax_ref.set_xlim(0, 1)
+        ax_ref.set_ylim(0, 1)
 
 
 def _params(c=None, xsize=2, *, edgecolors=None, **kwargs):
@@ -9262,6 +9281,24 @@ def test_shared_axes_clear(fig_test, fig_ref):
     for ax in axs.flat:
         ax.clear()
         ax.plot(x, y)
+
+
+def test_shared_axes_clear_scale(recwarn):
+    _, axs = plt.subplots(1, 2, sharey=True)
+    x = range(1, 10)
+    axs[0].loglog(x, x)
+    axs[1].loglog(x, x)
+    axs[0].clear()
+
+    assert len(recwarn) == 0
+
+    # the cleared axes has linear on both axis
+    for axis in axs[0]._axis_map.values():
+        assert isinstance(axis._scale, mscales.LinearScale)
+
+    # the linked axes becomes linear on the shared y-axis
+    assert isinstance(axs[1].xaxis._scale, mscales.LogScale)
+    assert isinstance(axs[1].yaxis._scale, mscales.LinearScale)
 
 
 def test_shared_axes_retick():

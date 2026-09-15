@@ -2,10 +2,10 @@
 """
 Module to expose more detailed version info for the installed `scipy`
 """
-version = "1.18.0"
+version = "1.18.1"
 full_version = version
 short_version = version.split('.dev')[0]
-git_revision = "54ef5423f2e4376230ec3bfda6912a07a50958e3"
+git_revision = "e4e854eaa8f18d807cd3496028e257e36caa93cc"
 release = 'dev' not in version and '+' not in version
 
 if not release:

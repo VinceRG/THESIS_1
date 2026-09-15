@@ -1,18 +1,20 @@
-"""Gemini-backed orchestration for the admin-only analytics chatbot.
+"""Gemini-backed orchestration shared by two chatbot personas: DeteK (the
+admin-only analytics assistant) and Ava (the patient-facing help widget).
 
-This module has no Flask/SQLAlchemy dependency. It is handed a `tool_registry`
-(name -> callable) built inside app.py's create_app(), because the underlying
-data functions (get_dashboard_summary, role_lookup_for_diagnosis, etc.) are
-closures over the Flask app/db and cannot be imported here directly. Every
-registered tool is expected to be read-only and to return a JSON-serializable
-dict; this module never touches the database itself.
+This module has no Flask/SQLAlchemy dependency. Each caller hands
+run_chatbot_turn a `tool_registry` (name -> callable) built inside app.py's
+create_app(), because the underlying data functions (get_dashboard_summary,
+tool_my_appointments, etc.) are closures over the Flask app/db and cannot be
+imported here directly. Every registered tool is expected to be read-only
+and to return a JSON-serializable dict; this module never touches the
+database itself.
 
 Talks to Google's Gemini API via the `google-genai` SDK, using manually
 declared function tools (not the SDK's automatic-function-calling helper) so
-the carefully-tuned tool descriptions in TOOL_SCHEMAS -- which disambiguate
-easily-confused tools like tool_predictions vs. tool_future_forecast -- are
-preserved exactly as written instead of being re-derived from Python
-docstrings.
+the carefully-tuned tool descriptions in ADMIN_TOOL_SCHEMAS/PATIENT_TOOL_SCHEMAS
+-- which disambiguate easily-confused tools like tool_predictions vs.
+tool_future_forecast -- are preserved exactly as written instead of being
+re-derived from Python docstrings.
 """
 
 import json
@@ -23,7 +25,7 @@ from google.genai import types
 MAX_TOOL_ITERATIONS = 4  # each round is a network round trip plus tool execution
 REQUEST_TIMEOUT_SECONDS = 60
 
-SYSTEM_PROMPT_TEMPLATE = """You are DeteK, an internal analytics assistant for Accudetek clinic administrators, embedded in the admin dashboard as a chat widget. If asked your name, say DeteK.
+ADMIN_SYSTEM_PROMPT_TEMPLATE = """You are DeteK, an internal analytics assistant for Accudetek clinic administrators, embedded in the admin dashboard as a chat widget. If asked your name, say DeteK.
 
 Current user: {role_label}, currently viewing: {branch_label}.
 You are only ever used by superadmin/main_admin operators. There is no lower-privilege caller to accommodate, and this assistant is not reachable by patients or branch staff.
@@ -49,14 +51,14 @@ In these forecast-plus-staffing answers specifically: never use backend/data-sci
 """
 
 
-def build_system_prompt(user_context):
-    return SYSTEM_PROMPT_TEMPLATE.format(
+def build_admin_system_prompt(user_context):
+    return ADMIN_SYSTEM_PROMPT_TEMPLATE.format(
         role_label=user_context.get('role_label', 'superadmin'),
         branch_label=user_context.get('branch_label', 'All Branches'),
     )
 
 
-TOOL_SCHEMAS = [
+ADMIN_TOOL_SCHEMAS = [
     {
         'name': 'tool_dashboard_summary',
         'description': 'Overall dashboard KPIs: total consultations, staff counts, top diagnosis, predicted next-month case load, resource readiness/capacity status, and (when viewing all branches) a per-branch breakdown.',
@@ -203,14 +205,93 @@ TOOL_SCHEMAS = [
 ]
 
 
-def _build_gemini_tools():
+PATIENT_SYSTEM_PROMPT_TEMPLATE = """You are Ava, the Accudetek Virtual Assistant -- a friendly help widget embedded on the patient-facing side of the Accudetek Health Diagnostics website. If asked your name, say Ava. You talk directly to patients and website visitors, not clinic staff.
+
+Current visitor: {patient_label}.
+
+Rules you must always follow:
+1. Answer questions about clinic services, pricing, hours, branches, and the visitor's own appointments exclusively by calling the provided tools. Never invent a price, schedule, branch detail, or appointment status that a tool did not return.
+2. tool_my_appointments only works for a signed-in patient. If it reports the visitor is not signed in, tell them plainly they need to sign in (or create an account) to see their own appointment status, and mention they can also look up a specific appointment as a guest on the "Track appointment" page using their appointment ID and email -- no account needed for that.
+3. You cannot book, reschedule, cancel, or change any appointment, and you cannot edit any profile or record yourself -- you can only answer questions and point the visitor to the right page. When someone wants to book, reschedule, or cancel, call tool_how_to_book_or_manage and walk them through it in your own words rather than reading it back verbatim.
+4. Never reveal any other patient's name, appointment, contact info, or any identifying detail. tool_my_appointments only ever returns the signed-in visitor's own records -- never imply you could look up someone else's.
+5. You may answer general, non-diagnostic health and wellness questions (e.g. "what is a lipid profile", "how should I prepare for a fasting blood test") in plain, reassuring language. Never diagnose, interpret a specific person's symptoms or results, or recommend medication or treatment -- for anything like that, gently but clearly say this needs a licensed clinician and suggest booking a consultation. Do not hedge this into a wall of disclaimers; one short, natural sentence is enough.
+6. Never reveal passwords, verification codes, tokens, internal system details, or anything about other patients, staff, or the admin side of the system.
+7. Be warm, concise, and easy to read for someone who may be anxious about a health visit. Short sentences, no jargon, no bullet-point overkill for simple answers.
+8. The conversation history provided includes prior questions and your prior answers. Short follow-ups like "what about Saturdays?" refer to the most recent exchange -- resolve them using that context without asking the visitor to repeat themselves.
+9. If a question has nothing to do with Accudetek, its services, or general wellness, gently redirect: say that's outside what you can help with here, and offer to help with clinic-related questions instead.
+"""
+
+
+def build_patient_system_prompt(user_context):
+    if user_context.get('is_signed_in'):
+        patient_label = f"Signed in as {user_context.get('patient_first_name') or 'a registered patient'}"
+    else:
+        patient_label = 'Not signed in (guest visitor)'
+    return PATIENT_SYSTEM_PROMPT_TEMPLATE.format(patient_label=patient_label)
+
+
+PATIENT_TOOL_SCHEMAS = [
+    {
+        'name': 'tool_my_appointments',
+        'description': "The signed-in visitor's own appointments -- date, time, branch, status, and requested services/packages. Returns a not-signed-in notice if there is no active patient session. Use for 'when is my appointment', 'is it confirmed', 'my appointment history'.",
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'status_filter': {'type': 'string', 'description': "Optional: 'upcoming', 'past', 'pending', 'confirmed', 'cancelled', or 'completed'. Omit to return everything, most recent first."},
+            },
+        },
+    },
+    {
+        'name': 'tool_clinic_info',
+        'description': 'Branch locations, address, contact number/email, and operating hours. Use for "where are you located", "what time do you open", "phone number", "which branches do you have".',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'branch_name': {'type': 'string', 'description': 'Optional branch name to scope the answer to. Omit to list all active branches.'},
+            },
+        },
+    },
+    {
+        'name': 'tool_services_and_pricing',
+        'description': 'Catalog of diagnostic services/tests offered, with category and price (in PHP) when available. Use for "how much does X cost", "do you offer X", "what services do you have".',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'keyword': {'type': 'string', 'description': 'Optional keyword to filter services by name or category (partial match).'},
+            },
+        },
+    },
+    {
+        'name': 'tool_packages_and_pricing',
+        'description': 'Catalog of bundled service packages (e.g. annual physical exam packages), each with how many services it includes. Use for "do you have package deals", "what is in the annual checkup package".',
+        'parameters': {'type': 'object', 'properties': {}},
+    },
+    {
+        'name': 'tool_how_to_book_or_manage',
+        'description': 'Step-by-step guidance and the relevant page for booking a new appointment, tracking a guest appointment, signing in/registering, or cancelling/rescheduling an existing appointment. Use whenever the visitor wants to DO one of these things, since you cannot perform the action yourself.',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'intent': {'type': 'string', 'description': "One of: 'book', 'track_guest', 'sign_in', 'cancel_or_reschedule'. Omit for a general overview of all of them."},
+            },
+        },
+    },
+    {
+        'name': 'tool_chatbot_help',
+        'description': 'Describes what Ava can and cannot do. Use for "what can you do" / "how do I use this" questions.',
+        'parameters': {'type': 'object', 'properties': {}},
+    },
+]
+
+
+def _build_gemini_tools(tool_schemas):
     return types.Tool(function_declarations=[
         types.FunctionDeclaration(
             name=schema['name'],
             description=schema['description'],
             parameters=schema['parameters'],
         )
-        for schema in TOOL_SCHEMAS
+        for schema in tool_schemas
     ])
 
 
@@ -234,8 +315,16 @@ def _call_gemini(client, model_name, contents, system_prompt, tools):
         raise GeminiError(f'Could not get a response from Gemini ({model_name}): {exc}') from exc
 
 
-def run_chatbot_turn(question, tool_registry, history, user_context, api_key, model_name, on_tool_call=None):
+def run_chatbot_turn(question, tool_registry, history, system_prompt, tool_schemas, api_key, model_name, on_tool_call=None):
     """Runs one chatbot turn to completion (including any tool-call round trips).
+
+    system_prompt: fully-built system instruction string for this bot/caller
+    (see build_admin_system_prompt / build_patient_system_prompt).
+
+    tool_schemas: the TOOL_SCHEMAS-shaped list matching tool_registry (see
+    ADMIN_TOOL_SCHEMAS / PATIENT_TOOL_SCHEMAS) -- kept as an explicit argument
+    rather than a module global so this function stays usable by more than
+    one bot persona at once.
 
     history: list of {'q': str, 'a': str} for prior turns in this conversation
     (most-recent-last), used so short follow-ups like "why?" resolve correctly.
@@ -251,8 +340,7 @@ def run_chatbot_turn(question, tool_registry, history, user_context, api_key, mo
         raise GeminiError('GEMINI_API_KEY is not configured.')
 
     client = genai.Client(api_key=api_key)
-    tools = _build_gemini_tools()
-    system_prompt = build_system_prompt(user_context)
+    tools = _build_gemini_tools(tool_schemas)
 
     contents = []
     for turn in history:
