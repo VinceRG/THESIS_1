@@ -5,6 +5,7 @@
 {% block page_subtitle %}Random Forest demand forecasts with forecast-based staff planning guidance{% endblock %}
 
 {% block content %}
+<p class="admin-section-description">View predicted consultation demand and trends.</p>
 {% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
 {% set model_b = metrics.model_b_without_demographics or {} %}
 {% set verdict = metrics.model_verdict %}
@@ -31,7 +32,7 @@
             data-confirm-title="Retrain Random Forest model?"
             data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit">Retrain Model</button>
+        <button class="btn" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Retrain Model</button>
       </form>
     {% else %}
       <span class="topbar-pill">Select one branch to retrain</span>
@@ -103,7 +104,7 @@
   </div>
   <div class="chart-card">
     <h3>Model Validation Results</h3>
-    <table class="table">
+    <table class="table staff-role-demand-table">
       <tbody>
         <tr><th title="Shows how well the model explains unseen validation data; higher is better.">Validation R2</th><td>{{ metrics.r2_score }}</td></tr>
         <tr><th title="Shows the average prediction error in cases; lower is better.">MAE</th><td>{{ metrics.mae }} cases</td></tr>
@@ -118,7 +119,7 @@
 <div class="chart-card">
   <h3>With vs. Without Demographics (Model Comparison)</h3>
   <p class="muted-copy" style="margin-bottom:14px;">
-    Model A (used for the forecasts on this page) includes age group and gender as predictive features.
+    Model A (used for the forecasts on this page) includes age group and sex as predictive features.
     Model B is a comparison model trained without demographic features, at diagnosis-by-month level only.
   </p>
   {% if model_b %}
@@ -129,7 +130,7 @@
       <tr><th>Validation MAE</th><td>{{ metrics.validation_mae }} cases</td><td>{{ model_b.validation_mae }} cases</td></tr>
       <tr><th>Validation RMSE</th><td>{{ metrics.validation_rmse }} cases</td><td>{{ model_b.validation_rmse }} cases</td></tr>
       <tr><th>Improvement vs Baseline</th><td>{{ metrics.improvement_vs_baseline_pct|default('N/A') }}%</td><td>{{ model_b.improvement_vs_baseline_pct|default('N/A') }}%</td></tr>
-      <tr><th>Training Grain</th><td>Diagnosis x Age Group x Gender x Month</td><td>Diagnosis x Month</td></tr>
+      <tr><th>Training Grain</th><td>Diagnosis x Age Group x Sex x Month</td><td>Diagnosis x Month</td></tr>
     </tbody>
   </table>
   <p class="muted-copy" style="margin-top:10px;">
@@ -148,12 +149,14 @@
 <div class="grid demographic-forecast-grid">
   <div class="chart-card">
     <h3>Forecast by Age Group</h3>
+    <p class="admin-section-description">Shows forecasted patient volume across age groups.</p>
     <div class="chart-container">
       <canvas id="predictionAgeForecastChart"></canvas>
     </div>
   </div>
   <div class="chart-card">
-    <h3>Forecast by Gender</h3>
+    <h3>Forecast by Sex</h3>
+    <p class="admin-section-description">Shows forecasted patient volume by sex.</p>
     <div class="chart-container">
       <canvas id="predictionGenderForecastChart"></canvas>
     </div>
@@ -233,14 +236,14 @@
 <div class="chart-card">
   <h3>Model Notes</h3>
   <p class="muted-copy">
-    The Random Forest model predicts monthly consultation demand using lag features, rolling averages, seasonality, diagnosis, age group, and gender. Doctor and staff guidance is generated after prediction by mapping forecasted diagnoses, services, and appointments to required staff roles.
+    The Random Forest model predicts monthly consultation demand using lag features, rolling averages, seasonality, diagnosis, age group, and sex. Doctor and staff guidance is generated after prediction by mapping forecasted diagnoses, services, and appointments to required staff roles.
   </p>
   {% if summary.branch_code != 'ALL' %}
     <form method="post" action="{{ url_for('retrain') }}" style="margin-top:12px;"
           data-confirm-title="Retrain Random Forest model?"
           data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <button class="btn" type="submit">Retrain from existing data</button>
+      <button class="btn" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Retrain from existing data</button>
     </form>
   {% else %}
     <p class="muted-copy" style="margin-top:12px;">Select one branch to retrain the model for branch-specific forecasting.</p>
@@ -251,10 +254,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
-  Chart.register(ChartDataLabels);
+  if (window.ChartDataLabels) Chart.register(ChartDataLabels);
 
   const demographicBarColor = '#0f5b8a';
   const demographicLabelColor = '#11354f';
+  const SEX_COLORS = Object.freeze({ male: '#2563eb', female: '#ec4899' });
+  const sexColorFor = (label) => SEX_COLORS[String(label).toLowerCase()] || SEX_COLORS.male;
 
   const demographicBarDefaults = {
     type: 'bar',
@@ -263,9 +268,9 @@
       responsive: true,
       maintainAspectRatio: false,
       layout: { padding: { right: 36 } },
-      barPercentage: 0.65,
+      barPercentage: 0.85,
       categoryPercentage: 0.8,
-      maxBarThickness: 24,
+      maxBarThickness: 34,
       plugins: {
         legend: { display: false },
         datalabels: {
@@ -311,7 +316,7 @@
         labels: genderData.map((item) => item.gender),
         datasets: [{
           data: genderData.map((item) => item.forecasted_cases),
-          backgroundColor: demographicBarColor,
+          backgroundColor: genderData.map((item) => sexColorFor(item.gender)),
           borderRadius: 4
         }]
       }
@@ -320,10 +325,16 @@
 
   const predictionStaffCtx = document.getElementById('predictionStaffForecastChart');
   const predictionStaffPayload = {{ staff_forecast.get('monthly_chart', {'labels': [], 'planning_demand': [], 'capacity': []}) | tojson }};
+  const staffChartLabelMap = {
+    'Internal Medicine Physicians': 'Internal Med. Physicians',
+    'Registered Medical Technologists': 'Medical Technologists',
+    'Laboratory Technicians': 'Lab Technicians',
+    'Registered Radiologic Technologists': 'Radiologic Technologists'
+  };
   if (predictionStaffCtx && predictionStaffPayload.labels && predictionStaffPayload.labels.length) {
     new Chart(predictionStaffCtx, {
       data: {
-        labels: predictionStaffPayload.labels,
+        labels: predictionStaffPayload.labels.map(label => staffChartLabelMap[label] || label),
         datasets: [{
           type: 'bar',
           label: 'Planning Demand',

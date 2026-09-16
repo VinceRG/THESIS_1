@@ -7,6 +7,7 @@
 {% block content %}
 {% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
 {% set daily_prediction = staff_forecast.get('daily_prediction', {}) %}
+<p class="admin-section-description">Plan staffing and resources using forecasted demand.</p>
 {% if not summary.rf_metrics %}
   <div class="flash-message flash-warning" style="margin-bottom:18px;">
     Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.

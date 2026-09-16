@@ -6,7 +6,7 @@
 
 {% block content %}
 <div class="page-actions">
-  <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary">Back to Patient Profile</a>
+  <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Patient Profile</a>
 </div>
 
 <div class="chart-card patient-profile">
@@ -71,8 +71,8 @@
       <input type="text" value="Clinic" readonly class="readonly-field">
     </label>
     <div class="form-actions form-wide">
-      <button type="submit" class="btn">Save Consultation</button>
-      <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary">Cancel</a>
+      <button type="submit" class="btn"><i class="bi bi-check-lg" aria-hidden="true"></i> Save Consultation</button>
+      <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
     </div>
   </form>
 </div>

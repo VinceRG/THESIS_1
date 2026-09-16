@@ -7,9 +7,10 @@
 
 {% block content %}
 <div class="section-stack">
+<p class="admin-section-description">Manage staff accounts, roles, and availability.</p>
 <div class="page-actions">
   {% if not all_branches_view %}
-    <a href="{{ url_for('create_staff') }}" class="btn">+ Add Staff</a>
+    <a href="{{ url_for('create_staff') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Staff</a>
   {% else %}
     <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit staff.</span>
   {% endif %}
@@ -41,7 +42,7 @@
       {{ recommendation.role }} is projected to have the highest demand for {{ recommendation.predicted_month_label }}
       (~{{ recommendation.demand }} forecasted cases). Review capacity on Resource Planning, then select the staff below to notify.
     </p>
-    <a href="{{ url_for('resources') }}" class="btn secondary">View Resource Planning</a>
+    <a href="{{ url_for('resources') }}" class="btn secondary"><i class="bi bi-diagram-3" aria-hidden="true"></i> View Resource Planning</a>
   </div>
 {% endif %}
 
@@ -87,8 +88,8 @@
       </select>
     </label>
     <div class="filter-actions">
-      <button type="submit" class="btn">Apply Filters</button>
-      <a href="{{ url_for('staff') }}" class="btn secondary">Reset</a>
+      <button type="submit" class="btn"><i class="bi bi-funnel" aria-hidden="true"></i> Apply Filters</button>
+      <a href="{{ url_for('staff') }}" class="btn secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reset</a>
     </div>
   </form>
 
@@ -115,22 +116,19 @@
                 {{ person.availability }}
               </span>
             </td>
-            <td class="staff-actions-cell">
+            <td class="admin-actions-cell staff-actions-cell">
+              <div class="admin-action-group">
               {% if not all_branches_view %}
-                <a class="btn secondary" href="{{ url_for('edit_staff', staff_id=person.id) }}">Edit</a>
-                <div class="staff-kebab">
-                  <button type="button" class="btn secondary staff-kebab-toggle" aria-label="More actions" aria-expanded="false">&#8942;</button>
-                  <div class="staff-kebab-menu" hidden>
-                    <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}"
-                          data-confirm-title="Remove staff member?"
-                          data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
-                      <button type="submit" class="staff-kebab-item">Remove Staff</button>
-                    </form>
-                  </div>
-                </div>
+                <a class="btn secondary admin-action-edit" href="{{ url_for('edit_staff', staff_id=person.id) }}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
+                <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}"
+                      data-confirm-title="Remove staff member?"
+                      data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
+                  <button type="submit" class="btn admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Remove Staff</button>
+                </form>
               {% else %}
                 <span class="muted-copy">Select branch to edit</span>
               {% endif %}
+              </div>
             </td>
           </tr>
         {% else %}
@@ -146,7 +144,7 @@
   <div class="chart-card" id="notifyPanel" hidden>
     <div class="page-heading-row">
       <strong id="notifySelectedSummary">0 staff selected</strong>
-      <button type="button" class="btn secondary" id="notifyCancelBtn">Cancel</button>
+      <button type="button" class="btn secondary" id="notifyCancelBtn"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</button>
     </div>
     <label style="display:block; margin-top:10px;">
       Message to selected staff
@@ -154,8 +152,8 @@
                 placeholder="Please be advised that additional staffing support may be needed this week based on the clinic's current resource requirements."></textarea>
     </label>
     <div class="form-actions" style="margin-top:10px;">
-      <button type="button" class="btn secondary" id="useDefaultMessageBtn">Use Default Message</button>
-      <button type="submit" form="notifySelectedForm" class="btn" id="notifySubmitBtn">Notify Selected Staff</button>
+      <button type="button" class="btn secondary" id="useDefaultMessageBtn"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Use Default Message</button>
+      <button type="submit" form="notifySelectedForm" class="btn" id="notifySubmitBtn"><i class="bi bi-envelope" aria-hidden="true"></i> Notify Selected Staff</button>
     </div>
   </div>
 {% endif %}
@@ -166,7 +164,7 @@
       <h3 style="margin-bottom:4px;">Former Staff</h3>
       <p class="muted-copy">Former staff are permanently deleted after {{ 30 }} days unless restored.</p>
     </div>
-    <button class="btn secondary" type="button" id="toggleFormerStaff">Show Former Staff</button>
+    <button class="btn secondary" type="button" id="toggleFormerStaff"><i class="bi bi-people" aria-hidden="true"></i> Show Former Staff</button>
   </div>
   <div id="formerStaffPanel" style="display:none; margin-top:16px;">
     <div class="table-scroll">
@@ -181,21 +179,23 @@
               <td>{{ person.name }}</td>
               <td>{{ person.role }}</td>
               <td>{{ person.deleted_at.strftime('%Y-%m-%d %H:%M') if person.deleted_at else '—' }}</td>
-              <td>
+              <td class="admin-actions-cell">
+                <div class="admin-action-group">
                 {% if not all_branches_view %}
                   <form method="post" action="{{ url_for('restore_staff', staff_id=person.id) }}" style="display:inline-block;"
                         data-confirm-title="Restore staff member?"
                         data-confirm="This will restore {{ person.name }} to the active staff roster. Continue?">
-                    <button type="submit" class="btn">Restore</button>
+                    <button type="submit" class="btn admin-action-restore"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Restore</button>
                   </form>
                   <form method="post" action="{{ url_for('permanent_delete_staff', staff_id=person.id) }}" style="display:inline-block; margin-left:8px;"
                         data-confirm-title="Permanently delete staff member?"
                         data-confirm="This will permanently delete {{ person.name }} and cannot be undone. Continue?">
-                    <button type="submit" class="btn danger">Delete Permanently</button>
+                    <button type="submit" class="btn danger admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Delete Permanently</button>
                   </form>
                 {% else %}
                   <span class="muted-copy">Select branch to edit</span>
                 {% endif %}
+                </div>
               </td>
             </tr>
           {% else %}

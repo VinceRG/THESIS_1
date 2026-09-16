@@ -13,6 +13,7 @@
 
 {% block content %}
 <div class="section-stack">
+<p class="admin-section-description">Manage available clinic services.</p>
 <div class="chart-card">
   <div class="page-heading-row">
     <div>
@@ -27,11 +28,11 @@
     </div>
     <div class="service-actions">
       {% if is_superadmin %}
-        <a href="{{ url_for('create_service') }}" class="btn">Add Service</a>
+        <a href="{{ url_for('create_service') }}" class="btn"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add Service</a>
         <form method="post" action="{{ url_for('import_services') }}" style="display:inline-block;"
               data-confirm-title="Sync website services?"
               data-confirm="This will import missing services from the scraped Accudetek file without overwriting edited services. Continue?">
-          <button type="submit" class="btn secondary">Sync Scraped Services</button>
+          <button type="submit" class="btn secondary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Sync Scraped Services</button>
         </form>
       {% endif %}
     </div>
@@ -52,8 +53,8 @@
       </select>
     </label>
     <div class="filter-actions">
-      <button type="submit" class="btn">Apply Filters</button>
-      <a href="{{ url_for('services') }}" class="btn secondary">Reset</a>
+      <button type="submit" class="btn"><i class="bi bi-funnel" aria-hidden="true"></i> Apply Filters</button>
+      <a href="{{ url_for('services') }}" class="btn secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reset</a>
     </div>
   </form>
 </div>
@@ -90,13 +91,15 @@
                   {{ 'Active' if service.is_active else 'Inactive' }}
                 </span>
               </td>
-              <td>
-                <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary">Edit</a>
+              <td class="admin-actions-cell">
+                <div class="admin-action-group">
+                <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary admin-action-edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
                 <form method="post" action="{{ url_for('delete_service', service_id=service.id) }}" style="display:inline-block; margin-left:8px;"
                       data-confirm-title="Delete service?"
                       data-confirm="This will delete {{ service.service_name }} if unused, or mark it inactive if it is already referenced. Continue?">
-                  <button type="submit" class="btn secondary">Delete</button>
+                  <button type="submit" class="btn secondary admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
                 </form>
+                </div>
               </td>
             </tr>
           {% else %}
@@ -121,20 +124,20 @@
           {% for setting in services.items %}
             {% set service = setting.service %}
             <tr>
-              <td>
+              <td class="service-info-cell">
                 <strong>{{ service.service_name }}</strong>
                 <div class="muted-copy">{{ service.section or 'No section' }}</div>
                 {% if is_superadmin %}
-                  <div style="margin-top:8px;">
-                    <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary">Edit Global</a>
+                  <div class="admin-action-group">
+                    <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary admin-action-edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
                     <form method="post" action="{{ url_for('delete_service', service_id=service.id) }}" style="display:inline-block; margin-left:8px;"
                           data-confirm-title="Delete service?"
                           data-confirm="This will delete {{ service.service_name }} if unused, or mark it inactive if it is already referenced. Continue?">
-                      <button type="submit" class="btn secondary">Delete Global</button>
+                      <button type="submit" class="btn admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
                     </form>
                   </div>
                 {% endif %}
-                <div class="tag-stack" style="margin-top:8px;">
+                <div class="tag-stack service-role-list">
                   {% for role in service.role_items() %}
                     <span class="tag-pill tag-primary">{{ role }}</span>
                   {% endfor %}
@@ -143,7 +146,7 @@
               <td>{{ service.category }}</td>
               <td>{{ 'PHP ' ~ service.price_php if service.price_php else 'Not set' }}</td>
               <td>
-                <form method="post" action="{{ url_for('update_branch_service', service_id=service.id) }}" class="branch-service-form"
+                <form method="post" action="{{ url_for('update_branch_service', service_id=service.id) }}" class="branch-service-form admin-branch-settings"
                       data-confirm-title="Update branch service?"
                       data-confirm="This will update service availability or branch pricing. Continue?">
                   <input type="hidden" name="page" value="{{ services.page }}">
@@ -164,7 +167,7 @@
                     Branch Notes
                     <input type="text" name="branch_notes" value="{{ setting.branch_notes or '' }}" placeholder="Optional branch note">
                   </label>
-                  <button type="submit" class="btn secondary">Save</button>
+                  <button type="submit" class="btn admin-action-save"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
                 </form>
               </td>
             </tr>
