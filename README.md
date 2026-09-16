@@ -1,755 +1,519 @@
-# 🏥 Smart Healthcare Clinic Management System
+# Smart Healthcare Clinic Management System
 
-A Flask-based **intelligent clinic management platform** with machine learning-powered consultation forecasting. This thesis project integrates patient portal management, staff dashboards, appointment scheduling, and predictive analytics using Random Forest models to optimize healthcare operations.
+A web-based healthcare clinic management system with **machine learning-powered consultation demand forecasting** for healthcare resource planning.
 
-**📚 Thesis Focus:** Machine Learning-based Consultation Demand Forecasting for Healthcare Resource Planning
+Developed as a thesis project for **Accudetek Health Diagnostics**, the system combines clinic data management with a Random Forest forecasting model to help identify consultation demand trends across different patient groups and diagnoses.
 
----
-
-## 📋 Table of Contents
-- [Features](#features)
-- [System Architecture](#system-architecture)
-- [Tech Stack](#tech-stack)
-- [Installation](#installation)
-- [Running the Application](#running-the-application)
-- [Project Structure](#project-structure)
-- [Machine Learning Model](#machine-learning-model)
-- [Key Modules](#key-modules)
-- [User Roles & Access](#user-roles--access)
-- [API Routes](#api-routes)
-- [Database Schema](#database-schema)
-- [Configuration](#configuration)
-- [Testing](#testing)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+> **Thesis Focus:** Machine Learning-Based Consultation Demand Forecasting for Healthcare Resource Planning
 
 ---
 
-## ✨ Features
+## Overview
 
-### 👥 **User Management**
-- Role-based access control (Staff, Admin, Patient)
-- Secure staff login system
-- Patient account registration with email verification
-- Six-digit email verification for security
-- Password reset functionality
-- Session management
+The Smart Healthcare Clinic Management System is designed to support healthcare staff in managing consultation records while providing data-driven insights into future consultation demand.
 
-### 🏥 **Patient Portal**
-- Profile management and history
-- View consultation records
-- Online appointment booking
-- Appointment status tracking
-- Booking confirmation and reminders
-- Service catalog browsing
-- Personal health information management
+The system uses historical consultation data to generate monthly demand forecasts based on:
 
-### 📊 **Staff Dashboard**
-- Consultation management interface
-- Appointment review and confirmation
-- Patient management
-- Consultation data entry
-- Staff resource management
-- Real-time analytics
+* Diagnosis
+* Age group
+* Gender
+* Monthly consultation patterns
+* Historical consultation volume
+* Seasonal and time-based trends
 
-### 🤖 **Machine Learning Forecasting**
-- **Random Forest Regression Model** for consultation demand prediction
-- Monthly consultation trend forecasting
-- Demographic-based predictions (age group, gender, diagnosis)
-- Hyperparameter tuning via RandomizedSearchCV
-- Time-series validation methodology
-- Model performance metrics and evaluation
-- Automatic model retraining pipeline
-
-### 📈 **Analytics & Reporting**
-- Consultation trend analysis
-- Service utilization reports
-- Staff scheduling insights
-- Forecast visualization
-- Data export capabilities
-- Performance dashboards
-
-### 🗓️ **Appointment Management**
-- Online appointment scheduling
-- Automated booking confirmations
-- Email reminders (1-day prior)
-- Appointment history tracking
-- Staff availability management
-- Cancellation handling
-
-### 🔒 **Security Features**
-- Password hashing with werkzeug
-- Email verification via secure tokens
-- Session-based authentication
-- CSRF protection
-- Secure file uploads
-- SQL injection prevention via SQLAlchemy ORM
+The forecasting component is intended to support **planning and resource allocation**, rather than replace clinical decision-making.
 
 ---
 
-## 🏗️ System Architecture
+## Key Features
 
-```
-Smart Healthcare Clinic Management
-│
-├── Frontend Layer
-│   ├── Landing Page
-│   ├── Staff Portal
-│   │   ├── Dashboard
-│   │   ├── Consultations
-│   │   ├── Appointments
-│   │   ├── Forecasting
-│   │   ├── Reports
-│   │   └── Settings
-│   │
-│   └── Patient Portal
-│       ├── Dashboard
-│       ├── Appointments
-│       ├── Profile
-│       └── Health Records
-│
-├── Backend Layer (Flask)
-│   ├── Authentication Module
-│   ├── Appointment Management
-│   ├── Consultation Tracking
-│   ├── Forecasting Engine
-│   ├── Email Service
-│   ├── File Upload Handler
-│   ├── Data Processing Pipeline
-│   └── Analytics Module
-│
-├── Machine Learning Layer
-│   ├── Random Forest Model
-│   ├── Feature Engineering
-│   ├── Model Training Pipeline
-│   ├── Hyperparameter Tuning
-│   └── Prediction Engine
-│
-└── Data Layer
-    └── SQLite Database
-        ├── Users
-        ├── Consultations
-        ├── Appointments
-        ├── Staff
-        └── Services
+### Consultation Management
+
+* Record and manage consultation information
+* Track diagnosis, demographic information, service type, and consultation dates
+* Search and review consultation records
+* Organize historical consultation data for analytics
+
+### Patient Management
+
+* Patient account registration and authentication
+* Patient profile management
+* Consultation history
+* Health information management
+* Secure email verification
+
+### Appointment Management
+
+* Online appointment requests
+* Appointment status tracking
+* Staff confirmation and cancellation
+* Appointment history
+* Reminder notifications
+
+### Analytics Dashboard
+
+* Consultation volume overview
+* Monthly consultation trends
+* Diagnosis distribution
+* Demographic breakdowns
+* Forecast visualization
+* Resource planning insights
+
+### Machine Learning Forecasting
+
+The system uses **Random Forest Regression** to forecast monthly consultation demand.
+
+The model considers:
+
+* Diagnosis
+* Age group
+* Gender
+* Month
+* Seasonal patterns
+* Previous consultation volumes
+* Lagged consultation values
+* Rolling statistics
+* Historical trends
+
+The forecasting output is intended to help clinic administrators understand potential changes in consultation demand and prepare resources accordingly.
+
+---
+
+## Machine Learning Approach
+
+### Algorithm
+
+**Random Forest Regression**
+
+The forecasting pipeline transforms consultation records into monthly time-series observations at the:
+
+```text
+Diagnosis × Age Group × Gender × Month
 ```
 
+level.
+
+Temporal features are then generated from the resulting monthly series.
+
+### Features
+
+The model can use:
+
+* Monthly seasonality
+* Time index
+* 1-month lag
+* 2-month lag
+* 3-month lag
+* 6-month lag
+* 12-month lag
+* Rolling averages
+* Rolling standard deviation
+* Recent trends
+* Historical seasonal patterns
+
+### Validation
+
+The forecasting system uses time-aware validation rather than randomly mixing historical and future observations.
+
+Evaluation includes:
+
+* Mean Absolute Error (MAE)
+* Mean Squared Error (MSE)
+* Root Mean Squared Error (RMSE)
+* R² Score
+
+A naive previous-period forecasting baseline is also used for comparison.
+
 ---
 
-## 💻 Tech Stack
+## Dataset
+
+The project uses consultation data structured according to the consultation-record format provided for the thesis project.
+
+The dataset contains historical consultation records covering:
+
+```text
+January 2023 – August 2026
+```
+
+For model development, historical data is separated into training and evaluation periods to preserve the chronological nature of forecasting.
+
+The project does **not** represent the data as a real-time clinical dataset or as a complete medical record of all Accudetek patients.
+
+---
+
+## System Architecture
+
+The application follows a layered architecture:
+
+```text
+┌─────────────────────────────────────┐
+│           Web Interface             │
+│  Staff Portal / Patient Portal      │
+└──────────────────┬──────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────┐
+│          Flask Application           │
+│ Authentication • Records • Reports  │
+│ Appointments • Forecasting • Email  │
+└──────────────────┬──────────────────┘
+                   │
+          ┌────────┴────────┐
+          ▼                 ▼
+┌──────────────────┐ ┌──────────────────┐
+│ Clinic Database  │ │ ML Forecasting   │
+│                  │ │                  │
+│ Users            │ │ Feature          │
+│ Consultations    │ │ Engineering      │
+│ Appointments     │ │ Random Forest    │
+│ Staff            │ │ Prediction       │
+│ Services         │ │ Evaluation       │
+└──────────────────┘ └──────────────────┘
+```
+
+---
+
+## Technology Stack
 
 ### Backend
-- **Flask 3.0.3** - Web framework
-- **Flask-SQLAlchemy 3.1.1** - ORM and database management
-- **python-dotenv 1.0.1** - Environment variable management
 
-### Machine Learning & Data Science
-- **scikit-learn 1.5.2** - Random Forest, feature scaling, model evaluation
-- **pandas 2.2.3** - Data manipulation and processing
-- **numpy 2.1.0** - Numerical computations
-- **matplotlib ≥3.9.0** - Data visualization
-- **joblib 1.4.0** - Model serialization
+* Python
+* Flask
+* Flask-SQLAlchemy
+* SQLAlchemy
+* python-dotenv
 
-### Data Handling
-- **openpyxl 3.1.0** - Excel file support for data imports
+### Machine Learning
 
-### Database
-- **SQLite** - Lightweight, file-based relational database
+* scikit-learn
+* pandas
+* NumPy
+* joblib
 
 ### Frontend
-- **HTML5** - Structure
-- **CSS3** - Styling
-- **JavaScript** - Interactivity
+
+* HTML5
+* CSS3
+* JavaScript
+* Bootstrap
+* Tailwind CSS
+
+### Database
+
+* SQLite for local development
+* MySQL-compatible database for deployment
+
+### Development Tools
+
+* Git
+* GitHub
+* Visual Studio Code
+* pytest
 
 ---
 
-## 🚀 Installation
+## Project Structure
 
-### Prerequisites
-- Python 3.10 or higher
-- pip (Python package manager)
-- Virtual environment support
+```text
+THESIS_1/
+│
+├── app.py
+├── requirements.txt
+├── .env
+├── .gitignore
+├── LICENSE
+│
+├── static/
+│   ├── css/
+│   ├── js/
+│   └── images/
+│
+├── templates/
+│   ├── auth/
+│   ├── dashboard/
+│   ├── appointments/
+│   ├── consultations/
+│   ├── forecasting/
+│   └── patient/
+│
+├── scripts/
+│
+├── tests/
+│
+├── instance/
+│
+├── screenshots/
+│
+├── model_training_evaluation_report.md
+├── SETUP.md
+└── README.md
+```
 
-### Step 1: Clone the Repository
+---
+
+## Installation
+
+### Requirements
+
+* Python 3.10 or later
+* pip
+* Git
+
+### 1. Clone the repository
+
 ```bash
 git clone https://github.com/VinceRG/THESIS_1.git
-cd THESIS_1-main
+cd THESIS_1
 ```
 
-### Step 2: Create Virtual Environment
+### 2. Create a virtual environment
+
+#### Windows
+
 ```bash
-# On Windows
-python -m venv .venv
-.\.venv\Scripts\activate
-
-# On macOS/Linux
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+venv\Scripts\activate
 ```
 
-### Step 3: Install Dependencies
+#### macOS / Linux
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install dependencies
+
 ```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### Step 4: Environment Configuration
-Create a `.env` file in the project root (optional for email features):
+### 4. Configure environment variables
+
+Create a `.env` file in the project root.
+
+Example:
+
 ```env
+SECRET_KEY=your-secret-key
+
 MAIL_SERVER=smtp.gmail.com
 MAIL_PORT=587
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_app_password
-MAIL_USE_TLS=True
-FLASK_ENV=development
-FLASK_DEBUG=True
+MAIL_USE_TLS=true
+MAIL_USERNAME=your-email@example.com
+MAIL_PASSWORD=your-app-password
 ```
+
+Do not commit `.env` or other credentials to the repository.
 
 ---
 
-## ▶️ Running the Application
+## Running the Application
 
-### Development Mode
+Start the Flask application with:
+
 ```bash
 python app.py
 ```
 
-Access the application at: **http://127.0.0.1:5000/**
+The application will normally be available at:
 
-### Initial Access
-- **Staff Portal:** Choose "Staff Portal" on the landing page
-- **Patient Portal:** Choose "Patient Portal" or register a new account
-
-### Appointment Reminders
-To send 1-day advance appointment reminders (requires Windows Task Scheduler or cron job):
-
-```bash
-python -m flask --app app send-appointment-reminders
+```text
+http://127.0.0.1:5000/
 ```
 
-This can be scheduled as a daily automated task.
+For development, use a separate test database and test email configuration where possible.
 
 ---
 
-## 📁 Project Structure
+## Forecasting Workflow
 
+The machine learning workflow follows these general steps:
+
+```text
+Consultation Records
+        │
+        ▼
+Data Preparation
+        │
+        ▼
+Monthly Aggregation
+        │
+        ▼
+Diagnosis × Age × Gender Segmentation
+        │
+        ▼
+Temporal Feature Engineering
+        │
+        ▼
+Random Forest Regression
+        │
+        ▼
+Model Evaluation
+        │
+        ▼
+Monthly Consultation Forecast
+        │
+        ▼
+Dashboard Visualization
 ```
-THESIS_1-main/
-├── app.py                              # Main Flask application (5,600+ lines)
-├── requirements.txt                    # Python dependencies
-├── .env                               # Environment variables (optional)
-├── .gitignore                         # Git ignore rules
-│
-├── instance/
-│   └── clinic.db                      # SQLite database (auto-created)
-│
-├── static/                            # Static assets
-│   ├── css/                           # Stylesheets
-│   │   ├── dashboard.css
-│   │   ├── patient_portal.css
-│   │   ├── forecasting.css
-│   │   └── ...
-│   ├── js/                            # JavaScript files
-│   ├── Screenshot 2026-07-09.png      # Demo image
-│   └── acudetek.jfif                  # Logo/branding
-│
-├── templates/                         # HTML templates
-│   ├── landing.html                   # Entry point
-│   ├── layouts/                       # Base templates
-│   │   ├── staff_base.html
-│   │   └── patient_base.html
-│   ├── auth/                          # Authentication pages
-│   │   ├── staff_login.html
-│   │   ├── patient_register.html
-│   │   └── patient_login.html
-│   ├── dashboard/                     # Dashboard pages
-│   ├── consultations/                 # Consultation pages
-│   ├── appointments/                  # Appointment management
-│   ├── forecasting/                   # Prediction interface
-│   ├── reports/                       # Analytics & reports
-│   ├── staff/                         # Staff management
-│   ├── services/                      # Service catalog
-│   ├── patient_portal/                # Patient-facing pages
-│   └── ...
-│
-├── scripts/                           # Utility scripts
-│   └── screenshot_routes.py           # Screenshot generation utility
-│
-├── tests/                             # Unit and integration tests
-│   └── test_app.py                    # Test suite
-│
-├── scrape_accudetek_services.py       # Data scraping utility
-├── model_training_evaluation_report.md # ML model documentation
-├── README.md                          # Quick start guide
-├── SETUP.md                           # Local setup instructions
-└── screenshots/                       # Application screenshots
-    ├── admin/                         # Admin interface screenshots
-    └── patient/                       # Patient portal screenshots
-```
+
+The forecasting model is designed to provide an estimate of consultation demand based on historical patterns.
+
+It should be interpreted as a **planning and analytical tool**, not as a medical diagnostic system.
 
 ---
 
-## 🤖 Machine Learning Model
-
-### Model Architecture
-- **Algorithm:** Random Forest Regression
-- **Purpose:** Forecast monthly consultation demand
-- **Prediction Granularity:** Diagnosis × Age Group × Gender × Month
-
-### Dataset Details
-| Metric | Value |
-|--------|-------|
-| Source Records | 10,129 consultation records (Jan 2023 - Aug 2026) |
-| Training Period | Jan 2023 - Dec 2025 |
-| Training Records | 3,672 aggregated monthly segments |
-| Diagnoses Modeled | 17 primary + "Other" category |
-| Age Groups | 3 (pediatric, adult, geriatric) |
-| Gender Categories | 2 (Male, Female) |
-
-### Feature Engineering
-The model incorporates sophisticated temporal features:
-
-- **Temporal Features:**
-  - Monthly seasonality (sine/cosine encoding)
-  - Time index
-  
-- **Lag Features:**
-  - 1, 2, 3, 6, and 12-month lags
-  
-- **Rolling Statistics:**
-  - 3-month and 6-month rolling averages
-  - Rolling standard deviation
-  
-- **Trend Indicators:**
-  - Recent trend calculation
-  - Historical seasonality patterns
-
-### Model Validation
-- **Approach:** Time-Series Cross-Validation (no data leakage)
-- **Train/Test Split:** 30 months training, 6 months validation
-- **Validation Period:** July 2025 - December 2025
-- **Baseline:** Naive forecast (previous month = next month)
-
-### Hyperparameter Tuning
-- **Method:** RandomizedSearchCV
-- **Tuned Parameters:**
-  - n_estimators
-  - max_depth
-  - min_samples_split
-  - min_samples_leaf
-  
-### Performance Metrics
-The model predicts consultation volume with:
-- Mean Absolute Error (MAE)
-- Mean Squared Error (MSE)
-- R² Score (coefficient of determination)
-- RMSE (Root Mean Squared Error)
-
-### Model Training Routes
-```python
-# Fast training (for uploads, fixed parameters)
-POST /upload → train_and_evaluate_model(fast=True)
-
-# Full tuning (for administrators, hyperparameter search)
-POST /retrain → train_and_evaluate_model(fast=False)
-```
-
-### Model Persistence
-- Trained model saved via `joblib` for quick loading
-- Can be retrained at any time via admin interface
-- Supports incremental updates with new data
-
----
-
-## 🔑 Key Modules
-
-### Authentication (`auth/` routes)
-```python
-/auth/staff-login        # Staff login
-/auth/patient-register   # Patient registration
-/auth/patient-login      # Patient login
-/auth/logout            # Session termination
-/auth/verify-email/<token>  # Email verification
-```
-
-### Dashboard (`dashboard/` routes)
-```python
-/dashboard              # Main admin dashboard
-/dashboard/stats       # Dashboard statistics
-/dashboard/consultations   # Consultation overview
-```
-
-### Consultation Management (`consultations/` routes)
-```python
-/consultations         # List consultations
-/consultations/new     # Create consultation
-/consultations/<id>    # View consultation
-/consultations/<id>/edit  # Edit consultation
-```
-
-### Appointment Management (`appointments/` routes)
-```python
-/appointments          # List appointments
-/appointments/book     # New appointment
-/appointments/<id>/confirm  # Staff confirmation
-/appointments/<id>/cancel   # Cancellation
-```
-
-### Forecasting (`forecasting/` routes)
-```python
-/forecasting           # Forecast interface
-/forecasting/predict   # Generate predictions
-/forecasting/data      # Forecast data export
-```
-
-### Patient Portal (`patient/` routes)
-```python
-/patient/dashboard     # Patient dashboard
-/patient/appointments  # Patient appointment history
-/patient/health-records  # Medical records
-/patient/profile       # Profile management
-```
-
-### Admin & Settings
-```python
-/settings              # System settings
-/admin/users          # User management
-/admin/services       # Service management
-/audit-logs           # Action audit trail
-```
-
----
-
-## 👥 User Roles & Access
+## User Roles
 
 ### Staff
-- **Capabilities:**
-  - View all patients and consultations
-  - Manage appointments (confirm, cancel)
-  - Enter and update consultation data
-  - Access forecasting dashboard
-  - Generate reports
-  - Manage services and packages
-  - View audit logs
 
-### Patients
-- **Capabilities:**
-  - Register and login
-  - View personal dashboard
-  - Book appointments online
-  - Check appointment status
-  - Manage profile
-  - View consultation history
-  - Receive appointment reminders
+Staff users can:
 
-### System Admin
-- **Capabilities:**
-  - All staff capabilities
-  - User account management
-  - System settings
-  - Model retraining
-  - Data import/export
-  - Full audit trail access
+* Manage consultation records
+* Review patient information
+* Manage appointments
+* Access forecasting and analytics
+* Review clinic service information
 
----
+### Administrator
 
-## 🛣️ API Routes
+Administrators have additional management capabilities, including:
 
-### Public Routes
-```
-GET  /                     # Landing page
-GET  /auth/staff-login     # Staff login form
-GET  /auth/patient-login   # Patient login form
-GET  /auth/patient-register # Registration form
-POST /auth/staff-login     # Process staff login
-POST /auth/patient-login   # Process patient login
-POST /auth/patient-register # Process registration
-```
+* User management
+* System configuration
+* Data management
+* Forecasting administration
+* Administrative reporting
 
-### Authenticated Staff Routes
-```
-GET/POST /dashboard                    # Main dashboard
-GET/POST /consultations                # Consultation list
-GET/POST /consultations/new            # New consultation
-GET/POST /appointments                 # Appointment management
-GET/POST /forecasting                  # Forecast interface
-POST     /forecasting/predict           # Generate predictions
-GET/POST /reports                      # Reports
-GET/POST /services                     # Service management
-```
+### Patient
 
-### Authenticated Patient Routes
-```
-GET /patient/dashboard                 # Patient dashboard
-GET /patient/appointments              # My appointments
-POST /patient/appointments/book        # Book appointment
-GET /patient/health-records            # Health records
-GET/POST /patient/profile              # Profile management
-```
+Patients can:
 
-### Admin Routes
-```
-GET/POST /admin/users                  # User management
-GET/POST /admin/services               # Service management
-GET      /admin/settings               # System settings
-GET      /audit-logs                   # Audit trail
-POST     /upload                       # Data import (CSV/Excel)
-POST     /retrain                      # Model retraining
-```
+* Create an account
+* Manage their profile
+* View consultation history
+* Request appointments
+* Track appointment status
+* Receive system notifications
 
 ---
 
-## 🗄️ Database Schema
+## Security
 
-### Users Table
-```sql
-users (
-    id INTEGER PRIMARY KEY,
-    email VARCHAR UNIQUE NOT NULL,
-    password_hash VARCHAR NOT NULL,
-    first_name VARCHAR,
-    last_name VARCHAR,
-    role VARCHAR (staff/patient/admin),
-    email_verified BOOLEAN,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-)
-```
+The application includes standard web application security practices such as:
 
-### Consultations Table
-```sql
-consultations (
-    id INTEGER PRIMARY KEY,
-    patient_id INTEGER,
-    staff_id INTEGER,
-    consultation_date DATETIME,
-    diagnosis VARCHAR,
-    description TEXT,
-    service_type VARCHAR,
-    age_group VARCHAR,
-    gender VARCHAR,
-    created_at TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES users(id),
-    FOREIGN KEY (staff_id) REFERENCES users(id)
-)
-```
+* Password hashing
+* Session-based authentication
+* Role-based access control
+* Email verification
+* Secure tokens
+* CSRF protection
+* ORM-based database access
+* Environment-based secret configuration
 
-### Appointments Table
-```sql
-appointments (
-    id INTEGER PRIMARY KEY,
-    patient_id INTEGER,
-    staff_id INTEGER,
-    appointment_date DATETIME,
-    service_type VARCHAR,
-    status VARCHAR (pending/confirmed/cancelled),
-    notes TEXT,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    reminder_sent BOOLEAN,
-    FOREIGN KEY (patient_id) REFERENCES users(id)
-)
-```
-
-### Services Table
-```sql
-services (
-    id INTEGER PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    description TEXT,
-    category VARCHAR,
-    is_available BOOLEAN,
-    created_at TIMESTAMP
-)
-```
+Sensitive credentials and environment configuration should never be committed to the repository.
 
 ---
 
-## ⚙️ Configuration
+## Design
 
-### Email Configuration
-The application supports appointment reminders via email. Configure in `.env`:
+The system uses a custom **High-Contrast Utilitarian** visual theme designed for clarity and efficient use in an administrative healthcare environment.
 
-```env
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_app_password  # Use Gmail App Password
-MAIL_USE_TLS=True
-```
+### Core Design Tokens
 
-### Database Configuration
-SQLite is used by default. To change:
+| Role           | Color     |
+| -------------- | --------- |
+| Primary        | `#00477F` |
+| Background     | `#EEF1F4` |
+| Surface        | `#FFFFFF` |
+| Text           | `#10151C` |
+| Secondary Text | `#3A4451` |
+| Success        | `#146C2E` |
+| Warning        | `#8A4B00` |
+| Error          | `#A11D1D` |
+| Border         | `#1B2531` |
+| Focus          | `#C95A00` |
 
-```python
-# In app.py
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/clinic.db'
-# Or for MySQL:
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://user:password@localhost/clinic'
-```
-
-### Flask Configuration
-```python
-app.config['SECRET_KEY'] = 'your-secret-key'
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
-```
+The interface prioritizes readability, clear hierarchy, strong contrast, and practical information presentation over decorative visual effects.
 
 ---
 
-## 🧪 Testing
+## Open-Source Technologies
 
-Run the test suite:
+This project uses open-source technologies and libraries, including:
 
-```bash
-# Using pytest (recommended)
-pip install pytest
-pytest tests/
+* Flask
+* Bootstrap
+* Tailwind CSS
+* SQLAlchemy
+* pandas
+* NumPy
+* scikit-learn
+* joblib
 
-# Or using unittest
-python -m unittest tests.test_app
-```
+Their respective licenses remain applicable to their original software.
 
-Test coverage includes:
-- User authentication
-- Appointment management
-- Consultation tracking
-- Email verification
-- ML model predictions
-- Data upload/import
+The project's own source code is distributed under the license included in this repository.
 
 ---
 
-## 🔧 Troubleshooting
+## Documentation
 
-### Common Issues
+Additional technical documentation is maintained separately from this public README.
 
-#### Database Missing
-```
-Error: instance/clinic.db not found
-```
-**Solution:** Run the app once - database will auto-create
-```bash
-python app.py
-```
+For deeper development and handoff information, see:
 
-#### Port Already in Use
-```
-Error: Address already in use
-```
-**Solution:** Change port or kill existing process
-```bash
-python app.py  # App will use next available port
-```
+* `SETUP.md`
+* `model_training_evaluation_report.md`
 
-#### Email Verification Not Working
-**Check:**
-- `.env` file has correct credentials
-- Gmail account has "Less secure app access" enabled OR use App Password
-- SMTP settings are correct
-
-#### Virtual Environment Issues
-**Solution:**
-```bash
-# Remove and recreate
-rmdir .venv  # or rm -rf .venv on Linux
-python -m venv .venv
-.\.venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-```
-
-#### Import Errors After Dependencies Install
-```bash
-# Clear Python cache
-find . -type d -name __pycache__ -exec rm -r {} +
-# Reinstall
-pip install -r requirements.txt --force-reinstall
-```
+These documents contain implementation-oriented information that is intentionally kept separate from the public project overview.
 
 ---
 
-## 🤝 Contributing
+## Academic Context
 
-### Development Workflow
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes and test locally
-3. Commit with clear messages: `git commit -m "Add feature: description"`
-4. Push to branch: `git push origin feature/your-feature`
-5. Create Pull Request with detailed description
+This system was developed as part of a Bachelor of Science in Computer Science thesis at:
 
-### Code Standards
-- Follow PEP 8 for Python
-- Use meaningful variable/function names
-- Add docstrings for functions
-- Comment complex logic
-- Test before submitting
+**Pamantasan ng Lungsod ng Pasig**
 
-### Report Issues
-Include:
-- Python version
-- Operating system
-- Steps to reproduce
-- Error messages/logs
-- Screenshots if applicable
+### Thesis
+
+**Smart Healthcare Clinic Management: Predicting Consultation Case Trends at Accudetek Health Diagnostics Using Random Forest Approach**
+
+The project explores the use of machine learning-based forecasting to support healthcare consultation demand analysis and resource planning.
 
 ---
 
-## 📄 License
+## Limitations
 
-This project is licensed under the MIT License - see LICENSE file for details.
+The forecasting component has several important limitations:
 
----
-
-## 👨‍💼 Author & Thesis Information
-
-**Student:** Vince Gonato  
-**Institution:** [Your University]  
-**Program:** Bachelor of Science in Computer Science  
-**Thesis Title:** Smart Healthcare Clinic Management System with Machine Learning-Based Consultation Forecasting  
-**Year:** 2026
+* Predictions depend on the quality and availability of historical consultation data.
+* Forecasts represent statistical estimates rather than guaranteed future demand.
+* The system is intended for operational planning and analytics.
+* It is not designed to provide medical diagnosis or treatment recommendations.
+* Forecast performance may change as consultation patterns change over time.
 
 ---
 
-## 📚 Additional Resources
+## License
 
-- [Flask Documentation](https://flask.palletsprojects.com/)
-- [SQLAlchemy ORM](https://docs.sqlalchemy.org/)
-- [scikit-learn RandomForest](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html)
-- [Pandas for Data Manipulation](https://pandas.pydata.org/)
-- [Time Series Forecasting Best Practices](https://otexts.com/fpp2/)
+This project is licensed under the **MIT License**.
 
-### Related Documentation
-- `SETUP.md` - Detailed local setup instructions
-- `model_training_evaluation_report.md` - Complete ML model analysis
-- `requirements.txt` - Exact dependency versions
+See the [`LICENSE`](LICENSE) file for the complete license text.
+
+Third-party libraries and frameworks remain subject to their respective licenses.
 
 ---
 
-## 🎓 Academic References
+## Author
 
-This system demonstrates:
-- **Software Engineering:** Multi-tier architecture, design patterns, security
-- **Data Science:** Feature engineering, time-series analysis, model validation
-- **Machine Learning:** Random Forest, hyperparameter tuning, cross-validation
-- **Database Design:** Relational modeling, normalization, integrity
-- **Web Development:** User authentication, session management, responsive design
+**Vince Gonato**
 
----
+Bachelor of Science in Computer Science
+Pamantasan ng Lungsod ng Pasig
 
-## 📞 Support
-
-For questions or support:
-- Check documentation in `/docs`
-- Review existing issues in GitHub
-- Contact maintainer: [your-email@example.com]
-
----
-
-**Last Updated:** August 2026  
-**Version:** 1.0.0  
-**Status:** Production Ready ✅
-
----
-
-Made with ❤️ for better healthcare management through intelligent forecasting
+2026
