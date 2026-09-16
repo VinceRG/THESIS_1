@@ -499,6 +499,27 @@ The forecasting component has several important limitations:
 
 ---
 
+## Credits
+
+This project's interface is built on two open-source CSS libraries, both used under the MIT License:
+
+* **Bootstrap v5.3.8** — Copyright (c) 2011–2026 The Bootstrap Authors
+  [Bootstrap License](https://github.com/twbs/bootstrap/blob/main/LICENSE?utm_source=chatgpt.com)
+
+* **Tailwind CSS v4.3.3** — Copyright (c) Tailwind Labs, Inc.
+  [Tailwind CSS License](https://github.com/tailwindlabs/tailwindcss/blob/main/LICENSE?utm_source=chatgpt.com)
+
+Neither library has been modified. Both are used as dependencies and restyled through their documented customization mechanisms, including Bootstrap Sass variables and Tailwind CSS's `@theme` layer.
+
+The **High-Contrast Utilitarian** theme layer and custom styling in this repository are the work of **Vince Gonato** and are released under the MIT License. See the [`LICENSE`](LICENSE) file for the full terms.
+
+### Attribution Locations
+
+* **README.md** — Credits section
+* **LICENSE** — MIT License for the project and its custom theme layer
+* 
+---
+
 ## License
 
 This project is licensed under the **MIT License**.
