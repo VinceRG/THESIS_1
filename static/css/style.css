@@ -1417,12 +1417,6 @@ body.admin-app .flash-success {
   background:#E7F3EA;
   color:var(--success);
 }
-body.admin-app .status-healthy::before,
-body.admin-app .status-available::before,
-body.admin-app .flash-success::before {
-  content:"OK";
-  font-size:10px;
-}
 body.admin-app .status-moderate,
 body.admin-app .status-busy,
 body.admin-app .flash-warning,
@@ -1872,11 +1866,11 @@ body.admin-app .section-stack { gap:18px; }
 body.admin-app .content > .admin-section-description {
   margin:0 0 10px;
 }
-body.admin-app .section-heading + .section-subcopy { margin-top:4px; }
+body.admin-app .section-heading + .section-subcopy { margin-top:-8px; }
 body.admin-app .section-subcopy + .grid,
 body.admin-app .section-subcopy + .chart-card { margin-top:0; }
 body.admin-app .section-heading {
-  margin:14px 0 0;
+  margin:12px 0 0;
   color:var(--text);
   font-size:18px;
   font-weight:700;
@@ -2085,6 +2079,9 @@ body.admin-app .upload-state-item.is-current { border-color:var(--secondary); ba
   body.admin-app .topbar-link { width:auto; }
   body.admin-app .btn { width:auto; }
 }
+body.admin-app .page-heading-row {
+  margin-bottom: 16px;
+}
 
 /* Reusable admin table controls: keep actions and editable statuses aligned
    across staff, patient, branch, service, package, and appointment tables. */
@@ -2095,8 +2092,8 @@ body.admin-app .admin-actions-cell {
   white-space:nowrap;
 }
 body.admin-app .admin-actions-cell.staff-actions-cell {
-  width:150px;
-  min-width:150px;
+  width:auto;
+  min-width:170px;
 }
 body.admin-app .admin-action-group {
   display:flex;
@@ -2114,8 +2111,8 @@ body.admin-app .admin-action-group .staff-kebab {
 }
 body.admin-app .admin-actions-cell .btn,
 body.admin-app .admin-action-group .btn {
-  width:78px;
-  min-width:78px;
+  width:auto;
+  min-width:72px;
   min-height:34px;
   padding:7px 9px;
   font-size:12px;
@@ -2136,7 +2133,7 @@ body.admin-app .admin-action-group .admin-action-icon-only {
   padding:7px 0;
 }
 body.admin-app .admin-action-group .admin-action-icon-only > span { margin-right:0; }
-body.admin-app .admin-action-group .admin-action-delete { width:92px; min-width:92px; }
+body.admin-app .admin-action-group .admin-action-delete { width:auto; min-width:92px; }
 body.admin-app .admin-action-group .admin-action-toggle { width:104px; min-width:104px; }
 body.admin-app .admin-action-group .admin-action-archive { width:94px; min-width:94px; }
 body.admin-app .admin-action-group .admin-action-restore { width:100px; min-width:100px; }
@@ -2197,11 +2194,33 @@ body.admin-app .admin-status-action {
   border-radius:6px;
   font-size:12px;
 }
-body.admin-app .service-info-cell .branch-service-form {
+body.admin-app .service-info-cell {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+body.admin-app .service-info-cell .muted-copy {
+  margin:0;
+}
+body.admin-app .admin-action-group {
+  margin:0;
+}
+
+body.admin-app .service-table td.service-info-cell,
+body.admin-app .service-table td:nth-child(2),
+body.admin-app .service-table td:nth-child(3) {
+  vertical-align:middle;
+}
+
+body.admin-app .admin-branch-settings {
   min-width:300px;
   gap:6px 10px;
   grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
   align-items:end;
+  padding:14px;
+  border:1px solid var(--admin-line);
+  border-radius:8px;
+  background:#FAFBFC;
 }
 body.admin-app .admin-branch-settings .toggle-line,
 body.admin-app .admin-branch-settings > .muted-copy,
@@ -2252,6 +2271,10 @@ body.admin-app .demographic-segments-table .gender-col,
 body.admin-app .demographic-segments-table .total-cases-cell {
   text-align:center;
 }
+body.admin-app .service-info-cell > strong { order: 1; }
+body.admin-app .service-info-cell > .muted-copy { order: 2; }
+body.admin-app .service-info-cell > .tag-stack { order: 3; }
+body.admin-app .service-info-cell > .admin-action-group { order: 4; }
 body.admin-app .demographic-segments-table .total-cases-cell {
   justify-content:center;
 }
@@ -2285,7 +2308,7 @@ body.admin-app .service-table .service-info-cell {
   text-align:left;
 }
 body.admin-app .service-table .admin-action-group {
-  justify-content:center;
+  justify-content:flex-start;
 }
 body.admin-app .status-pill,
 body.admin-app .staff-status {
@@ -2294,6 +2317,13 @@ body.admin-app .staff-status {
 body.admin-app .admin-actions-cell,
 body.admin-app .admin-status-cell {
   text-align:center;
+}
+body.admin-app .service-info-cell .admin-action-group {
+  margin-left: 0;
+  margin-right: 0;
+  width: auto;
+  align-self: flex-start;
+  justify-content: flex-start;
 }
 body.admin-app .admin-action-group,
 body.admin-app .admin-status-control {

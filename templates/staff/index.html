@@ -7,11 +7,9 @@
 
 {% block content %}
 <div class="section-stack">
-<p class="admin-section-description">Manage staff accounts, roles, and availability.</p>
-<div class="page-actions">
+<div class="page-heading-row">
   {% if not all_branches_view %}
-    <a href="{{ url_for('create_staff') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Staff</a>
-  {% else %}
+    <a href="{{ url_for('create_staff') }}" class="btn" style="visibility:hidden;"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Staff</a>  {% else %}
     <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit staff.</span>
   {% endif %}
 </div>
@@ -54,15 +52,22 @@
 
 <div class="chart-card">
   <div class="page-heading-row">
-    <h3 style="margin:0;">Active Staff</h3>
-    <span class="muted-copy">
-      {% if search_query or role_filter or availability_filter %}
-        {{ active_staff.total }} of {{ total_active }} staff member{{ '' if total_active == 1 else 's' }} (filtered)
+  <div>
+      <h3 style="margin:0;">Active Staff</h3>
+        <span class="status-pill status-healthy" style="margin-top:6px;">
+          {% if search_query or role_filter or availability_filter %}
+            {{ active_staff.total }} of {{ total_active }} staff member{{ '' if total_active == 1 else 's' }} (filtered)
+          {% else %}
+            {{ total_active }} staff member{{ '' if total_active == 1 else 's' }}
+          {% endif %}
+        </span>
+      </div>
+      {% if not all_branches_view %}
+        <a href="{{ url_for('create_staff') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Staff</a>
       {% else %}
-        {{ total_active }} staff member{{ '' if total_active == 1 else 's' }}
+        <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit staff.</span>
       {% endif %}
-    </span>
-  </div>
+    </div>
 
   <form method="get" class="filter-form staff-filter">
     <label>

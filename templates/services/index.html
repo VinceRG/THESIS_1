@@ -7,13 +7,12 @@
   {% if mode == 'global' %}
     Global Accudetek service catalog
   {% else %}
-    Branch service availability and pricing
+    Manage branch service availability and pricing.
   {% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="section-stack">
-<p class="admin-section-description">Manage available clinic services.</p>
 <div class="chart-card">
   <div class="page-heading-row">
     <div>
@@ -127,21 +126,19 @@
               <td class="service-info-cell">
                 <strong>{{ service.service_name }}</strong>
                 <div class="muted-copy">{{ service.section or 'No section' }}</div>
-                {% if is_superadmin %}
-                  <div class="admin-action-group">
-                    <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary admin-action-edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
-                    <form method="post" action="{{ url_for('delete_service', service_id=service.id) }}" style="display:inline-block; margin-left:8px;"
-                          data-confirm-title="Delete service?"
-                          data-confirm="This will delete {{ service.service_name }} if unused, or mark it inactive if it is already referenced. Continue?">
-                      <button type="submit" class="btn admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
-                    </form>
-                  </div>
-                {% endif %}
                 <div class="tag-stack service-role-list">
                   {% for role in service.role_items() %}
                     <span class="tag-pill tag-primary">{{ role }}</span>
                   {% endfor %}
                 </div>
+                {% if is_superadmin %}
+                  <div class="admin-action-group">
+                    <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn secondary admin-action-edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
+                    <form method="post" action="{{ url_for('delete_service', service_id=service.id) }}" style="display:inline-block; margin-left:8px;" ...>
+                      <button type="submit" class="btn admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
+                    </form>
+                  </div>
+                {% endif %}
               </td>
               <td>{{ service.category }}</td>
               <td>{{ 'PHP ' ~ service.price_php if service.price_php else 'Not set' }}</td>
