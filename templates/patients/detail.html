@@ -5,25 +5,26 @@
 {% block page_subtitle %}Individual patient record and branch-specific care reference{% endblock %}
 
 {% block content %}
+<p class="admin-section-description">View and manage this patient's information and care history.</p>
 <div class="page-actions">
-  <a href="{{ url_for('patients') }}" class="btn secondary">Back to Patients</a>
+  <a href="{{ url_for('patients') }}" class="btn secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Patients</a>
   {% if not all_branches_view %}
-    <a href="{{ url_for('edit_patient', patient_id=patient.id) }}" class="btn">Edit Patient</a>
+    <a href="{{ url_for('edit_patient', patient_id=patient.id) }}" class="btn"><i class="bi bi-pencil" aria-hidden="true"></i> Edit Patient</a>
     {% if patient.is_active %}
-      <a href="{{ url_for('create_appointment', patient_id=patient.id) }}" class="btn">Book Appointment</a>
-      <a href="{{ url_for('create_patient_consultation', patient_id=patient.id) }}" class="btn">Add Consultation</a>
+      <a href="{{ url_for('create_appointment', patient_id=patient.id) }}" class="btn"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Book Appointment</a>
+      <a href="{{ url_for('create_patient_consultation', patient_id=patient.id) }}" class="btn"><i class="bi bi-clipboard2-plus" aria-hidden="true"></i> Add Consultation</a>
     {% endif %}
     {% if patient.is_active %}
       <form method="post" action="{{ url_for('archive_patient', patient_id=patient.id) }}" style="display:inline-block;"
             data-confirm-title="Archive patient record?"
             data-confirm="This will archive {{ patient.full_name }} but keep the record for reference. Continue?">
-        <button type="submit" class="btn secondary">Archive</button>
+        <button type="submit" class="btn secondary"><i class="bi bi-archive" aria-hidden="true"></i> Archive</button>
       </form>
     {% else %}
       <form method="post" action="{{ url_for('restore_patient', patient_id=patient.id) }}" style="display:inline-block;"
             data-confirm-title="Reactivate patient record?"
             data-confirm="This will reactivate {{ patient.full_name }}. Continue?">
-        <button type="submit" class="btn">Reactivate</button>
+        <button type="submit" class="btn"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reactivate</button>
       </form>
     {% endif %}
   {% else %}
@@ -35,8 +36,8 @@
   <div class="patient-profile-header">
     <div>
       <span class="sidebar-user-label">Patient Number</span>
-      <h3>{{ patient.patient_number }}</h3>
-      <p>{{ patient.full_name }}</p>
+      <h3>{{ patient.full_name }}</h3>
+      <p>Patient ID: {{ patient.patient_number }}</p>
     </div>
     <span class="status-pill status-{{ 'healthy' if patient.is_active else 'high' }}">
       {{ 'Active' if patient.is_active else 'Archived' }}
@@ -58,7 +59,7 @@
       <dd>{{ patient.age if patient.age is not none else 'Not provided' }}</dd>
       <dt>Age Group</dt>
       <dd>{{ patient.age_group }}</dd>
-      <dt>Gender</dt>
+      <dt>Sex</dt>
       <dd>{{ patient.gender }}</dd>
       <dt>Created At</dt>
       <dd>{{ patient.created_at }}</dd>
@@ -134,7 +135,7 @@
         <th>Age</th>
         <th>Diagnosis</th>
         <th>Age Group</th>
-        <th>Gender</th>
+        <th>Sex</th>
         <th>Physician</th>
         <th>Consultation Type</th>
       </tr>

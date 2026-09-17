@@ -6,9 +6,9 @@
 
 {% block content %}
 <div class="page-actions">
-  <a href="{{ url_for('appointments') }}" class="btn secondary">Back to Appointments</a>
+  <a href="{{ url_for('appointments') }}" class="btn secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Appointments</a>
   {% if selected_patient %}
-    <a href="{{ url_for('patient_detail', patient_id=selected_patient.id) }}" class="btn secondary">Back to Patient Profile</a>
+    <a href="{{ url_for('patient_detail', patient_id=selected_patient.id) }}" class="btn secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Patient Profile</a>
   {% endif %}
 </div>
 
@@ -16,7 +16,7 @@
   <div class="chart-card">
     <h3>No Active Patients</h3>
     <p style="margin:6px 0 16px; color:#64748b;">Create a patient record before booking an appointment.</p>
-    <a href="{{ url_for('create_patient') }}" class="btn">Add Patient</a>
+    <a href="{{ url_for('create_patient') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Patient</a>
   </div>
 {% else %}
   <form method="post" class="appointment-form"
@@ -155,8 +155,8 @@
     </div>
 
     <div class="form-actions" style="margin-top:20px;">
-      <button type="submit" class="btn">Book Appointment</button>
-      <a href="{{ url_for('appointments') }}" class="btn secondary">Cancel</a>
+      <button type="submit" class="btn"><i class="bi bi-calendar-check" aria-hidden="true"></i> Book Appointment</button>
+      <a href="{{ url_for('appointments') }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
     </div>
   </form>
 {% endif %}

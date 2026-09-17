@@ -31,8 +31,8 @@
       <input type="text" name="contact_number" value="{{ branch.contact_number if branch and branch.contact_number else '' }}">
     </label>
     <div class="form-actions">
-      <button type="submit" class="btn">{{ 'Save Branch' if branch else 'Create Branch' }}</button>
-      <a href="{{ url_for('branches') }}" class="btn secondary">Cancel</a>
+      <button type="submit" class="btn"><i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save Branch' if branch else 'Create Branch' }}</button>
+      <a href="{{ url_for('branches') }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
     </div>
   </form>
 </div>

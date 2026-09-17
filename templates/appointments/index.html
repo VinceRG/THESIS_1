@@ -12,7 +12,7 @@
       <h3>Appointment Planning</h3>
     </div>
     {% if not all_branches_view %}
-      <a href="{{ url_for('create_appointment') }}" class="btn">Book Appointment</a>
+      <a href="{{ url_for('create_appointment') }}" class="btn"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Book Appointment</a>
     {% else %}
       <span class="topbar-pill">All-branch view is read-only. Select one branch to book or update appointments.</span>
     {% endif %}
@@ -33,115 +33,117 @@
       </select>
     </label>
     <div class="filter-actions">
-      <button type="submit" class="btn">Apply Filters</button>
-      <a href="{{ url_for('appointments') }}" class="btn secondary">Reset</a>
+      <button type="submit" class="btn"><i class="bi bi-funnel" aria-hidden="true"></i> Apply Filters</button>
+      <a href="{{ url_for('appointments') }}" class="btn secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reset</a>
     </div>
   </form>
 </div>
 
 <div class="chart-card" style="margin-top:20px;">
   <h3>Booked Appointments</h3>
-  <table class="table appointment-table">
-    <thead>
-      <tr>
-        {% if all_branches_view %}<th>Branch</th>{% endif %}
-        <th>Patient</th>
-        <th>Schedule</th>
-        <th>Requested Services</th>
-        <th>Consultation Reasons</th>
-        <th>Recommended Staff</th>
-        <th>Equipment</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for appointment in appointments.items %}
+  <div class="table-scroll">
+    <table class="table table-sticky-head appointment-table">
+      <thead>
         <tr>
-          {% if all_branches_view %}<td>{{ appointment.branch.name if appointment.branch else 'Unassigned' }}</td>{% endif %}
-          <td>
-            <strong>{{ appointment.patient.full_name if appointment.patient else 'Unknown patient' }}</strong>
-            {% if appointment.patient %}
-              <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ appointment.patient.patient_number }}</div>
-            {% endif %}
-          </td>
-          <td>
-            {{ appointment.appointment_date }}
-            <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ format_appointment_time(appointment.appointment_time) }}</div>
-          </td>
-          <td>
-            <div class="tag-stack">
-              {% for package in appointment.package_items() %}
-                <span class="tag-pill tag-primary">Package: {{ package }}</span>
-              {% endfor %}
-              {% for service in appointment.service_items() %}
-                <span class="tag-pill">{{ service }}</span>
-              {% endfor %}
-              {% if not appointment.package_items() and not appointment.service_items() %}
-                <span style="color:#64748b;">No services listed</span>
+          {% if all_branches_view %}<th>Branch</th>{% endif %}
+          <th>Patient</th>
+          <th>Schedule</th>
+          <th>Requested Services</th>
+          <th>Consultation Reasons</th>
+          <th>Recommended Staff</th>
+          <th>Equipment</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for appointment in appointments.items %}
+          <tr>
+            {% if all_branches_view %}<td>{{ appointment.branch.name if appointment.branch else 'Unassigned' }}</td>{% endif %}
+            <td>
+              <strong>{{ appointment.patient.full_name if appointment.patient else 'Unknown patient' }}</strong>
+              {% if appointment.patient %}
+                <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ appointment.patient.patient_number }}</div>
               {% endif %}
-            </div>
-          </td>
-          <td>
-            <div class="tag-stack">
-              {% for reason in appointment.reason_items() %}
-                <span class="tag-pill">{{ reason }}</span>
-              {% endfor %}
-              {% if appointment.other_reason %}
-                <span class="tag-pill">{{ appointment.other_reason }}</span>
-              {% endif %}
-            </div>
-          </td>
-          <td>
-            <div class="tag-stack">
-              {% for role in appointment.role_items() %}
-                <span class="tag-pill tag-primary">{{ role }}</span>
-              {% endfor %}
-            </div>
-            {% for note in appointment.note_items() %}
-              <div style="color:#64748b; font-size:12px; margin-top:6px;">{{ note }}</div>
-            {% endfor %}
-          </td>
-          <td>
-            {% if appointment.equipment_items() %}
+            </td>
+            <td>
+              {{ appointment.appointment_date }}
+              <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ format_appointment_time(appointment.appointment_time) }}</div>
+            </td>
+            <td>
               <div class="tag-stack">
-                {% for equipment in appointment.equipment_items() %}
-                  <span class="tag-pill">{{ equipment }}</span>
+                {% for package in appointment.package_items() %}
+                  <span class="tag-pill tag-primary">Package: {{ package }}</span>
+                {% endfor %}
+                {% for service in appointment.service_items() %}
+                  <span class="tag-pill">{{ service }}</span>
+                {% endfor %}
+                {% if not appointment.package_items() and not appointment.service_items() %}
+                  <span style="color:#64748b;">No services listed</span>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="tag-stack">
+                {% for reason in appointment.reason_items() %}
+                  <span class="tag-pill">{{ reason }}</span>
+                {% endfor %}
+                {% if appointment.other_reason %}
+                  <span class="tag-pill">{{ appointment.other_reason }}</span>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="tag-stack">
+                {% for role in appointment.role_items() %}
+                  <span class="tag-pill tag-primary">{{ role }}</span>
                 {% endfor %}
               </div>
-            {% else %}
-              <span style="color:#64748b;">No equipment required</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if not all_branches_view and not appointment.converted_to_records %}
-              <form method="post" action="{{ url_for('update_appointment_status', appointment_id=appointment.id) }}" class="inline-status-form"
-                    data-confirm-title="Update appointment status?"
-                    data-confirm="This will update the appointment status. Continue?">
-                <select name="status">
-                  {% for status in status_options %}
-                    <option value="{{ status }}" {% if appointment.status == status %}selected{% endif %}>{{ status }}</option>
+              {% for note in appointment.note_items() %}
+                <div style="color:#64748b; font-size:12px; margin-top:6px;">{{ note }}</div>
+              {% endfor %}
+            </td>
+            <td>
+              {% if appointment.equipment_items() %}
+                <div class="tag-stack">
+                  {% for equipment in appointment.equipment_items() %}
+                    <span class="tag-pill">{{ equipment }}</span>
                   {% endfor %}
-                </select>
-                <button type="submit" class="btn secondary">Save</button>
-              </form>
-              {% if appointment.status != 'Cancelled' %}
-                <a href="{{ url_for('complete_appointment', appointment_id=appointment.id) }}" class="btn" style="margin-top:8px;">Complete</a>
-              {% endif %}
-            {% else %}
-              <span class="status-pill status-{{ 'healthy' if appointment.status in ['Confirmed', 'Completed'] else 'moderate' if appointment.status == 'Pending' else 'high' }}">{{ appointment.status }}</span>
-              {% if appointment.converted_to_records %}
-                <div style="color:#64748b; font-size:12px; margin-top:8px;">
-                  {{ appointment.service_results|length }} consultation record{{ '' if appointment.service_results|length == 1 else 's' }} created
                 </div>
+              {% else %}
+                <span style="color:#64748b;">No equipment required</span>
               {% endif %}
-            {% endif %}
-          </td>
-        </tr>
-      {% else %}
-        <tr><td colspan="{{ 8 if all_branches_view else 7 }}">No appointments booked yet.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+            </td>
+            <td class="admin-status-cell">
+              {% if not all_branches_view and not appointment.converted_to_records %}
+                <form method="post" action="{{ url_for('update_appointment_status', appointment_id=appointment.id) }}" class="inline-status-form admin-status-control"
+                      data-confirm-title="Update appointment status?"
+                      data-confirm="This will update the appointment status. Continue?">
+                  <select name="status">
+                    {% for status in status_options %}
+                      <option value="{{ status }}" {% if appointment.status == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn secondary admin-action-save"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
+                </form>
+                {% if appointment.status != 'Cancelled' %}
+                  <a href="{{ url_for('complete_appointment', appointment_id=appointment.id) }}" class="btn admin-status-action"><i class="bi bi-check-lg" aria-hidden="true"></i> Complete</a>
+                {% endif %}
+              {% else %}
+                <span class="status-pill status-{{ 'healthy' if appointment.status in ['Confirmed', 'Completed'] else 'moderate' if appointment.status == 'Pending' else 'high' }}">{{ appointment.status }}</span>
+                {% if appointment.converted_to_records %}
+                  <div style="color:#64748b; font-size:12px; margin-top:8px;">
+                    {{ appointment.service_results|length }} consultation record{{ '' if appointment.service_results|length == 1 else 's' }} created
+                  </div>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr class="table-empty-state"><td colspan="{{ 8 if all_branches_view else 7 }}"><strong>No appointments booked yet.</strong>Book an appointment from a patient profile or the appointment planner.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   {{ render_pagination(appointments, 'appointments', {'status': selected_status, 'date': selected_date}) }}
 </div>

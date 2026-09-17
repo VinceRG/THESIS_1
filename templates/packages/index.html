@@ -7,7 +7,7 @@
   {% if mode == 'global' %}
     Global Accudetek package catalog
   {% else %}
-    Branch package availability and pricing
+    Manage branch package availability and pricing.
   {% endif %}
 {% endblock %}
 
@@ -27,11 +27,11 @@
     </div>
     <div class="service-actions">
       {% if is_superadmin %}
-        <a href="{{ url_for('create_package') }}" class="btn">Add Package</a>
+        <a href="{{ url_for('create_package') }}" class="btn"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add Package</a>
         <form method="post" action="{{ url_for('import_packages') }}" style="display:inline-block;"
               data-confirm-title="Sync website packages?"
               data-confirm="This will import missing packages from the scraped Accudetek file without overwriting edited packages. Continue?">
-          <button type="submit" class="btn secondary">Sync Scraped Packages</button>
+          <button type="submit" class="btn secondary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Sync Scraped Packages</button>
         </form>
       {% endif %}
     </div>
@@ -43,8 +43,8 @@
       <input type="search" name="q" value="{{ search_query }}" placeholder="Search package name">
     </label>
     <div class="filter-actions">
-      <button type="submit" class="btn">Apply Filters</button>
-      <a href="{{ url_for('packages') }}" class="btn secondary">Reset</a>
+      <button type="submit" class="btn"><i class="bi bi-funnel" aria-hidden="true"></i> Apply Filters</button>
+      <a href="{{ url_for('packages') }}" class="btn secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reset</a>
     </div>
   </form>
 </div>
@@ -90,13 +90,15 @@
                   {{ 'Active' if package.is_active else 'Inactive' }}
                 </span>
               </td>
-              <td>
-                <a href="{{ url_for('edit_package', package_id=package.id) }}" class="btn secondary">Edit</a>
+              <td class="admin-actions-cell">
+                <div class="admin-action-group">
+                <a href="{{ url_for('edit_package', package_id=package.id) }}" class="btn secondary admin-action-edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
                 <form method="post" action="{{ url_for('delete_package', package_id=package.id) }}" style="display:inline-block; margin-left:8px;"
                       data-confirm-title="Delete package?"
                       data-confirm="This will delete {{ package.package_name }} if unused, or mark it inactive if it is already referenced. Continue?">
-                  <button type="submit" class="btn secondary">Delete</button>
+                  <button type="submit" class="btn secondary admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Delete</button>
                 </form>
+                </div>
               </td>
             </tr>
           {% else %}
@@ -121,15 +123,15 @@
           {% for setting in packages.items %}
             {% set package = setting.package %}
             <tr>
-              <td>
+              <td class="admin-status-cell">
                 <strong>{{ package.package_name }}</strong>
                 {% if is_superadmin %}
                   <div style="margin-top:8px;">
-                    <a href="{{ url_for('edit_package', package_id=package.id) }}" class="btn secondary">Edit Global</a>
+                    <a href="{{ url_for('edit_package', package_id=package.id) }}" class="btn secondary admin-action-edit"><i class="bi bi-pencil" aria-hidden="true"></i> Edit Global</a>
                     <form method="post" action="{{ url_for('delete_package', package_id=package.id) }}" style="display:inline-block; margin-left:8px;"
                           data-confirm-title="Delete package?"
                           data-confirm="This will delete {{ package.package_name }} if unused, or mark it inactive if it is already referenced. Continue?">
-                      <button type="submit" class="btn secondary">Delete Global</button>
+                      <button type="submit" class="btn secondary admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Delete Global</button>
                     </form>
                   </div>
                 {% endif %}
@@ -167,7 +169,7 @@
                     Branch Notes
                     <input type="text" name="branch_notes" value="{{ setting.branch_notes or '' }}" placeholder="Optional branch note">
                   </label>
-                  <button type="submit" class="btn secondary">Save</button>
+                  <button type="submit" class="btn secondary admin-action-save"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
                 </form>
               </td>
             </tr>

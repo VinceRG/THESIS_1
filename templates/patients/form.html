@@ -57,8 +57,8 @@
       <input type="text" name="emergency_contact_number" value="{{ patient.emergency_contact_number if patient and patient.emergency_contact_number else '' }}">
     </label>
     <div class="form-actions form-wide">
-      <button type="submit" class="btn">{{ 'Save Patient' if patient else 'Add Patient' }}</button>
-      <a href="{{ url_for('patients') }}" class="btn secondary">Cancel</a>
+      <button type="submit" class="btn"><i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save Patient' if patient else 'Add Patient' }}</button>
+      <a href="{{ url_for('patients') }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
     </div>
   </form>
 </div>

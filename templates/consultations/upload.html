@@ -7,10 +7,22 @@
 {% block content %}
 <div class="chart-card">
   <h3>Upload Consultation Dataset</h3>
-  <p>Supported formats: Excel and CSV. The system validates and cleans data before it is used for prediction.</p>
-  <form method="post" enctype="multipart/form-data" style="margin-top:16px;">
-    <input type="file" name="file" required style="display:block; margin-bottom:12px;">
-    <button class="btn" type="submit">Upload and Process</button>
+  <p class="muted-copy">Supported formats: Excel and CSV. The system validates and cleans data before it is used for prediction.</p>
+  <div class="upload-state-list" aria-label="Upload processing states">
+    <div class="upload-state-item is-current"><strong>Ready</strong><span>Select a consultation file.</span></div>
+    <div class="upload-state-item"><strong>Uploading</strong><span>File is being received.</span></div>
+    <div class="upload-state-item"><strong>Processing</strong><span>Records are validated and cleaned.</span></div>
+    <div class="upload-state-item"><strong>Completed</strong><span>Records are available for forecasting.</span></div>
+    <div class="upload-state-item"><strong>Failed</strong><span>Errors are shown with next steps.</span></div>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="form-grid" style="margin-top:16px;">
+    <label>
+      Consultation file
+      <input type="file" name="file" required accept=".csv,.xlsx,.xls">
+    </label>
+    <div class="form-actions">
+      <button class="btn" type="submit"><i class="bi bi-upload" aria-hidden="true"></i> Upload and Process</button>
+    </div>
   </form>
 </div>
 {% endblock %}

@@ -1099,3 +1099,1249 @@ label.has-error > textarea {
 .staff-kebab-item { width:100%; text-align:left; padding:8px 10px; border:none; background:none; border-radius:8px; cursor:pointer; color:#b91c1c; font:inherit; }
 .staff-kebab-item:hover { background:#fee2e2; }
 #notifyMessageInput { width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:12px; background:#f8fafc; color:var(--text); font:inherit; resize:vertical; box-sizing:border-box; }
+
+/* --- Admin Theme Data-dense dashboard system (admin-app scoped) --- */
+body.admin-app {
+  --primary:#00477F;
+  --secondary:#00477F;
+  --accent:#C95A00;
+  --accent-soft:#EAF2F8;
+  --background:#EEF1F4;
+  --card:#FFFFFF;
+  --sidebar:#1B2531;
+  --text:#10151C;
+  --soft-text:#3A4451;
+  --success:#146C2E;
+  --warning:#8A4B00;
+  --critical:#A11D1D;
+  --border:#1B2531;
+  --admin-line:#AEB7C2;
+  --admin-line-soft:#D4DAE1;
+  --focus-ring:#C95A00;
+  background:var(--background);
+  color:var(--text);
+}
+body.admin-app,
+body.admin-app button,
+body.admin-app input,
+body.admin-app select,
+body.admin-app textarea {
+  font-family:'Inter', Arial, sans-serif;
+}
+body.admin-app a {
+  color:var(--primary);
+}
+body.admin-app *:focus-visible {
+  outline:3px solid var(--focus-ring);
+  outline-offset:2px;
+}
+body.admin-app .app-shell {
+  background:var(--background);
+}
+body.admin-app .sidebar {
+  background:var(--sidebar);
+  padding:16px;
+  border-right:2px solid #000;
+}
+body.admin-app .brand {
+  min-height:64px;
+  margin-bottom:18px;
+  padding-bottom:16px;
+  border-bottom:1px solid rgba(255,255,255,.24);
+}
+body.admin-app .brand-logo {
+  width:44px;
+  height:44px;
+  border-radius:2px;
+  box-shadow:none;
+}
+body.admin-app .brand h3 {
+  font-size:20px;
+  line-height:1.1;
+}
+body.admin-app .brand p {
+  color:rgba(255,255,255,.82);
+  opacity:1;
+}
+body.admin-app .nav-links {
+  gap:4px;
+}
+body.admin-app .nav-links a {
+  display:flex;
+  align-items:center;
+  min-height:44px;
+  padding:10px 12px;
+  border:1px solid transparent;
+  border-radius:2px;
+  color:#fff;
+  font-weight:700;
+  line-height:1.25;
+  opacity:1;
+}
+body.admin-app .nav-links a:hover {
+  background:#243243;
+  border-color:rgba(255,255,255,.24);
+}
+body.admin-app .nav-links a.active {
+  background:#fff;
+  border-color:#fff;
+  color:var(--primary);
+  box-shadow:inset 4px 0 0 var(--focus-ring);
+}
+body.admin-app .section-heading-eyebrow {
+  margin:12px 0 6px;
+  color:rgba(255,255,255,.72);
+}
+body.admin-app .sidebar-user {
+  border-radius:2px;
+  border-color:rgba(255,255,255,.32);
+  background:#10151C;
+}
+body.admin-app .main-panel {
+  background:var(--background);
+}
+body.admin-app .topbar {
+  min-height:88px;
+  padding:18px 24px;
+  border-bottom:2px solid var(--border);
+  background:#fff;
+}
+body.admin-app .topbar h1 {
+  font-size:32px;
+  line-height:1.1;
+  color:var(--text);
+}
+body.admin-app .topbar p {
+  max-width:760px;
+  color:var(--soft-text);
+  font-size:16px;
+  line-height:1.4;
+}
+body.admin-app .topbar-actions {
+  align-items:stretch;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+body.admin-app .topbar-pill,
+body.admin-app .branch-selector select {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  border:1px solid var(--border);
+  border-radius:2px;
+  background:#fff;
+  color:var(--text);
+  font-weight:700;
+}
+body.admin-app .topbar-link {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  padding:0 12px;
+  border:1px solid var(--primary);
+  border-radius:2px;
+  text-decoration:none;
+}
+body.admin-app .content {
+  padding:24px;
+}
+body.admin-app .section-stack {
+  gap:24px;
+}
+body.admin-app .section-heading {
+  margin:8px 0 0;
+  color:var(--text);
+  font-size:24px;
+  line-height:1.2;
+}
+body.admin-app .section-subcopy,
+body.admin-app .muted-copy,
+body.admin-app .card-caption,
+body.admin-app .card .hint,
+body.admin-app .resource-note {
+  color:var(--soft-text);
+}
+body.admin-app .card,
+body.admin-app .chart-card,
+body.admin-app .planning-metric > div,
+body.admin-app .provenance-panel,
+body.admin-app .service-result-item,
+body.admin-app .checkbox-card,
+body.admin-app .loading-state {
+  border:1px solid var(--border);
+  border-radius:2px;
+  background:#fff;
+  box-shadow:none;
+}
+body.admin-app .card,
+body.admin-app .chart-card {
+  padding:16px;
+}
+body.admin-app .card h3,
+body.admin-app .chart-card h3 {
+  color:var(--text);
+  font-size:16px;
+  font-weight:800;
+  line-height:1.25;
+}
+body.admin-app .card .value {
+  color:var(--text);
+  font-size:32px;
+  line-height:1.05;
+}
+body.admin-app .card .trend {
+  color:var(--soft-text);
+  font-weight:600;
+}
+body.admin-app .branch-selector {
+  display:flex;
+  align-items:center;
+  min-height:36px;
+  padding-left:10px;
+  border:1px solid var(--admin-line);
+  border-radius:6px;
+  background:#F8FAFC;
+}
+body.admin-app .branch-selector i { color:var(--primary); }
+body.admin-app .branch-selector select {
+  max-width:220px;
+  border:0;
+  background:transparent;
+}
+body.admin-app .branch-selector select:focus { outline:0; box-shadow:none; }
+body.admin-app .btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  padding:10px 14px;
+  border:1px solid var(--primary);
+  border-radius:2px;
+  background:var(--primary);
+  color:#fff;
+  font-weight:800;
+  line-height:1.2;
+  text-align:center;
+  box-shadow:none;
+}
+body.admin-app .btn:hover {
+  background:#00365F;
+  border-color:#00365F;
+  color:#fff;
+}
+body.admin-app .btn.secondary {
+  border-color:var(--border);
+  background:#fff;
+  color:var(--primary);
+}
+body.admin-app .btn.secondary:hover {
+  background:#EAF2F8;
+  color:var(--primary);
+}
+body.admin-app .btn.danger {
+  border-color:var(--critical);
+  background:var(--critical);
+  color:#fff;
+}
+body.admin-app .btn.danger:hover {
+  background:#7F1515;
+}
+body.admin-app .table-scroll {
+  border:1px solid var(--border);
+  border-radius:2px;
+  background:#fff;
+}
+body.admin-app .table {
+  border-collapse:collapse;
+  color:var(--text);
+}
+body.admin-app .table th,
+body.admin-app .table td {
+  padding:12px;
+  border-bottom:1px solid var(--admin-line-soft);
+  vertical-align:top;
+}
+body.admin-app .table th {
+  background:#F7F9FB;
+  color:var(--text);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:0;
+  text-transform:uppercase;
+}
+body.admin-app .table-sticky-head thead th {
+  background:#F7F9FB;
+  box-shadow:0 1px 0 var(--border);
+}
+body.admin-app .table tbody tr:nth-child(even) {
+  background:#FAFBFC;
+}
+body.admin-app .table tbody tr:hover,
+body.admin-app .table tbody tr:nth-child(even):hover,
+body.admin-app .staff-row.is-selected {
+  background:#EAF2F8;
+}
+body.admin-app .table-empty-state td,
+body.admin-app .table tbody td[colspan] {
+  padding:32px 16px !important;
+  color:var(--soft-text);
+  text-align:center;
+}
+body.admin-app .table-empty-state strong,
+body.admin-app .empty-state strong {
+  display:block;
+  margin-bottom:4px;
+  color:var(--text);
+  font-size:16px;
+}
+body.admin-app .status-pill,
+body.admin-app .staff-status,
+body.admin-app .tag-pill {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:28px;
+  border-radius:2px;
+  font-weight:800;
+  line-height:1.2;
+}
+body.admin-app .status-pill::before,
+body.admin-app .staff-status::before {
+  font-weight:900;
+}
+body.admin-app .status-healthy,
+body.admin-app .status-available,
+body.admin-app .flash-success {
+  border-color:var(--success);
+  background:#E7F3EA;
+  color:var(--success);
+}
+body.admin-app .status-moderate,
+body.admin-app .status-busy,
+body.admin-app .flash-warning,
+body.admin-app .badge-amber {
+  border-color:var(--warning);
+  background:#FFF4E5;
+  color:var(--warning);
+}
+body.admin-app .status-moderate::before,
+body.admin-app .status-busy::before,
+body.admin-app .flash-warning::before {
+  content:"!";
+}
+body.admin-app .status-high,
+body.admin-app .status-on-leave,
+body.admin-app .status-unavailable,
+body.admin-app .flash-error,
+body.admin-app .badge-red {
+  border-color:var(--critical);
+  background:#FBEAEA;
+  color:var(--critical);
+}
+body.admin-app .status-high::before,
+body.admin-app .status-on-leave::before,
+body.admin-app .status-unavailable::before,
+body.admin-app .flash-error::before {
+  content:"!";
+}
+body.admin-app .badge-green {
+  border:1px solid var(--success);
+  background:#E7F3EA;
+  color:var(--success);
+}
+body.admin-app .flash-stack {
+  margin-bottom:24px;
+}
+body.admin-app .flash-message {
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  border-radius:2px;
+  box-shadow:none;
+}
+body.admin-app .form-grid input,
+body.admin-app .form-grid select,
+body.admin-app .form-grid textarea,
+body.admin-app .filter-form input,
+body.admin-app .filter-form select,
+body.admin-app .branch-service-form input[type="text"],
+body.admin-app .service-search-row input,
+body.admin-app .chatbot-input-row input,
+body.admin-app #notifyMessageInput,
+body.admin-app input[type="file"] {
+  min-height:44px;
+  border:1px solid var(--border);
+  border-radius:2px;
+  background:#fff;
+  color:var(--text);
+}
+body.admin-app .form-grid label,
+body.admin-app .filter-form label,
+body.admin-app .branch-service-form label {
+  color:var(--text);
+  font-weight:800;
+}
+body.admin-app .filter-form {
+  gap:16px;
+}
+body.admin-app .filter-actions,
+body.admin-app .form-actions,
+body.admin-app .page-actions,
+body.admin-app .service-actions {
+  gap:8px;
+  flex-wrap:wrap;
+}
+body.admin-app .tag-pill {
+  border:1px solid var(--admin-line);
+  background:#fff;
+  color:var(--text);
+}
+body.admin-app .tag-primary {
+  border-color:var(--primary);
+  background:#EAF2F8;
+  color:var(--primary);
+}
+body.admin-app .resource-progress-track,
+body.admin-app .loading-track,
+body.admin-app .total-cases-track,
+body.admin-app .metric-track {
+  border:1px solid var(--admin-line);
+  border-radius:2px;
+  background:#fff;
+}
+body.admin-app .resource-progress-bar,
+body.admin-app .total-cases-fill,
+body.admin-app .metric-fill {
+  border-radius:0;
+  background:var(--primary);
+}
+body.admin-app .resource-progress-bar.status-high {
+  background:var(--critical);
+}
+body.admin-app .resource-progress-bar.status-moderate {
+  background:var(--warning);
+}
+body.admin-app .resource-progress-bar.status-healthy {
+  background:var(--success);
+}
+body.admin-app .prediction-period-banner,
+body.admin-app .staffing-recommendation-banner {
+  border:1px solid var(--primary);
+  border-radius:2px;
+  background:#EAF2F8;
+}
+body.admin-app .staffing-gap-banner,
+body.admin-app .staffing-gap-row {
+  border-color:var(--critical) !important;
+  border-radius:2px;
+  background:#FBEAEA !important;
+}
+body.admin-app .staffing-gap-row strong,
+body.admin-app .gap-warning {
+  color:var(--critical);
+}
+body.admin-app .loading-overlay,
+body.admin-app .confirm-overlay {
+  background:rgba(16,21,28,.56);
+  backdrop-filter:none;
+}
+body.admin-app .loading-panel,
+body.admin-app .confirm-panel,
+body.admin-app .chatbot-panel,
+body.admin-app .staff-kebab-menu {
+  border:1px solid var(--border);
+  border-radius:2px;
+  box-shadow:0 16px 32px rgba(16,21,28,.24);
+}
+body.admin-app .loading-bar {
+  border-radius:0;
+  background:var(--primary);
+}
+body.admin-app .sidebar-toggle {
+  width:44px;
+  height:44px;
+  border-color:var(--border);
+  border-radius:2px;
+  background:#fff;
+}
+body.admin-app .chatbot-toggle,
+body.admin-app .chatbot-icon-btn,
+body.admin-app .chatbot-message,
+body.admin-app .chatbot-warning,
+body.admin-app .chatbot-input-row input {
+  border-radius:2px;
+}
+body.admin-app .chatbot-panel-header {
+  background:var(--primary);
+}
+body.admin-app .chatbot-message-assistant {
+  border-color:var(--admin-line);
+  background:#fff;
+}
+body.admin-app .chatbot-message-user {
+  background:var(--primary);
+}
+body.admin-app .upload-state-list {
+  display:grid;
+  grid-template-columns:repeat(5, minmax(130px, 1fr));
+  gap:8px;
+  margin:16px 0;
+}
+body.admin-app .upload-state-item {
+  min-height:64px;
+  padding:10px;
+  border:1px solid var(--admin-line);
+  border-radius:2px;
+  background:#fff;
+}
+body.admin-app .upload-state-item strong {
+  display:block;
+  color:var(--text);
+  font-size:14px;
+}
+body.admin-app .upload-state-item span {
+  display:block;
+  margin-top:4px;
+  color:var(--soft-text);
+  font-size:12px;
+}
+body.admin-app .upload-state-item.is-current {
+  border-color:var(--primary);
+  background:#EAF2F8;
+}
+@media (max-width: 1180px) {
+  body.admin-app .section-grid,
+  body.admin-app .demographic-forecast-grid,
+  body.admin-app .demographic-comparison {
+    grid-template-columns:1fr;
+  }
+  body.admin-app .cards {
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  body.admin-app {
+    overflow:auto;
+  }
+  body.admin-app .sidebar {
+    width:min(320px, 86vw);
+    border-right:2px solid #000;
+  }
+  body.admin-app .topbar {
+    align-items:flex-start;
+    gap:16px;
+  }
+  body.admin-app .topbar-actions {
+    width:100%;
+    justify-content:flex-start;
+  }
+  body.admin-app .filter-form,
+  body.admin-app .staff-filter,
+  body.admin-app .appointment-filter,
+  body.admin-app .service-filter,
+  body.admin-app .package-filter {
+    grid-template-columns:1fr;
+  }
+  body.admin-app .upload-state-list {
+    grid-template-columns:1fr;
+  }
+}
+@media (max-width: 620px) {
+  body.admin-app .content,
+  body.admin-app .topbar {
+    padding:16px;
+  }
+  body.admin-app .topbar h1 {
+    font-size:24px;
+  }
+  body.admin-app .cards,
+  body.admin-app .planning-metric,
+  body.admin-app .patient-stats,
+  body.admin-app .resource-grid,
+  body.admin-app .patient-form,
+  body.admin-app .checkbox-grid,
+  body.admin-app .compact-checkbox-grid,
+  body.admin-app .service-checkbox-grid {
+    grid-template-columns:1fr;
+  }
+  body.admin-app .page-heading-row {
+    display:grid;
+  }
+  body.admin-app .btn,
+  body.admin-app .topbar-pill,
+  body.admin-app .topbar-link {
+    width:100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.admin-app *,
+  body.admin-app *::before,
+  body.admin-app *::after {
+    scroll-behavior:auto !important;
+    transition:none !important;
+    animation:none !important;
+  }
+}
+
+body.admin-app {
+  --primary:#1F5A78;
+  --secondary:#0F766E;
+  --accent:#D97706;
+  --accent-soft:#E8F3F5;
+  --background:#F3F6F9;
+  --card:#FFFFFF;
+  --sidebar:#17324D;
+  --text:#1E293B;
+  --soft-text:#5B6B7D;
+  --success:#167447;
+  --warning:#A16207;
+  --critical:#B42318;
+  --info:#2563EB;
+  --border:#C9D5E1;
+  --admin-line:#CBD5E1;
+  --admin-line-soft:#E2E8F0;
+  --focus-ring:#0F766E;
+  font-family:'IBM Plex Sans', 'Inter', sans-serif;
+  background:var(--background);
+}
+body.admin-app button,
+body.admin-app input,
+body.admin-app select,
+body.admin-app textarea {
+  font-family:inherit;
+}
+body.admin-app .sidebar {
+  width:244px;
+  flex-basis:244px;
+  padding:18px 14px;
+  border-right:1px solid #2C4D67;
+  background:var(--sidebar);
+}
+body.admin-app .brand {
+  min-height:58px;
+  margin-bottom:16px;
+  padding:0 6px 14px;
+  border-bottom:1px solid rgba(255,255,255,.16);
+}
+body.admin-app .brand-logo {
+  width:40px;
+  height:40px;
+  border-radius:8px;
+}
+body.admin-app .brand h3 { font-size:18px; letter-spacing:.01em; }
+body.admin-app .nav-links { gap:3px; }
+body.admin-app .nav-group {
+  display:grid;
+  gap:3px;
+}
+body.admin-app .nav-group + .nav-group { margin-top:10px; }
+body.admin-app .nav-group-label {
+  padding:5px 10px 3px;
+  color:#86A2B8;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+body.admin-app .nav-group-account {
+  margin-top:auto;
+  padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.13);
+}
+body.admin-app .nav-links a {
+  min-height:38px;
+  padding:8px 10px;
+  border-radius:6px;
+  color:#DCE8F2;
+  font-size:14px;
+  font-weight:600;
+}
+body.admin-app .nav-icon {
+  display:inline-flex;
+  width:20px;
+  margin-right:8px;
+  justify-content:center;
+  color:#9FB6C9;
+  font-size:14px;
+  line-height:1;
+}
+body.admin-app .nav-links a:hover {
+  background:#234A67;
+  border-color:transparent;
+}
+body.admin-app .nav-links a.active {
+  background:#E8F3F5;
+  border-color:#E8F3F5;
+  color:#174A63;
+  box-shadow:inset 3px 0 0 var(--secondary);
+}
+body.admin-app .nav-links a.active .nav-icon { color:var(--secondary); }
+body.admin-app .admin-section-description {
+  margin:0 0 12px;
+  color:var(--soft-text);
+  font-size:13px;
+  line-height:1.4;
+}
+body.admin-app .btn > span[aria-hidden="true"] {
+  display:inline-block;
+  margin-right:5px;
+  font-size:14px;
+  line-height:1;
+  vertical-align:-1px;
+}
+body.admin-app .btn > i[class^="bi-"],
+body.admin-app .btn > i[class*=" bi-"] {
+  margin-right:5px;
+  font-size:14px;
+  line-height:1;
+  vertical-align:-1px;
+}
+body.admin-app .admin-action-icon-only > i { margin-right:0; }
+body.admin-app .section-heading-eyebrow {
+  margin:14px 0 5px;
+  padding-top:10px;
+  color:#9FB6C9;
+  border-color:rgba(255,255,255,.13);
+  font-size:10px;
+}
+body.admin-app .sidebar-user {
+  margin-top:16px;
+  padding:11px;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:8px;
+  background:#102A42;
+}
+body.admin-app .main-panel { background:var(--background); }
+body.admin-app .topbar {
+  min-height:76px;
+  padding:14px 24px;
+  border-bottom:1px solid var(--admin-line);
+  background:#FFFFFF;
+}
+body.admin-app .topbar h1 {
+  font-size:24px;
+  line-height:1.15;
+  letter-spacing:.01em;
+  font-weight:700;
+}
+body.admin-app .topbar p {
+  color:var(--soft-text);
+  font-size:13px;
+}
+body.admin-app .topbar-actions { gap:8px; }
+body.admin-app .topbar-pill,
+body.admin-app .branch-selector select {
+  min-height:36px;
+  padding:7px 10px;
+  border:1px solid var(--admin-line);
+  border-radius:6px;
+  background:#F8FAFC;
+  color:var(--text);
+  font-size:13px;
+  font-weight:600;
+}
+body.admin-app .topbar-context {
+  border-color:transparent;
+  background:transparent;
+  color:var(--soft-text);
+  font-weight:500;
+}
+body.admin-app .topbar-context i,
+body.admin-app .topbar-link i,
+body.admin-app .branch-selector i {
+  margin-right:5px;
+  color:var(--primary);
+}
+body.admin-app .topbar-link {
+  min-height:36px;
+  padding:0 10px;
+  border:1px solid var(--admin-line);
+  border-radius:6px;
+  color:var(--primary);
+  font-size:13px;
+}
+body.admin-app .content { padding:20px 24px 28px; }
+body.admin-app .section-stack { gap:18px; }
+body.admin-app .content > .admin-section-description {
+  margin:0 0 10px;
+}
+body.admin-app .section-heading + .section-subcopy { margin-top:-8px; }
+body.admin-app .section-subcopy + .grid,
+body.admin-app .section-subcopy + .chart-card { margin-top:0; }
+body.admin-app .section-heading {
+  margin:12px 0 0;
+  color:var(--text);
+  font-size:18px;
+  font-weight:700;
+  line-height:1.2;
+}
+body.admin-app .section-subcopy {
+  max-width:760px;
+  margin:2px 0 7px;
+  color:var(--soft-text);
+  font-size:13px;
+  line-height:1.35;
+}
+body.admin-app .admin-record-actions {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:8px;
+}
+body.admin-app .admin-record-actions form { margin:0; }
+body.admin-app .report-card-actions {
+  align-items:center;
+  gap:8px;
+  margin-top:8px;
+}
+body.admin-app .card,
+body.admin-app .chart-card,
+body.admin-app .planning-metric > div,
+body.admin-app .provenance-panel,
+body.admin-app .service-result-item,
+body.admin-app .checkbox-card,
+body.admin-app .loading-state {
+  border:1px solid var(--admin-line);
+  border-radius:8px;
+  box-shadow:0 2px 8px rgba(30,41,59,.05);
+}
+body.admin-app .card,
+body.admin-app .chart-card { padding:15px 16px; }
+body.admin-app .card { position:relative; overflow:hidden; }
+body.admin-app .card::before {
+  position:absolute;
+  inset:0 auto 0 0;
+  width:3px;
+  content:"";
+  background:var(--secondary);
+}
+body.admin-app .card h3,
+body.admin-app .chart-card h3 {
+  color:var(--text);
+  font-size:14px;
+  font-weight:700;
+}
+body.admin-app .card .value {
+  margin:8px 0 4px;
+  color:var(--text);
+  font-size:28px;
+}
+body.admin-app .card .trend,
+body.admin-app .card-caption,
+body.admin-app .card .hint { color:var(--soft-text); }
+body.admin-app .btn {
+  min-height:38px;
+  padding:8px 12px;
+  border:1px solid var(--primary);
+  border-radius:6px;
+  background:var(--primary);
+  font-size:13px;
+  font-weight:700;
+}
+body.admin-app .btn:hover { background:#174A63; border-color:#174A63; }
+body.admin-app .btn.secondary {
+  border-color:var(--admin-line);
+  background:#FFFFFF;
+  color:var(--primary);
+}
+body.admin-app .btn.secondary:hover { background:var(--accent-soft); }
+body.admin-app .btn.admin-action-delete,
+body.admin-app .btn.admin-action-delete:hover,
+body.admin-app .btn.admin-action-archive,
+body.admin-app .btn.admin-action-archive:hover,
+body.admin-app .btn.admin-cancel,
+body.admin-app .btn.admin-cancel:hover {
+  border-color:var(--critical);
+  background:var(--critical);
+  color:#FFFFFF;
+}
+body.admin-app .btn.admin-action-delete:focus-visible,
+body.admin-app .btn.admin-action-archive:focus-visible,
+body.admin-app .btn.admin-cancel:focus-visible {
+  outline-color:var(--focus-ring);
+}
+body.admin-app .table-scroll { border:1px solid var(--admin-line); border-radius:8px; }
+body.admin-app .table th,
+body.admin-app .table td { padding:9px 10px; }
+body.admin-app .table th {
+  background:#F8FAFC;
+  color:#526274;
+  font-size:11px;
+  letter-spacing:.05em;
+}
+body.admin-app .table tbody tr:nth-child(even) { background:#FBFCFD; }
+body.admin-app .table tbody tr:hover,
+body.admin-app .table tbody tr:nth-child(even):hover,
+body.admin-app .staff-row.is-selected { background:#E8F3F5; }
+body.admin-app .table-sticky-head thead th {
+  background:#F8FAFC;
+  box-shadow:0 1px 0 var(--admin-line);
+}
+body.admin-app .status-pill,
+body.admin-app .staff-status,
+body.admin-app .tag-pill {
+  min-height:25px;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+}
+body.admin-app .status-pill::before,
+body.admin-app .staff-status::before { content:"\2022"; font-size:14px; }
+body.admin-app .status-healthy,
+body.admin-app .status-available,
+body.admin-app .flash-success { border-color:#A7D8BD; background:#ECF8F1; color:var(--success); }
+body.admin-app .status-moderate,
+body.admin-app .status-busy,
+body.admin-app .flash-warning,
+body.admin-app .badge-amber { border-color:#F0CC8A; background:#FFF8E8; color:var(--warning); }
+body.admin-app .status-high,
+body.admin-app .status-on-leave,
+body.admin-app .status-unavailable,
+body.admin-app .flash-error,
+body.admin-app .badge-red { border-color:#F0B4B0; background:#FFF0EF; color:var(--critical); }
+body.admin-app .badge-green { border-color:#A7D8BD; background:#ECF8F1; color:var(--success); }
+body.admin-app .flash-message { border-radius:8px; box-shadow:none; }
+body.admin-app .flash-message {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:42px;
+  padding:9px 11px;
+}
+body.admin-app .flash-message > i { flex:0 0 auto; font-size:16px; }
+body.admin-app .flash-message > span { flex:1; }
+body.admin-app .flash-dismiss {
+  flex:0 0 auto;
+  border:0;
+  background:transparent;
+  color:currentColor;
+  cursor:pointer;
+  font-size:20px;
+  line-height:1;
+  opacity:.7;
+  padding:0 2px;
+}
+body.admin-app .flash-dismiss:hover,
+body.admin-app .flash-dismiss:focus-visible { opacity:1; }
+body.admin-app .form-grid input,
+body.admin-app .form-grid select,
+body.admin-app .form-grid textarea,
+body.admin-app .filter-form input,
+body.admin-app .filter-form select,
+body.admin-app .branch-service-form input[type="text"],
+body.admin-app .service-search-row input,
+body.admin-app .chatbot-input-row input,
+body.admin-app #notifyMessageInput,
+body.admin-app input[type="file"] {
+  min-height:40px;
+  border:1px solid var(--admin-line);
+  border-radius:6px;
+  background:#FFFFFF;
+}
+body.admin-app .form-grid label,
+body.admin-app .filter-form label,
+body.admin-app .branch-service-form label { color:var(--text); font-weight:600; }
+body.admin-app .resource-progress-track,
+body.admin-app .loading-track,
+body.admin-app .total-cases-track,
+body.admin-app .metric-track { border-radius:999px; background:#E7EDF3; }
+body.admin-app .resource-progress-bar,
+body.admin-app .total-cases-fill,
+body.admin-app .metric-fill { border-radius:999px; background:var(--secondary); }
+body.admin-app .resource-progress-bar.status-high { background:var(--critical); }
+body.admin-app .resource-progress-bar.status-moderate { background:var(--warning); }
+body.admin-app .resource-progress-bar.status-healthy { background:var(--success); }
+body.admin-app .prediction-period-banner,
+body.admin-app .staffing-recommendation-banner {
+  border:1px solid #A7C9D5;
+  border-radius:8px;
+  background:#E8F3F5;
+}
+body.admin-app .staffing-gap-banner,
+body.admin-app .staffing-gap-row { border-radius:8px; }
+body.admin-app .loading-panel,
+body.admin-app .confirm-panel,
+body.admin-app .chatbot-panel,
+body.admin-app .staff-kebab-menu {
+  border:1px solid var(--admin-line);
+  border-radius:8px;
+  box-shadow:0 16px 32px rgba(30,41,59,.18);
+}
+body.admin-app .loading-bar { border-radius:999px; background:var(--secondary); }
+body.admin-app .sidebar-toggle { border-color:var(--admin-line); border-radius:6px; background:#F8FAFC; }
+body.admin-app .upload-state-item { border:1px solid var(--admin-line); border-radius:8px; }
+body.admin-app .upload-state-item.is-current { border-color:var(--secondary); background:#E8F3F5; }
+@media (max-width: 620px) {
+  body.admin-app .topbar-actions { gap:6px; }
+  body.admin-app .topbar-pill,
+  body.admin-app .topbar-link { width:auto; }
+  body.admin-app .btn { width:auto; }
+}
+body.admin-app .page-heading-row {
+  margin-bottom: 16px;
+}
+
+/* Reusable admin table controls: keep actions and editable statuses aligned
+   across staff, patient, branch, service, package, and appointment tables. */
+body.admin-app .admin-actions-cell {
+  width:1%;
+  min-width:190px;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+body.admin-app .admin-actions-cell.staff-actions-cell {
+  width:auto;
+  min-width:170px;
+}
+body.admin-app .admin-action-group {
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:6px;
+  min-height:38px;
+  white-space:nowrap;
+}
+body.admin-app .admin-action-group form,
+body.admin-app .admin-action-group .staff-kebab {
+  display:inline-flex;
+  align-items:center;
+  margin:0 !important;
+}
+body.admin-app .admin-actions-cell .btn,
+body.admin-app .admin-action-group .btn {
+  width:auto;
+  min-width:72px;
+  min-height:34px;
+  padding:7px 9px;
+  font-size:12px;
+  line-height:1.1;
+}
+body.admin-app .admin-action-group .btn > span,
+body.admin-app .admin-status-control .btn > span,
+body.admin-app .admin-status-action > span {
+  display:inline-block;
+  margin-right:4px;
+  font-size:14px;
+  line-height:1;
+  vertical-align:-1px;
+}
+body.admin-app .admin-action-group .admin-action-icon-only {
+  width:34px;
+  min-width:34px;
+  padding:7px 0;
+}
+body.admin-app .admin-action-group .admin-action-icon-only > span { margin-right:0; }
+body.admin-app .admin-action-group .admin-action-delete { width:auto; min-width:92px; }
+body.admin-app .admin-action-group .admin-action-toggle { width:104px; min-width:104px; }
+body.admin-app .admin-action-group .admin-action-archive { width:94px; min-width:94px; }
+body.admin-app .admin-action-group .admin-action-restore { width:100px; min-width:100px; }
+body.admin-app .admin-actions-cell .staff-kebab-toggle {
+  width:34px;
+  min-width:34px;
+  padding:7px 0;
+  font-size:18px;
+  line-height:1;
+}
+body.admin-app .admin-actions-cell .staff-kebab-toggle > i { margin-right:0; }
+body.admin-app .admin-actions-cell .staff-kebab-menu {
+  min-width:150px;
+}
+body.admin-app .admin-status-cell {
+  min-width:190px;
+  vertical-align:middle;
+}
+body.admin-app .admin-status-control {
+  display:grid;
+  grid-template-columns:minmax(126px, 1fr) auto;
+  gap:6px;
+  align-items:center;
+  min-width:176px;
+  margin:0;
+}
+body.admin-app .admin-status-control select {
+  width:100%;
+  min-width:0;
+  min-height:34px;
+  padding:7px 28px 7px 9px;
+  border:1px solid var(--admin-line);
+  border-radius:6px;
+  background:#FFFFFF;
+  color:var(--text);
+  font-size:12px;
+  font-weight:600;
+}
+body.admin-app .admin-status-control .btn,
+body.admin-app .admin-status-control button {
+  width:58px;
+  min-width:58px;
+  min-height:34px;
+  padding:7px 8px;
+  border:1px solid var(--primary);
+  border-radius:6px;
+  background:var(--primary);
+  color:#FFFFFF;
+  font-size:12px;
+  font-weight:700;
+}
+body.admin-app .admin-status-action {
+  display:inline-flex;
+  width:100%;
+  min-height:32px;
+  margin-top:6px;
+  padding:6px 9px;
+  border-radius:6px;
+  font-size:12px;
+}
+body.admin-app .service-info-cell {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+body.admin-app .service-info-cell .muted-copy {
+  margin:0;
+}
+body.admin-app .admin-action-group {
+  margin:0;
+}
+
+body.admin-app .service-table td.service-info-cell,
+body.admin-app .service-table td:nth-child(2),
+body.admin-app .service-table td:nth-child(3) {
+  vertical-align:middle;
+}
+
+body.admin-app .admin-branch-settings {
+  min-width:300px;
+  gap:6px 10px;
+  grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+  align-items:end;
+  padding:14px;
+  border:1px solid var(--admin-line);
+  border-radius:8px;
+  background:#FAFBFC;
+}
+body.admin-app .admin-branch-settings .toggle-line,
+body.admin-app .admin-branch-settings > .muted-copy,
+body.admin-app .admin-branch-settings > .btn {
+  grid-column:1 / -1;
+}
+body.admin-app .admin-branch-settings .toggle-line {
+  min-height:32px;
+  font-size:12px;
+}
+body.admin-app .admin-branch-settings label:not(.toggle-line) {
+  gap:4px;
+  font-size:11px;
+}
+body.admin-app .admin-branch-settings input[type="text"] {
+  min-height:34px;
+  padding:6px 8px;
+  font-size:12px;
+}
+body.admin-app .admin-branch-settings > .btn {
+  width:92px;
+  min-width:92px;
+  min-height:34px;
+  justify-self:start;
+}
+body.admin-app .service-info-cell .branch-service-form > .btn {
+  margin-top:2px;
+}
+body.admin-app .admin-status-cell .inline-status-form select + select {
+  min-width:116px;
+}
+body.admin-app .admin-actions-cell .btn:focus-visible,
+body.admin-app .admin-status-cell .btn:focus-visible,
+body.admin-app .admin-status-cell select:focus-visible {
+  outline:3px solid var(--focus-ring);
+  outline-offset:2px;
+}
+@media (max-width: 900px) {
+  body.admin-app .admin-actions-cell { min-width:180px; }
+  body.admin-app .admin-status-cell { min-width:184px; }
+}
+
+/* Center compact values for faster scanning; descriptive columns remain left
+   aligned so names, diagnoses, notes, and patient details stay readable. */
+body.admin-app .demographic-segments-table th:not(:first-child),
+body.admin-app .demographic-segments-table td:not(:first-child),
+body.admin-app .demographic-segments-table .gender-col,
+body.admin-app .demographic-segments-table .total-cases-cell {
+  text-align:center;
+}
+body.admin-app .service-info-cell > strong { order: 1; }
+body.admin-app .service-info-cell > .muted-copy { order: 2; }
+body.admin-app .service-info-cell > .tag-stack { order: 3; }
+body.admin-app .service-info-cell > .admin-action-group { order: 4; }
+body.admin-app .demographic-segments-table .total-cases-cell {
+  justify-content:center;
+}
+body.admin-app .resource-table th,
+body.admin-app .resource-table td {
+  vertical-align:middle;
+}
+body.admin-app .resource-table th:nth-child(n+2),
+body.admin-app .resource-table td:nth-child(n+2) {
+  text-align:center;
+}
+body.admin-app .resource-table th:first-child,
+body.admin-app .resource-table td:first-child {
+  text-align:left;
+}
+body.admin-app .daily-summary-table th:nth-child(5),
+body.admin-app .daily-summary-table td:nth-child(5) {
+  text-align:left;
+}
+body.admin-app .service-table th:not(:first-child),
+body.admin-app .service-table td:not(:first-child) {
+  text-align:center;
+  vertical-align:middle;
+}
+body.admin-app .service-table th:first-child,
+body.admin-app .service-table td:first-child {
+  text-align:left;
+}
+body.admin-app .service-table .admin-actions-cell,
+body.admin-app .service-table .service-info-cell {
+  text-align:left;
+}
+body.admin-app .service-table .admin-action-group {
+  justify-content:flex-start;
+}
+body.admin-app .status-pill,
+body.admin-app .staff-status {
+  vertical-align:middle;
+}
+body.admin-app .admin-actions-cell,
+body.admin-app .admin-status-cell {
+  text-align:center;
+}
+body.admin-app .service-info-cell .admin-action-group {
+  margin-left: 0;
+  margin-right: 0;
+  width: auto;
+  align-self: flex-start;
+  justify-content: flex-start;
+}
+body.admin-app .admin-action-group,
+body.admin-app .admin-status-control {
+  margin-left:auto;
+  margin-right:auto;
+}
+body.admin-app .appointment-table th:last-child,
+body.admin-app .appointment-table td:last-child {
+  text-align:center;
+}
+body.admin-app .staff-role-demand-table th:nth-child(2),
+body.admin-app .staff-role-demand-table th:nth-child(3),
+body.admin-app .staff-role-demand-table th:nth-child(4),
+body.admin-app .staff-role-demand-table th:nth-child(5),
+body.admin-app .staff-role-demand-table td:nth-child(2),
+body.admin-app .staff-role-demand-table td:nth-child(3),
+body.admin-app .staff-role-demand-table td:nth-child(4),
+body.admin-app .staff-role-demand-table td:nth-child(5) {
+  text-align:center;
+  vertical-align:middle;
+}
