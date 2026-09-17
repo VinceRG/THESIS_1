@@ -2,10 +2,10 @@
   <button type="button" class="chatbot-toggle" id="patientChatbotToggle" aria-label="Open Ava, the Accudetek assistant" aria-expanded="false">
     <span class="chatbot-toggle-icon" aria-hidden="true">&#128172;</span>
   </button>
-  <div class="chatbot-panel" id="patientChatbotPanel" aria-hidden="true">
+  <div class="chatbot-panel" id="patientChatbotPanel" role="dialog" aria-modal="true" aria-labelledby="patientChatbotTitle" aria-hidden="true">
     <div class="chatbot-panel-header">
       <div>
-        <strong>Ava</strong>
+        <strong id="patientChatbotTitle">Ava</strong>
         <span>Accudetek Virtual Assistant</span>
       </div>
       <div class="chatbot-panel-actions">
@@ -13,12 +13,13 @@
         <button type="button" class="chatbot-icon-btn" id="patientChatbotClose" title="Close" aria-label="Close assistant">&times;</button>
       </div>
     </div>
-    <div class="chatbot-messages" id="patientChatbotMessages">
+    <div class="chatbot-messages" id="patientChatbotMessages" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation with Ava">
       <div class="chatbot-message chatbot-message-assistant">
         Hi, I'm Ava! Ask me about our services and pricing, branch locations and hours, or how to book, track, or manage an appointment. If you're signed in, I can also check your own appointment status. I can't book, change, or cancel anything myself, and I can't discuss diagnoses or other patients.
       </div>
     </div>
     <form class="chatbot-input-row" id="patientChatbotForm">
+      <label class="sr-only" for="patientChatbotInput">Ask Ava a question</label>
       <input type="text" id="patientChatbotInput" placeholder="Ask Ava a question..." autocomplete="off" maxlength="1000">
       <button type="submit" class="btn" id="patientChatbotSend">Send</button>
     </form>

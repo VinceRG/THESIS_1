@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="patient-public-body">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="clinic-home-header">
     <a class="clinic-home-brand" href="{{ url_for('landing_page') }}">
       <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
@@ -23,7 +24,7 @@
     <div class="clinic-home-actions">{% if session.get('patient_account_id') %}<a href="{{ url_for('patient_logout') }}">Sign out</a>{% else %}<a href="{{ url_for('patient_login') }}">Patient sign in</a>{% endif %}<a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
   </header>
 
-  <main class="patient-public-main">
+  <main class="patient-public-main" id="main-content" tabindex="-1">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="patient-flash-stack">

@@ -11,7 +11,22 @@
   const input = document.getElementById('patientChatbotInput');
   const sendBtn = document.getElementById('patientChatbotSend');
 
+  // Patient pages share this widget, so it also supplies a consistent
+  // keyboard shortcut past repeated navigation on every public portal page.
+  const mainContent = document.querySelector('main');
+  if (mainContent) {
+    if (!mainContent.id) mainContent.id = 'main-content';
+    if (!document.querySelector('.skip-link')) {
+      const skipLink = document.createElement('a');
+      skipLink.className = 'skip-link';
+      skipLink.href = '#main-content';
+      skipLink.textContent = 'Skip to main content';
+      document.body.insertBefore(skipLink, document.body.firstChild);
+    }
+  }
+
   const STORAGE_KEY = 'patientChatbotConversationId';
+  let returnFocusElement = null;
   let conversationId = null;
   try {
     conversationId = sessionStorage.getItem(STORAGE_KEY);
@@ -35,6 +50,7 @@
   }
 
   function openPanel() {
+    returnFocusElement = document.activeElement;
     panel.classList.add('is-open');
     panel.setAttribute('aria-hidden', 'false');
     toggle.setAttribute('aria-expanded', 'true');
@@ -45,6 +61,10 @@
     panel.classList.remove('is-open');
     panel.setAttribute('aria-hidden', 'true');
     toggle.setAttribute('aria-expanded', 'false');
+    if (returnFocusElement && document.contains(returnFocusElement)) {
+      returnFocusElement.focus();
+    }
+    returnFocusElement = null;
   }
 
   function escapeHtml(str) {
@@ -248,6 +268,30 @@
   });
 
   closeBtn.addEventListener('click', closePanel);
+
+  document.addEventListener('keydown', (event) => {
+    if (!panel.classList.contains('is-open')) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closePanel();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = Array.from(panel.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => !element.hidden);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 
   newChatBtn.addEventListener('click', () => {
     setConversationId(null);

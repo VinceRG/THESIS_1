@@ -160,11 +160,13 @@
     }
 
     let pendingConfirmForm = null;
+    let confirmReturnFocus = null;
     let loadingTimer = null;
     let loadingProgress = 0;
 
     function openConfirmModal(form, message, title = 'Confirm action') {
       pendingConfirmForm = form;
+      confirmReturnFocus = document.activeElement;
       const overlay = document.getElementById('confirmOverlay');
       const titleElement = document.getElementById('confirmTitle');
       const messageElement = document.getElementById('confirmMessage');
@@ -173,6 +175,7 @@
       if (overlay) {
         overlay.classList.add('active');
         overlay.setAttribute('aria-hidden', 'false');
+        document.getElementById('confirmCancel')?.focus();
       }
     }
 
@@ -183,6 +186,8 @@
         overlay.setAttribute('aria-hidden', 'true');
       }
       pendingConfirmForm = null;
+      if (confirmReturnFocus && document.contains(confirmReturnFocus)) confirmReturnFocus.focus();
+      confirmReturnFocus = null;
     }
 
     function setLoadingProgress(value) {
@@ -224,6 +229,26 @@
     document.getElementById('confirmCancel')?.addEventListener('click', closeConfirmModal);
     document.getElementById('confirmOverlay')?.addEventListener('click', event => {
       if (event.target.id === 'confirmOverlay') closeConfirmModal();
+    });
+    document.addEventListener('keydown', event => {
+      const overlay = document.getElementById('confirmOverlay');
+      if (!overlay?.classList.contains('active')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeConfirmModal();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const controls = Array.from(overlay.querySelectorAll('button:not([disabled])'));
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     });
     document.getElementById('confirmProceed')?.addEventListener('click', () => {
       if (!pendingConfirmForm) return;

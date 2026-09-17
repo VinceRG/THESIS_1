@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="clinic-home-body">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="clinic-home-header">
     <a class="clinic-home-brand" href="{{ url_for('landing_page') }}"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek Health Diagnostics logo"><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></a>
     <button class="clinic-menu-toggle" type="button" aria-expanded="false" aria-controls="clinic-navigation">Menu <span aria-hidden="true">☰</span></button>
@@ -17,7 +18,7 @@
     <div class="clinic-home-actions"><a href="{{ url_for('patient_login') }}">Patient sign in</a><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
     <section class="clinic-hero">
       <div class="clinic-hero-content">
         <span class="clinic-eyebrow">Care and diagnostics for every Filipino</span>
