@@ -7847,12 +7847,17 @@ def init_db(app=None):
     app = app or flask_app
     with app.app_context():
         db.create_all()
-        migrate_staff_member_schema(app)
-        migrate_branch_schema(app)
-        migrate_user_schema(app)
-        db.create_all()
-        migrate_operational_schema(app)
-        migrate_drop_legacy_catalog_tables(app)
+        if db.engine.dialect.name == 'sqlite':
+            migrate_staff_member_schema(app)
+            migrate_branch_schema(app)
+            migrate_user_schema(app)
+            db.create_all()
+            migrate_operational_schema(app)
+            migrate_drop_legacy_catalog_tables(app)
+        else:
+            for user in User.query.filter_by(role='administrator').all():
+                user.role = 'superadmin'
+            db.session.commit()
         default_branch = Branch.query.filter_by(code=DEFAULT_BRANCH_CODE).first()
         if not User.query.filter_by(username='admin').first():
             db.session.add(User(username='admin', password=generate_password_hash('admin123'), role='superadmin', branch_id=default_branch.id, must_change_password=True))
