@@ -70,11 +70,8 @@ body { margin:0; font-family:'Inter', sans-serif; background:var(--background); 
 .report-chart-container { min-height: 195px; }
 .chart-container canvas { width:100% !important; height:100% !important; display:block; }
 .donut-container { max-width: 100%; height: 300px; max-height: 300px; }
-.analytics-side-stack { display:flex; flex-direction:column; gap:20px; }
-.analytics-side-stack .chart-card { flex:1; display:flex; flex-direction:column; }
-.analytics-trend-container { min-height: 460px; }
-.analytics-side-container { min-height: 200px; flex:1; }
-.analytics-top-cases-container { min-height: 260px; }
+.analytics-trend-container { min-height: 380px; }
+.analytics-side-container { height: 250px; min-height: 250px; max-height: 250px; }
 .table { width:100%; border-collapse:collapse; }
 .table th, .table td { padding:10px 12px; border-bottom:1px solid #e5e7eb; text-align:left; }
 .table th { color:#475569; font-size:14px; }

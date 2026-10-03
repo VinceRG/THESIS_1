@@ -77,28 +77,26 @@
 
 <div class="section-heading">Comprehensive Consultation Analytics</div>
 <p class="section-subcopy">Reviewing historical volume patterns, forecasts, and current case distribution.</p>
-<div class="grid section-grid">
+<div class="chart-card">
+  <h3>Monthly Consultation Trend</h3>
+  <p class="admin-section-description">Shows consultation volume over time.</p>
+  <div class="chart-container analytics-trend-container">
+    <canvas id="monthlyTrendChart"></canvas>
+  </div>
+</div>
+<div class="grid demographic-forecast-grid" style="margin-top:20px;">
   <div class="chart-card">
-    <h3>Monthly Consultation Trend</h3>
-    <p class="admin-section-description">Shows consultation volume over time.</p>
-    <div class="chart-container analytics-trend-container">
-      <canvas id="monthlyTrendChart"></canvas>
+    <h3>Top 5 Diagnosis Cases by Volume</h3>
+    <p class="admin-section-description">Shows the highest-volume recorded diagnoses.</p>
+    <div class="chart-container analytics-side-container">
+      <canvas id="topCasesBarChart"></canvas>
     </div>
   </div>
-  <div class="analytics-side-stack">
-    <div class="chart-card">
-      <h3>Top 5 Diagnosis Cases by Volume</h3>
-      <p class="admin-section-description">Shows the highest-volume recorded diagnoses.</p>
-      <div class="chart-container analytics-side-container analytics-top-cases-container">
-        <canvas id="topCasesBarChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-card">
-      <h3>Sex Distribution</h3>
-      <p class="admin-section-description">Shows the current patient distribution by sex.</p>
-      <div class="chart-container analytics-side-container">
-        <canvas id="sexDistributionDonutChart"></canvas>
-      </div>
+  <div class="chart-card">
+    <h3>Sex Distribution</h3>
+    <p class="admin-section-description">Shows the current patient distribution by sex.</p>
+    <div class="chart-container analytics-side-container">
+      <canvas id="sexDistributionDonutChart"></canvas>
     </div>
   </div>
 </div>
@@ -377,9 +375,9 @@
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { right: 36 } },
-        maxBarThickness: 26,
-        categoryPercentage: 0.7,
+        layout: { padding: { right: 36, top: 4, bottom: 4 } },
+        maxBarThickness: 22,
+        categoryPercentage: 0.8,
         barPercentage: 0.85,
         plugins: {
           legend: { display: false },
@@ -424,8 +422,9 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { top: 6, bottom: 6 } },
         plugins: {
-          legend: { display: true, position: 'bottom' },
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
           tooltip: {
             callbacks: {
               label: function(context) {
