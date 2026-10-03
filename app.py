@@ -9,6 +9,7 @@ import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from email.message import EmailMessage
+from html import escape as html_escape
 
 import pandas as pd
 import numpy as np
@@ -16,7 +17,11 @@ from dotenv import load_dotenv
 from flask import Flask, Response, abort, flash, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 
-from chatbot import GeminiError, run_chatbot_turn
+from chatbot import (
+    GeminiError, run_chatbot_turn,
+    build_admin_system_prompt, ADMIN_TOOL_SCHEMAS,
+    build_patient_system_prompt, PATIENT_TOOL_SCHEMAS,
+)
 from sqlalchemy import or_, text
 from sqlalchemy.exc import IntegrityError
 from sklearn.ensemble import RandomForestRegressor
@@ -250,6 +255,25 @@ class ChatbotInteraction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     user = db.relationship('User', backref='chatbot_interactions')
     branch = db.relationship('Branch', backref='chatbot_interactions')
+
+class PatientChatbotInteraction(db.Model):
+    """Log of Ava (patient-facing chatbot) turns. Separate from ChatbotInteraction
+    because the caller is a Patient, not a staff User, and this endpoint is
+    reachable while signed out."""
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
+    conversation_id = db.Column(db.String(64), nullable=False)
+    turn_index = db.Column(db.Integer, nullable=False, default=0)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+    tools_used = db.Column(db.Text, nullable=True)
+    model_name = db.Column(db.String(80), nullable=True)
+    latency_ms = db.Column(db.Integer, nullable=True)
+    error = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    patient = db.relationship('Patient', backref='chatbot_interactions')
+    branch = db.relationship('Branch', backref='patient_chatbot_interactions')
 
 class ConsultationRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1911,41 +1935,89 @@ def create_app():
 
     OTP_RESEND_COOLDOWN_SECONDS = 60
 
-    def send_patient_verification_email(recipient, code):
-        """Deliver a short-lived sign-up code using the configured SMTP provider."""
+    EMAIL_CODE_PATTERN = re.compile(r'\b(\d{6})\b')
+    EMAIL_DETAIL_LINE_PATTERN = re.compile(r'^[A-Za-z][A-Za-z0-9 /]{0,30}: .+$')
+
+    def render_brand_email_html(heading, text_body):
+        """Lightly format a plain-text email body into a branded HTML layout: paragraphs,
+        a detail table for consecutive "Label: value" lines, and emphasized 6-digit codes."""
+        sections = []
+        for paragraph in text_body.strip().split('\n\n'):
+            lines = [line for line in paragraph.split('\n') if line.strip()]
+            if not lines:
+                continue
+            if len(lines) > 1 and all(EMAIL_DETAIL_LINE_PATTERN.match(line) for line in lines):
+                rows = ''.join(
+                    f'<tr><td style="padding:8px 0;font-size:13px;color:#5b7788;white-space:nowrap;">{html_escape(label)}</td>'
+                    f'<td style="padding:8px 0 8px 16px;font-size:14px;color:#11354f;font-weight:600;text-align:right;">{html_escape(value)}</td></tr>'
+                    for label, value in (line.split(': ', 1) for line in lines)
+                )
+                sections.append(
+                    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+                    f'style="margin:0 0 20px;border-top:1px solid #e5eef2;border-bottom:1px solid #e5eef2;">{rows}</table>'
+                )
+            else:
+                escaped = '<br>'.join(html_escape(line) for line in lines)
+                escaped = EMAIL_CODE_PATTERN.sub(
+                    r'<span style="font-weight:700;letter-spacing:0.1em;color:#0f5b8a;">\1</span>', escaped
+                )
+                sections.append(f'<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#11354f;">{escaped}</p>')
+        body_html = ''.join(sections)
+        return f'''<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f5fbfd;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5fbfd;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(15,91,138,0.08);">
+<tr><td style="background:#0f5b8a;padding:24px 32px;">
+<span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.02em;">Accudetek</span>
+<span style="color:#d9f4fb;font-size:12px;display:block;margin-top:2px;">Health Diagnostics</span>
+</td></tr>
+<tr><td style="padding:32px;">
+<h1 style="margin:0 0 20px;font-size:19px;color:#073b58;">{html_escape(heading)}</h1>
+{body_html}
+</td></tr>
+<tr><td style="padding:20px 32px;background:#f5fbfd;border-top:1px solid #e5eef2;">
+<p style="margin:0;color:#5b7788;font-size:12px;">Care you can trust, from booking to results.</p>
+<p style="margin:6px 0 0;color:#8fa5b3;font-size:11px;">This is an automated message from Accudetek Health Diagnostics. Please do not reply to this email.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>'''
+
+    def deliver_email(recipient, subject, text_body):
+        """Send a branded, multipart (plain text + HTML) email through the configured SMTP provider."""
         if not all([app.config['SMTP_HOST'], app.config['SMTP_FROM']]):
             raise RuntimeError('Email delivery is not configured. Set SMTP_HOST, SMTP_FROM, SMTP_USERNAME, and SMTP_PASSWORD.')
         message = EmailMessage()
-        message['Subject'] = 'Your Accudetek patient portal verification code'
+        message['Subject'] = subject
         message['From'] = app.config['SMTP_FROM']
         message['To'] = recipient
-        message.set_content(
-            f'Your Accudetek patient portal verification code is: {code}\n\n'
-            'It expires in 10 minutes. Do not share this code with anyone.'
-        )
+        message.set_content(text_body)
+        message.add_alternative(render_brand_email_html(subject, text_body), subtype='html')
         with smtplib.SMTP(app.config['SMTP_HOST'], app.config['SMTP_PORT'], timeout=20) as smtp:
             smtp.starttls()
             if app.config['SMTP_USERNAME']:
                 smtp.login(app.config['SMTP_USERNAME'], app.config['SMTP_PASSWORD'])
             smtp.send_message(message)
 
+    def send_patient_verification_email(recipient, code):
+        """Deliver a short-lived sign-up code using the configured SMTP provider."""
+        deliver_email(
+            recipient,
+            'Your Accudetek patient portal verification code',
+            f'Your Accudetek patient portal verification code is: {code}\n\n'
+            'It expires in 10 minutes. Do not share this code with anyone.',
+        )
+
     def send_appointment_email(recipient, subject, message_text):
         """Send transactional appointment messages without exposing SMTP details."""
         if not recipient:
             return False
         try:
-            if not all([app.config['SMTP_HOST'], app.config['SMTP_FROM']]):
-                raise RuntimeError('Email delivery is not configured.')
-            message = EmailMessage()
-            message['Subject'] = subject
-            message['From'] = app.config['SMTP_FROM']
-            message['To'] = recipient
-            message.set_content(message_text)
-            with smtplib.SMTP(app.config['SMTP_HOST'], app.config['SMTP_PORT'], timeout=20) as smtp:
-                smtp.starttls()
-                if app.config['SMTP_USERNAME']:
-                    smtp.login(app.config['SMTP_USERNAME'], app.config['SMTP_PASSWORD'])
-                smtp.send_message(message)
+            deliver_email(recipient, subject, message_text)
             return True
         except Exception:
             app.logger.exception('Appointment email could not be sent')
@@ -3343,7 +3415,7 @@ def create_app():
     @app.before_request
     def require_login():
         if request.method == 'POST' and not validate_csrf_token():
-            if request.endpoint == 'chatbot_ask':
+            if request.endpoint in {'chatbot_ask', 'patient_chatbot_ask'}:
                 return jsonify({'error': 'csrf'}), 400
             flash('Security check failed. Please reload the page and try again.', 'error')
             csrf_fallbacks = {
@@ -7197,7 +7269,8 @@ def create_app():
                 question=question,
                 tool_registry=CHATBOT_TOOLS,
                 history=ctx.get('turns', []),
-                user_context=user_context,
+                system_prompt=build_admin_system_prompt(user_context),
+                tool_schemas=ADMIN_TOOL_SCHEMAS,
                 api_key=app.config['GEMINI_API_KEY'],
                 model_name=app.config['GEMINI_MODEL'],
                 on_tool_call=report_progress,
@@ -7254,6 +7327,286 @@ def create_app():
             return jsonify({'error': 'forbidden'}), 403
         conversation_id = request.args.get('conversation_id') or ''
         return jsonify({'status': CHATBOT_PROGRESS.get(conversation_id, 'Thinking...')})
+
+    # -------------------------------------------------------------
+    # Ava: patient-facing chatbot. Read-only, reachable while signed out,
+    # and every tool that touches personal data (tool_my_appointments) is
+    # scoped to whichever patient (if any) the current browser session is
+    # signed in as -- never to a patient_id/email supplied by the model.
+    # -------------------------------------------------------------
+    def current_patient_for_chatbot():
+        account = PatientAccount.query.filter_by(id=session.get('patient_account_id')).first()
+        if account is None or account.patient is None or not account.patient.is_active:
+            return None
+        return account.patient
+
+    def tool_my_appointments(status_filter=None):
+        patient = current_patient_for_chatbot()
+        if patient is None:
+            return {
+                'signed_in': False,
+                'message': 'No patient is signed in on this browser session, so there is no appointment data to show.',
+            }
+        query = Appointment.query.filter_by(patient_id=patient.id)
+        today = datetime.now().strftime('%Y-%m-%d')
+        normalized = (status_filter or '').strip().lower()
+        if normalized == 'upcoming':
+            query = query.filter(Appointment.appointment_date >= today, Appointment.status.in_(['Pending', 'Confirmed']))
+        elif normalized == 'past':
+            query = query.filter(or_(Appointment.appointment_date < today, Appointment.status.in_(['Completed', 'Cancelled'])))
+        elif normalized in ('pending', 'confirmed', 'cancelled', 'completed'):
+            query = query.filter(Appointment.status == normalized.capitalize())
+        appointments = query.order_by(Appointment.appointment_date.desc(), Appointment.appointment_time.desc()).limit(15).all()
+        return {
+            'signed_in': True,
+            'patient_first_name': patient.full_name.split(' ')[0] if patient.full_name else None,
+            'appointment_count': len(appointments),
+            'appointments': [
+                {
+                    'appointment_code': appt.appointment_code,
+                    'branch_name': appt.branch.name if appt.branch else None,
+                    'date': appt.appointment_date,
+                    'time': format_appointment_time(appt.appointment_time) if appt.appointment_time else None,
+                    'status': appt.status,
+                    'services': appt.service_items(),
+                    'packages': appt.package_items(),
+                }
+                for appt in appointments
+            ],
+        }
+
+    def tool_clinic_info(branch_name=None):
+        if branch_name:
+            needle = branch_name.strip()
+            match = Branch.query.filter_by(is_active=True).filter(db.func.lower(Branch.name) == needle.lower()).first()
+            if not match:
+                match = Branch.query.filter_by(is_active=True).filter(Branch.name.ilike(f'%{needle}%')).first()
+            if not match:
+                available = [b.name for b in Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()]
+                return {'error': f'No branch found matching "{branch_name}".', 'available_branches': available}
+            branches = [match]
+        else:
+            branches = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
+        return {
+            'branches': [
+                {'name': b.name, 'address': b.address, 'contact_number': b.contact_number, 'email': b.email}
+                for b in branches
+            ],
+            'operating_hours': {
+                'monday_to_saturday': f'{format_appointment_time(CLINIC_HOURS_WEEKDAY[0])} to {format_appointment_time(CLINIC_HOURS_WEEKDAY[1])}',
+                'sunday': f'{format_appointment_time(CLINIC_HOURS_SUNDAY[0])} to {format_appointment_time(CLINIC_HOURS_SUNDAY[1])}',
+            },
+        }
+
+    def tool_services_and_pricing(keyword=None):
+        service_groups, _recommendations, _preparation = load_service_options()
+        needle = (keyword or '').strip().lower()
+        results = []
+        for category, options in service_groups.items():
+            for option in options:
+                if needle and needle not in option['label'].lower() and needle not in category.lower():
+                    continue
+                results.append({
+                    'name': option['label'],
+                    'category': category,
+                    'price_php': option.get('price_php') or 'Not listed -- please confirm at the clinic',
+                })
+        return {'service_count': len(results), 'services': results[:60]}
+
+    def tool_packages_and_pricing():
+        _service_groups, service_recommendations, service_preparation = load_service_options()
+        package_options, _recommendations, _preparation = load_package_options(service_recommendations, service_preparation)
+        return {
+            'package_count': len(package_options),
+            'packages': [
+                {
+                    'name': option['label'],
+                    'included_service_count': option.get('item_count'),
+                    'price_php': option.get('price_php') or 'Not listed -- please confirm at the clinic',
+                }
+                for option in package_options
+            ],
+        }
+
+    def tool_how_to_book_or_manage(intent=None):
+        guides = {
+            'book': {
+                'summary': 'Start a new appointment booking.',
+                'steps': [
+                    'Use the "Book appointment" button on any page, or go straight to the patient portal.',
+                    'Choose a branch, then a date and time within clinic hours.',
+                    'Enter or confirm your patient details.',
+                    'Select the services or packages you need.',
+                    'Add your reason(s) for the visit, then review and submit the request.',
+                ],
+                'url': url_for('patient_portal'),
+            },
+            'track_guest': {
+                'summary': 'Check an appointment status without signing in.',
+                'steps': [
+                    'Open the "Track appointment" page.',
+                    'Enter the Appointment ID and the email address used when booking.',
+                    'Request a one-time email code and enter it to view the current status.',
+                ],
+                'url': url_for('track_appointment'),
+            },
+            'sign_in': {
+                'summary': 'Sign in or create a patient account.',
+                'steps': [
+                    'Use "Patient sign in" if already registered.',
+                    'New patients can register from the same screen; a six-digit code is emailed to verify the address.',
+                ],
+                'url': url_for('patient_login'),
+            },
+            'cancel_or_reschedule': {
+                'summary': 'Cancel or reschedule an existing appointment.',
+                'steps': [
+                    'Sign in, then open "My Profile".',
+                    'Find the appointment under upcoming appointments.',
+                    'Use the Cancel or Reschedule action there -- rescheduling cancels the old slot and starts a new booking pre-filled with the same details.',
+                ],
+                'url': url_for('patient_profile'),
+                'requires_sign_in': True,
+            },
+        }
+        key = (intent or '').strip().lower()
+        if key in guides:
+            return guides[key]
+        return {'overview': guides}
+
+    def tool_chatbot_help():
+        return {
+            'capabilities': [
+                'Answering questions about services, packages, and pricing',
+                'Branch locations, contact info, and operating hours',
+                "Checking your own appointment status and history, when you're signed in",
+                'Explaining how to book, track a guest appointment, sign in, cancel, or reschedule',
+                'General, non-diagnostic health and wellness questions',
+            ],
+            'limitations': [
+                'Cannot book, cancel, reschedule, or edit anything itself -- guidance only.',
+                "Cannot see or discuss any other patient's information.",
+                'Cannot diagnose symptoms, interpret personal results, or recommend treatment.',
+                'Answers may take a little while to generate.',
+            ],
+        }
+
+    PATIENT_CHATBOT_TOOLS = {
+        'tool_my_appointments': tool_my_appointments,
+        'tool_clinic_info': tool_clinic_info,
+        'tool_services_and_pricing': tool_services_and_pricing,
+        'tool_packages_and_pricing': tool_packages_and_pricing,
+        'tool_how_to_book_or_manage': tool_how_to_book_or_manage,
+        'tool_chatbot_help': tool_chatbot_help,
+    }
+    PATIENT_CHATBOT_TOOL_STATUS_LABELS = {
+        'tool_my_appointments': 'Checking your appointments...',
+        'tool_clinic_info': 'Looking up clinic details...',
+        'tool_services_and_pricing': 'Checking services and pricing...',
+        'tool_packages_and_pricing': 'Checking package deals...',
+        'tool_how_to_book_or_manage': 'Getting the steps for you...',
+        'tool_chatbot_help': 'Getting help info...',
+    }
+    PATIENT_CHATBOT_PROGRESS = {}
+    app.patient_chatbot_tools = PATIENT_CHATBOT_TOOLS
+
+    def get_patient_chatbot_context():
+        return session.get('patient_chatbot_turn_context', {'conversation_id': None, 'turns': []})
+
+    def save_patient_chatbot_turn(conversation_id, question, answer, tools_used):
+        ctx = get_patient_chatbot_context()
+        ctx['conversation_id'] = conversation_id
+        ctx['turns'] = (ctx['turns'] + [{'q': question, 'a': answer, 'tools': tools_used}])[-6:]
+        session['patient_chatbot_turn_context'] = ctx
+
+    def clear_patient_chatbot_context():
+        session.pop('patient_chatbot_turn_context', None)
+
+    @app.route('/api/patient-chatbot/ask', methods=['POST'])
+    def patient_chatbot_ask():
+        payload = request.get_json(silent=True) or {}
+        question = (payload.get('question') or '').strip()
+        conversation_id = payload.get('conversation_id') or None
+        if not question:
+            return jsonify({'error': 'question is required'}), 400
+        if len(question) > 1000:
+            return jsonify({'error': 'question is too long'}), 400
+
+        ctx = get_patient_chatbot_context()
+        if not conversation_id or conversation_id != ctx.get('conversation_id'):
+            clear_patient_chatbot_context()
+            conversation_id = conversation_id or uuid.uuid4().hex
+            ctx = {'conversation_id': conversation_id, 'turns': []}
+
+        patient = current_patient_for_chatbot()
+        user_context = {
+            'is_signed_in': patient is not None,
+            'patient_first_name': (patient.full_name.split(' ')[0] if patient and patient.full_name else None),
+        }
+
+        def report_progress(tool_name):
+            PATIENT_CHATBOT_PROGRESS[conversation_id] = PATIENT_CHATBOT_TOOL_STATUS_LABELS.get(tool_name, 'Looking that up...')
+
+        PATIENT_CHATBOT_PROGRESS[conversation_id] = 'Thinking...'
+        started_at = time.monotonic()
+        error_text = None
+        try:
+            answer, tools_used = run_chatbot_turn(
+                question=question,
+                tool_registry=PATIENT_CHATBOT_TOOLS,
+                history=ctx.get('turns', []),
+                system_prompt=build_patient_system_prompt(user_context),
+                tool_schemas=PATIENT_TOOL_SCHEMAS,
+                api_key=app.config['GEMINI_API_KEY'],
+                model_name=app.config['GEMINI_MODEL'],
+                on_tool_call=report_progress,
+            )
+        except GeminiError as exc:
+            traceback.print_exc()
+            error_text = str(exc)
+            answer = "Ava isn't reachable right now. Please try again in a moment."
+            tools_used = []
+        except Exception as exc:
+            traceback.print_exc()
+            error_text = str(exc)
+            answer = 'Sorry, something went wrong answering that. Please try again.'
+            tools_used = []
+        finally:
+            PATIENT_CHATBOT_PROGRESS.pop(conversation_id, None)
+        latency_ms = int((time.monotonic() - started_at) * 1000)
+
+        warnings = []
+        if error_text:
+            warnings.append('An internal error occurred while generating this answer.')
+
+        interaction = PatientChatbotInteraction(
+            patient_id=patient.id if patient else None,
+            branch_id=patient.branch_id if patient else None,
+            conversation_id=conversation_id,
+            turn_index=len(ctx.get('turns', [])),
+            question=question,
+            answer=answer,
+            tools_used=json.dumps(tools_used, default=str),
+            model_name=app.config.get('GEMINI_MODEL'),
+            latency_ms=latency_ms,
+            error=error_text,
+        )
+        db.session.add(interaction)
+        db.session.commit()
+
+        save_patient_chatbot_turn(conversation_id, question, answer, tools_used)
+
+        return jsonify({
+            'answer': answer,
+            'conversation_id': conversation_id,
+            'tools_used': [call.get('tool') for call in tools_used],
+            'warnings': warnings,
+        })
+
+    @app.route('/api/patient-chatbot/progress')
+    def patient_chatbot_progress():
+        conversation_id = request.args.get('conversation_id') or ''
+        return jsonify({'status': PATIENT_CHATBOT_PROGRESS.get(conversation_id, 'Thinking...')})
 
     @app.route('/reports')
     def reports():

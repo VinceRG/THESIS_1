@@ -28,7 +28,11 @@
         </label>
         <label class="{% if field_errors.appointment_time %}has-error{% endif %}">
           Preferred Time
-          <input type="time" name="appointment_time" step="600" value="{{ values.appointment_time }}" required data-appointment-time>
+          <button type="button" class="patient-time-trigger" data-time-trigger data-empty="{{ 'false' if values.appointment_time else 'true' }}">
+            <span data-time-display>Select a time</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>
+          </button>
+          <input type="hidden" name="appointment_time" value="{{ values.appointment_time }}" required data-appointment-time>
           <small class="patient-field-help" data-clinic-hours-hint>Clinic hours: 6:00 AM – 5:00 PM (Mon–Sat), 6:00 AM – 12:00 PM (Sun).</small>
           {% if field_errors.appointment_time %}<small class="patient-field-error">{{ field_errors.appointment_time }}</small>{% endif %}
         </label>
@@ -39,6 +43,29 @@
       <button type="submit" class="patient-wizard-next">Next: Patient Information →</button>
     </div>
   </form>
+
+  <div class="patient-clock-overlay" data-clock-overlay>
+    <div class="patient-clock-panel" role="dialog" aria-modal="true" aria-label="Select appointment time">
+      <div class="patient-clock-header">
+        <span class="patient-clock-title">Select time</span>
+        <div class="patient-clock-ampm">
+          <button type="button" data-ampm="AM">AM</button>
+          <button type="button" data-ampm="PM">PM</button>
+        </div>
+      </div>
+      <div class="patient-clock-readout-time">
+        <button type="button" data-clock-mode-btn="hour">--</button>:<button type="button" data-clock-mode-btn="minute">--</button>
+      </div>
+      <div class="patient-clock-face" data-clock-face>
+        <div class="patient-clock-hand" data-clock-hand><span class="patient-clock-hand-dot"></span></div>
+        <div class="patient-clock-center"></div>
+      </div>
+      <div class="patient-clock-actions">
+        <button type="button" class="patient-secondary-action" data-clock-cancel>Cancel</button>
+        <button type="button" class="patient-primary-button" data-clock-ok>OK</button>
+      </div>
+    </div>
+  </div>
 {% endblock %}
 {% block step_scripts %}
 <script>
@@ -46,8 +73,29 @@
     const dateInput = document.querySelector('[data-appointment-date]');
     const timeInput = document.querySelector('[data-appointment-time]');
     const hint = document.querySelector('[data-clinic-hours-hint]');
-    if (!dateInput || !timeInput) return;
+    const trigger = document.querySelector('[data-time-trigger]');
+    const triggerDisplay = document.querySelector('[data-time-display]');
+    const overlay = document.querySelector('[data-clock-overlay]');
+    if (!dateInput || !timeInput || !trigger || !overlay) return;
     const todayIso = '{{ today }}';
+
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const toMinutes = (hhmm) => {
+      if (!hhmm) return null;
+      const [h, m] = hhmm.split(':').map(Number);
+      return (Number.isNaN(h) || Number.isNaN(m)) ? null : h * 60 + m;
+    };
+    const formatDisplay = (hhmm) => {
+      const total = toMinutes(hhmm);
+      if (total === null) return '';
+      let h = Math.floor(total / 60);
+      const m = total % 60;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${pad2(m)} ${ampm}`;
+    };
+
+    let bounds = { minMinutes: 6 * 60, maxMinutes: 17 * 60 };
 
     function clinicHoursFor(dateValue) {
       const parts = (dateValue || '').split('-').map(Number);
@@ -61,12 +109,18 @@
       let min = open;
       if (dateInput.value === todayIso) {
         const now = new Date();
-        const nowHhMm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        const nowHhMm = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
         if (nowHhMm > min) min = nowHhMm;
       }
-      timeInput.min = min;
-      timeInput.max = close;
-      if (timeInput.value && (timeInput.value < min || timeInput.value > close)) timeInput.value = '';
+      bounds = { minMinutes: toMinutes(min), maxMinutes: toMinutes(close) };
+      if (timeInput.value) {
+        const current = toMinutes(timeInput.value);
+        if (current === null || current < bounds.minMinutes || current > bounds.maxMinutes) {
+          timeInput.value = '';
+          trigger.dataset.empty = 'true';
+          triggerDisplay.textContent = 'Select a time';
+        }
+      }
       if (hint) {
         hint.textContent = isSunday
           ? 'Clinic hours on Sunday: 6:00 AM – 12:00 PM.'
@@ -76,6 +130,142 @@
 
     dateInput.addEventListener('change', applyBounds);
     applyBounds();
+    if (timeInput.value) triggerDisplay.textContent = formatDisplay(timeInput.value);
+
+    // --- Clock time picker ---
+    const face = overlay.querySelector('[data-clock-face]');
+    const hand = overlay.querySelector('[data-clock-hand]');
+    const hourBtn = overlay.querySelector('[data-clock-mode-btn="hour"]');
+    const minuteBtn = overlay.querySelector('[data-clock-mode-btn="minute"]');
+    const ampmButtons = overlay.querySelectorAll('[data-ampm]');
+    const okButton = overlay.querySelector('[data-clock-ok]');
+    const cancelButton = overlay.querySelector('[data-clock-cancel]');
+
+    const state = { hour24: null, minute: null, ampm: 'AM', mode: 'hour' };
+
+    function minuteAllowed(hour24, minute) {
+      const total = hour24 * 60 + minute;
+      return total >= bounds.minMinutes && total <= bounds.maxMinutes;
+    }
+    function hourAllowed(hour24) {
+      return [0, 10, 20, 30, 40, 50].some((m) => minuteAllowed(hour24, m));
+    }
+    function ampmAllowed(ampm) {
+      for (let h12 = 1; h12 <= 12; h12++) {
+        const hour24 = (h12 % 12) + (ampm === 'PM' ? 12 : 0);
+        if (hourAllowed(hour24)) return true;
+      }
+      return false;
+    }
+
+    function polar(index, count, radius) {
+      const angle = (index / count) * 2 * Math.PI;
+      return { x: 120 + radius * Math.sin(angle), y: 120 - radius * Math.cos(angle) };
+    }
+
+    function renderFace() {
+      face.querySelectorAll('.patient-clock-number').forEach((el) => el.remove());
+      const isHourMode = state.mode === 'hour';
+      const count = isHourMode ? 12 : 6;
+      let selectedIndex = null;
+      for (let i = 0; i < count; i++) {
+        const value = isHourMode ? (i === 0 ? 12 : i) : i * 10;
+        const hour24 = isHourMode ? ((value % 12) + (state.ampm === 'PM' ? 12 : 0)) : state.hour24;
+        const allowed = isHourMode ? hourAllowed(hour24) : (state.hour24 !== null && minuteAllowed(state.hour24, value));
+        const { x, y } = polar(i, count, 92);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'patient-clock-number' + (allowed ? '' : ' disabled');
+        btn.style.left = x + 'px';
+        btn.style.top = y + 'px';
+        btn.textContent = isHourMode ? String(value) : pad2(value);
+        btn.disabled = !allowed;
+        const isSelected = isHourMode ? (state.hour24 !== null && hour24 === state.hour24 && (state.hour24 % 12 || 12) === value) : (state.minute === value);
+        if (isSelected) { btn.classList.add('selected'); selectedIndex = i; }
+        btn.addEventListener('click', () => selectValue(isHourMode, value, hour24));
+        face.appendChild(btn);
+      }
+      if (selectedIndex !== null) {
+        hand.style.height = '92px';
+        hand.style.marginTop = '-92px';
+        hand.style.transform = `rotate(${(selectedIndex / count) * 360}deg)`;
+        hand.style.opacity = '1';
+      } else {
+        hand.style.height = '0';
+        hand.style.marginTop = '0';
+        hand.style.opacity = '0';
+      }
+      hourBtn.textContent = state.hour24 === null ? '--' : String((state.hour24 % 12) || 12);
+      minuteBtn.textContent = state.minute === null ? '--' : pad2(state.minute);
+      hourBtn.classList.toggle('active', isHourMode);
+      minuteBtn.classList.toggle('active', !isHourMode);
+      okButton.disabled = state.hour24 === null || state.minute === null;
+      ampmButtons.forEach((btn) => {
+        const ampm = btn.dataset.ampm;
+        btn.classList.toggle('active', state.ampm === ampm);
+        btn.disabled = !ampmAllowed(ampm);
+      });
+    }
+
+    function selectValue(isHourMode, value, hour24) {
+      if (isHourMode) {
+        state.hour24 = hour24;
+        if (state.minute !== null && !minuteAllowed(state.hour24, state.minute)) state.minute = null;
+        state.mode = 'minute';
+      } else {
+        state.minute = value;
+      }
+      renderFace();
+    }
+
+    function openPicker() {
+      const currentMinutes = toMinutes(timeInput.value);
+      if (currentMinutes !== null) {
+        state.hour24 = Math.floor(currentMinutes / 60);
+        state.minute = currentMinutes % 60;
+        state.ampm = state.hour24 >= 12 ? 'PM' : 'AM';
+      } else {
+        state.hour24 = null;
+        state.minute = null;
+        state.ampm = ampmAllowed('AM') ? 'AM' : 'PM';
+      }
+      state.mode = 'hour';
+      renderFace();
+      overlay.classList.add('active');
+    }
+
+    function closePicker() {
+      overlay.classList.remove('active');
+    }
+
+    trigger.addEventListener('click', openPicker);
+    hourBtn.addEventListener('click', () => { state.mode = 'hour'; renderFace(); });
+    minuteBtn.addEventListener('click', () => { if (state.hour24 !== null) { state.mode = 'minute'; renderFace(); } });
+    ampmButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        state.ampm = btn.dataset.ampm;
+        if (state.hour24 !== null) {
+          const newHour24 = (state.hour24 % 12) + (state.ampm === 'PM' ? 12 : 0);
+          state.hour24 = hourAllowed(newHour24) ? newHour24 : null;
+          if (state.hour24 === null) state.minute = null;
+        }
+        renderFace();
+      });
+    });
+    cancelButton.addEventListener('click', closePicker);
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) closePicker(); });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && overlay.classList.contains('active')) closePicker();
+    });
+    okButton.addEventListener('click', () => {
+      if (state.hour24 === null || state.minute === null) return;
+      const value = `${pad2(state.hour24)}:${pad2(state.minute)}`;
+      timeInput.value = value;
+      trigger.dataset.empty = 'false';
+      triggerDisplay.textContent = formatDisplay(value);
+      closePicker();
+    });
   })();
 </script>
 {% endblock %}
