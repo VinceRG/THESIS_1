@@ -17,4 +17,8 @@ instance/
 
 # Local uploads and generated reports/data
 uploads/
+screenshots/
 screeshots/
+
+# IDE configurations
+.vscode/
