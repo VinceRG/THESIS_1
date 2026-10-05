@@ -17,7 +17,15 @@ instance/
 *.log
 
 # Local uploads and generated reports/data
-uploads/
+uploads/*
+!uploads/dashboard_summary_branch_*.json
+!uploads/training_report.txt
+!uploads/accudetek_packages_scraped.csv
+!uploads/accudetek_services_scraped.csv
+!uploads/accudetek_consultation_records_upload_ready_2023_2026.csv
+!uploads/accudetek_training_dataset_recommended_2023_2026.csv
+!uploads/app_settings.json
+uploads/patient_photos/
 screenshots/
 screeshots/
 
