@@ -6561,7 +6561,14 @@ def create_app():
         branch = current_branch()
         if request.method == 'POST':
             staff_id = request.form.get('staff_member_id', type=int)
-            staff = StaffMember.query.filter_by(id=staff_id, branch_id=branch.id, is_active=True).first()
+            staff = StaffMember.query.filter_by(id=staff_id, branch_id=branch.id, is_active=True).first() if staff_id else None
+            if not staff:
+                raw_name = request.form.get('staff_search_input', '').strip()
+                if raw_name:
+                    clean_name = raw_name.split('—')[0].split('-')[0].strip()
+                    staff = StaffMember.query.filter_by(branch_id=branch.id, is_active=True).filter(
+                        StaffMember.name.ilike(f"%{clean_name}%")
+                    ).first()
             if not staff:
                 flash('Please select an active staff member for this branch.', 'error')
                 return redirect(url_for('create_staff_allocation'))

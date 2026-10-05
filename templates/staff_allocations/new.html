@@ -14,6 +14,15 @@
   </a>
 </div>
 
+<style>
+  .combobox-option:hover {
+    background: #f0f9fa !important;
+  }
+  .combobox-option.is-selected {
+    background: #e6f6f7 !important;
+  }
+</style>
+
 <div class="chart-card">
   <div class="page-heading-row" style="margin-bottom:18px;">
     <div>
@@ -35,21 +44,54 @@
       <input type="text" value="{{ branch.name }}" readonly class="readonly-field">
     </label>
 
-    <label>
+    <label class="form-wide" style="position:relative;">
       Staff Member *
-      <select name="staff_member_id" id="staff_member_id" required onchange="handleStaffChange(this)">
-        <option value="" disabled {% if not prefill_staff_id %}selected{% endif %}>Select active staff member</option>
-        {% for member in staff_members %}
-          <option value="{{ member.id }}"
-                  data-name="{{ member.name }}"
-                  data-role="{{ member.role }}"
-                  data-email="{{ member.email or '' }}"
-                  data-availability="{{ member.availability }}"
-                  {% if prefill_staff_id == member.id or (prefill_role and member.role == prefill_role and not prefill_staff_id) %}selected{% endif %}>
-            {{ member.name }} &mdash; {{ member.role }} ({{ member.availability }})
-          </option>
-        {% endfor %}
-      </select>
+      <div class="combobox-container" id="staffCombobox" style="position:relative; width:100%;">
+        <input type="hidden" name="staff_member_id" id="staff_member_id" value="{{ prefill_staff_id or '' }}" required>
+        
+        <div class="combobox-input-wrapper" style="position:relative; display:flex; align-items:center;">
+          <input type="text"
+                 name="staff_search_input"
+                 id="staff_search_input"
+                 autocomplete="off"
+                 placeholder="Type to search staff by name or role, or click arrow to browse..."
+                 value="{% for m in staff_members if m.id == prefill_staff_id %}{{ m.name }} &mdash; {{ m.role }} ({{ m.availability }}){% endfor %}"
+                 style="width:100%; padding-right:42px; cursor:text;"
+                 required>
+          <button type="button"
+                  id="comboboxToggleBtn"
+                  title="Toggle all staff options"
+                  aria-label="Toggle staff options"
+                  style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--admin-line, #64748b); padding:6px; font-size:15px; display:flex; align-items:center; justify-content:center;">
+            <i class="bi bi-chevron-down" id="comboboxChevron"></i>
+          </button>
+        </div>
+
+        <!-- Custom Dropdown Menu with Live Type-Ahead Filtering -->
+        <div class="combobox-dropdown" id="comboboxDropdown"
+             style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:1050; background:#ffffff; border:1px solid var(--admin-line, #cbd5e1); border-radius:6px; box-shadow:0 10px 28px rgba(0,0,0,0.12); max-height:260px; overflow-y:auto;">
+          {% for member in staff_members %}
+            <div class="combobox-option"
+                 data-id="{{ member.id }}"
+                 data-name="{{ member.name }}"
+                 data-role="{{ member.role }}"
+                 data-availability="{{ member.availability }}"
+                 data-search="{{ member.name|lower }} {{ member.role|lower }} {{ member.availability|lower }}"
+                 style="padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; transition:background 0.15s ease;">
+              <div>
+                <strong style="color:var(--text, #1e293b);">{{ member.name }}</strong>
+                <span class="muted-copy" style="font-size:12px; margin-left:6px;">{{ member.role }}</span>
+              </div>
+              <span class="status-pill status-{{ member.availability|lower|replace(' ', '-') }}" style="font-size:11px;">
+                {{ member.availability }}
+              </span>
+            </div>
+          {% endfor %}
+          <div id="noMatchOption" style="display:none; padding:16px; text-align:center; color:#64748b; font-size:13px;">
+            <i class="bi bi-search" style="margin-right:4px;"></i> No matching staff members found
+          </div>
+        </div>
+      </div>
     </label>
 
     <label>
@@ -118,27 +160,190 @@
 </div>
 
 <script>
-  function handleStaffChange(selectEl) {
-    if (!selectEl || selectEl.selectedIndex < 0) return;
-    const selectedOption = selectEl.options[selectEl.selectedIndex];
-    const role = selectedOption.getAttribute('data-role');
-    const name = selectedOption.getAttribute('data-name');
-    const availability = selectedOption.getAttribute('data-availability');
-
-    if (role) {
-      document.getElementById('role').value = role;
-    }
-
+  (function() {
+    const hiddenIdInput = document.getElementById('staff_member_id');
+    const searchInput = document.getElementById('staff_search_input');
+    const toggleBtn = document.getElementById('comboboxToggleBtn');
+    const dropdown = document.getElementById('comboboxDropdown');
+    const chevron = document.getElementById('comboboxChevron');
+    const options = Array.from(document.querySelectorAll('.combobox-option'));
+    const noMatchOption = document.getElementById('noMatchOption');
+    const roleInput = document.getElementById('role');
     const warningEl = document.getElementById('availabilityWarning');
-    if (warningEl) {
-      if (availability && (availability.toLowerCase().includes('leave') || availability.toLowerCase().includes('unavail'))) {
-        warningEl.style.display = 'block';
-      } else {
-        warningEl.style.display = 'none';
+
+    function openDropdown() {
+      dropdown.style.display = 'block';
+      if (chevron) {
+        chevron.classList.remove('bi-chevron-down');
+        chevron.classList.add('bi-chevron-up');
       }
     }
-    updatePreview();
-  }
+
+    function closeDropdown() {
+      dropdown.style.display = 'none';
+      if (chevron) {
+        chevron.classList.remove('bi-chevron-up');
+        chevron.classList.add('bi-chevron-down');
+      }
+    }
+
+    function isDropdownOpen() {
+      return dropdown.style.display === 'block';
+    }
+
+    function filterOptions(query) {
+      const q = (query || '').toLowerCase().trim();
+      let matchCount = 0;
+
+      options.forEach(function(opt) {
+        const searchText = opt.getAttribute('data-search') || '';
+        if (!q || searchText.includes(q)) {
+          opt.style.display = 'flex';
+          matchCount++;
+        } else {
+          opt.style.display = 'none';
+        }
+      });
+
+      if (noMatchOption) {
+        noMatchOption.style.display = (matchCount === 0) ? 'block' : 'none';
+      }
+    }
+
+    function selectStaff(opt) {
+      if (!opt) return;
+      const id = opt.getAttribute('data-id');
+      const name = opt.getAttribute('data-name');
+      const role = opt.getAttribute('data-role');
+      const availability = opt.getAttribute('data-availability');
+
+      hiddenIdInput.value = id;
+      searchInput.value = name + ' — ' + role + ' (' + availability + ')';
+
+      if (role && roleInput) {
+        roleInput.value = role;
+      }
+
+      options.forEach(o => o.classList.remove('is-selected'));
+      opt.classList.add('is-selected');
+
+      if (warningEl) {
+        if (availability && (availability.toLowerCase().includes('leave') || availability.toLowerCase().includes('unavail'))) {
+          warningEl.style.display = 'block';
+        } else {
+          warningEl.style.display = 'none';
+        }
+      }
+
+      closeDropdown();
+      updatePreview();
+    }
+
+    // Toggle button click
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isDropdownOpen()) {
+          closeDropdown();
+        } else {
+          filterOptions('');
+          openDropdown();
+          searchInput.focus();
+        }
+      });
+    }
+
+    // Input focus & typing
+    if (searchInput) {
+      searchInput.addEventListener('focus', function() {
+        filterOptions(searchInput.value.split('—')[0].trim());
+        openDropdown();
+      });
+
+      searchInput.addEventListener('input', function() {
+        const val = searchInput.value.trim();
+        // If user is editing/typing, clear the hidden ID until an option matches or is picked
+        hiddenIdInput.value = '';
+        filterOptions(val);
+        openDropdown();
+        updatePreview();
+      });
+
+      searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (!isDropdownOpen()) {
+            filterOptions('');
+            openDropdown();
+          } else {
+            const visible = options.filter(o => o.style.display !== 'none');
+            if (visible.length > 0) visible[0].focus();
+          }
+        } else if (e.key === 'Escape') {
+          closeDropdown();
+        } else if (e.key === 'Enter') {
+          if (isDropdownOpen()) {
+            const visible = options.filter(o => o.style.display !== 'none');
+            if (visible.length > 0) {
+              e.preventDefault();
+              selectStaff(visible[0]);
+            }
+          }
+        }
+      });
+
+      // Auto-match on blur if user typed an exact or close name
+      searchInput.addEventListener('blur', function() {
+        setTimeout(function() {
+          if (!hiddenIdInput.value && searchInput.value.trim()) {
+            const query = searchInput.value.toLowerCase().split('—')[0].trim();
+            const matched = options.find(o => {
+              const name = (o.getAttribute('data-name') || '').toLowerCase();
+              return name.includes(query) || query.includes(name);
+            });
+            if (matched) {
+              selectStaff(matched);
+            }
+          }
+        }, 200);
+      });
+    }
+
+    // Option item click
+    options.forEach(function(opt) {
+      opt.addEventListener('click', function(e) {
+        e.stopPropagation();
+        selectStaff(opt);
+      });
+    });
+
+    // Close on click outside
+    document.addEventListener('click', function(e) {
+      const container = document.getElementById('staffCombobox');
+      if (container && !container.contains(e.target)) {
+        closeDropdown();
+      }
+    });
+
+    // Initial prefill selection check
+    const currentId = hiddenIdInput.value;
+    if (currentId) {
+      const matched = options.find(o => o.getAttribute('data-id') === currentId);
+      if (matched) {
+        selectStaff(matched);
+      }
+    } else {
+      // If role prefill was given, try matching first staff with that role
+      const prefillRole = "{{ prefill_role or '' }}";
+      if (prefillRole) {
+        const matched = options.find(o => (o.getAttribute('data-role') || '').toLowerCase() === prefillRole.toLowerCase());
+        if (matched) {
+          selectStaff(matched);
+        }
+      }
+    }
+  })();
 
   function handleDateChange(inputEl) {
     if (!inputEl || !inputEl.value) return;
@@ -169,19 +374,17 @@
   }
 
   function updatePreview() {
-    const staffSelect = document.getElementById('staff_member_id');
+    const searchInput = document.getElementById('staff_search_input');
     const staffNameEl = document.getElementById('previewStaffName');
     const staffRoleEl = document.getElementById('previewStaffRole');
     const dateEl = document.getElementById('previewDate');
     const hoursEl = document.getElementById('previewHours');
 
-    if (staffSelect && staffSelect.selectedIndex >= 0) {
-      const opt = staffSelect.options[staffSelect.selectedIndex];
-      if (opt && opt.value) {
-        staffNameEl.textContent = opt.getAttribute('data-name') || opt.text;
-      } else {
-        staffNameEl.textContent = 'Selected Staff';
-      }
+    if (searchInput && searchInput.value) {
+      const namePart = searchInput.value.split('—')[0].trim();
+      staffNameEl.textContent = namePart || 'Selected Staff';
+    } else {
+      staffNameEl.textContent = 'Selected Staff';
     }
 
     const roleInput = document.getElementById('role');
@@ -200,10 +403,9 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    const staffSelect = document.getElementById('staff_member_id');
-    if (staffSelect) handleStaffChange(staffSelect);
     const dateInput = document.getElementById('schedule_date');
     if (dateInput) handleDateChange(dateInput);
+    updatePreview();
   });
 </script>
 {% endblock %}
