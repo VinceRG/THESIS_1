@@ -74,6 +74,35 @@
     <h3 style="margin:0;">User Branch Access</h3>
     <a href="{{ url_for('create_user') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add New User</a>
   </div>
+
+  <form class="filter-form user-filter" onsubmit="return false;" style="grid-template-columns: 2fr 1fr 1fr auto; margin-top: 14px; margin-bottom: 16px;">
+    <label>
+      Search User
+      <input type="search" id="userFilterSearch" placeholder="Search by username...">
+    </label>
+    <label>
+      Role
+      <select id="userFilterRole">
+        <option value="">All Roles</option>
+        {% for role in role_options %}
+          <option value="{{ role }}">{{ role|replace('_', ' ')|title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Branch
+      <select id="userFilterBranch">
+        <option value="">All Branches</option>
+        {% for branch in active_branches %}
+          <option value="{{ branch.id }}">{{ branch.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button type="button" id="userFilterReset" class="btn secondary" style="display:none;"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Reset</button>
+    </div>
+  </form>
+
   <div class="table-scroll">
     <table class="table table-sticky-head">
       <thead>
@@ -84,9 +113,9 @@
           <th>Update Access</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="userTableBody">
         {% for user in users_page.items %}
-          <tr>
+          <tr data-user-row data-username="{{ user.username|lower }}" data-role="{{ user.role }}" data-branch-id="{{ user.branch_id or '' }}">
             <td>{{ user.username }}</td>
             <td><span class="tag-pill{{ ' tag-primary' if user.role in ('superadmin', 'main_admin') else '' }}">{{ user.role|replace('_', ' ')|title }}</span></td>
             <td>{{ user.branch.name if user.branch else 'Unassigned' }}</td>
@@ -111,10 +140,67 @@
         {% else %}
           <tr class="table-empty-state"><td colspan="4"><strong>No users yet.</strong>Add a user to grant staff access to this system.</td></tr>
         {% endfor %}
+        <tr id="userFilterEmptyRow" class="table-empty-state" style="display:none;"><td colspan="4"><strong>No matching users found.</strong>Try adjusting your search or filters.</td></tr>
       </tbody>
     </table>
   </div>
   {{ render_pagination(users_page, 'branches', {'branch_page': branches_page.page}, page_param='user_page') }}
 </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('userFilterSearch');
+  const roleSelect = document.getElementById('userFilterRole');
+  const branchSelect = document.getElementById('userFilterBranch');
+  const resetBtn = document.getElementById('userFilterReset');
+  const rows = document.querySelectorAll('tr[data-user-row]');
+  const emptyRow = document.getElementById('userFilterEmptyRow');
+
+  function applyFilters() {
+    const q = (searchInput ? searchInput.value : '').trim().toLowerCase();
+    const selectedRole = roleSelect ? roleSelect.value : '';
+    const selectedBranch = branchSelect ? branchSelect.value : '';
+
+    let visibleCount = 0;
+    rows.forEach(function(row) {
+      const username = row.getAttribute('data-username') || '';
+      const role = row.getAttribute('data-role') || '';
+      const branchId = row.getAttribute('data-branch-id') || '';
+
+      const matchSearch = !q || username.includes(q);
+      const matchRole = !selectedRole || role === selectedRole;
+      const matchBranch = !selectedBranch || branchId === selectedBranch;
+
+      if (matchSearch && matchRole && matchBranch) {
+        row.style.display = '';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    if (emptyRow) {
+      emptyRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+    }
+
+    if (resetBtn) {
+      resetBtn.style.display = (q || selectedRole || selectedBranch) ? 'inline-flex' : 'none';
+    }
+  }
+
+  if (searchInput) searchInput.addEventListener('input', applyFilters);
+  if (roleSelect) roleSelect.addEventListener('change', applyFilters);
+  if (branchSelect) branchSelect.addEventListener('change', applyFilters);
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function() {
+      if (searchInput) searchInput.value = '';
+      if (roleSelect) roleSelect.value = '';
+      if (branchSelect) branchSelect.value = '';
+      applyFilters();
+    });
+  }
+});
+</script>
 {% endblock %}
