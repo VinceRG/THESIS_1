@@ -63,7 +63,10 @@
         </span>
       </div>
       {% if not all_branches_view %}
-        <a href="{{ url_for('create_staff') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Staff</a>
+        <div style="display:flex; gap:8px;">
+          <a href="{{ url_for('create_staff_allocation') }}" class="btn secondary"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Allocate Shift</a>
+          <a href="{{ url_for('create_staff') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Staff</a>
+        </div>
       {% else %}
         <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit staff.</span>
       {% endif %}
@@ -124,6 +127,7 @@
             <td class="admin-actions-cell staff-actions-cell">
               <div class="admin-action-group">
               {% if not all_branches_view %}
+                <a class="btn secondary admin-action-edit" href="{{ url_for('create_staff_allocation', staff_id=person.id, role=person.role) }}" title="Prepare Shift Allocation"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Allocate</a>
                 <a class="btn secondary admin-action-edit" href="{{ url_for('edit_staff', staff_id=person.id) }}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
                 <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}"
                       data-confirm-title="Remove staff member?"

@@ -29,6 +29,7 @@ from app import (
     ConsultationRecord,
     Patient,
     StaffMember,
+    StaffAllocation,
     StaffingPlan,
     StaffShift,
     User,
@@ -1513,6 +1514,74 @@ class StaffingGapNotificationTests(unittest.TestCase):
             self.assertEqual(plan.status, 'Approved')
             self.assertIsNotNone(plan.reviewed_at)
             audit = AuditLog.query.filter_by(action='approve_staffing_plan').first()
+            self.assertIsNotNone(audit)
+
+    def test_staff_allocation_workflow_create_review_approve_and_notify(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            staff = StaffMember(branch_id=branch.id, name='Dr. Sarah Jenkins', role='Pediatrics', email='sarah@example.com', is_active=True)
+            db.session.add(staff)
+            db.session.commit()
+            branch_id = branch.id
+            staff_id = staff.id
+
+        self._login()
+        with self.client.session_transaction() as sess:
+            sess['selected_branch_id'] = str(branch_id)
+
+        # 1. Access new allocation page
+        res = self.client.get(f'/staff-allocations/new?staff_id={staff_id}&role=Pediatrics&date=2026-10-08')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b'Prepare Staff Allocation', res.data)
+        token = self._extract_csrf_token(res.data)
+
+        # 2. Create allocation (Pending)
+        res_create = self.client.post(
+            '/staff-allocations/new',
+            data={
+                '_csrf_token': token,
+                'staff_member_id': str(staff_id),
+                'role': 'Pediatrics',
+                'schedule_date': '2026-10-08',
+                'shift_start': '6:00 AM',
+                'shift_end': '5:00 PM',
+                'reason': 'High demand forecast for pediatric cases',
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(res_create.status_code, 200)
+        self.assertIn(b'saved as Pending', res_create.data)
+        self.assertIn(b'Dr. Sarah Jenkins', res_create.data)
+
+        with self.app.app_context():
+            alloc = StaffAllocation.query.filter_by(staff_member_id=staff_id, schedule_date='2026-10-08').first()
+            self.assertIsNotNone(alloc)
+            self.assertEqual(alloc.status, 'Pending')
+            alloc_id = alloc.id
+
+        # 3. Approve allocation and notify staff via email
+        with patch.object(self.app, 'send_appointment_email', return_value=True) as mock_send:
+            res_approve = self.client.post(
+                f'/staff-allocations/{alloc_id}/approve',
+                data={'_csrf_token': token},
+                follow_redirects=True,
+            )
+        self.assertEqual(res_approve.status_code, 200)
+        self.assertIn(b'Allocation approved', res_approve.data)
+        mock_send.assert_called_once()
+        email_args = mock_send.call_args[0]
+        self.assertEqual(email_args[0], 'sarah@example.com')
+        self.assertIn('Approved Work Schedule', email_args[1])
+        self.assertIn('2026-10-08', email_args[2])
+        self.assertIn('6:00 AM to 5:00 PM', email_args[2])
+
+        # 4. Verify DB state after approval
+        with self.app.app_context():
+            updated = db.session.get(StaffAllocation, alloc_id)
+            self.assertEqual(updated.status, 'Approved')
+            self.assertIsNotNone(updated.approved_at)
+            self.assertIsNotNone(updated.notified_at)
+            audit = AuditLog.query.filter_by(action='approve_staff_allocation').first()
             self.assertIsNotNone(audit)
 
 

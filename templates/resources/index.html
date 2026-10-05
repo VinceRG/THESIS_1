@@ -41,12 +41,15 @@
 <div class="chart-card" style="margin-top:20px;">
   <div class="page-heading-row" style="align-items:center;">
     <div>
-      <h3 style="margin:0;"><i class="bi bi-calendar-check" aria-hidden="true"></i> Weekly Staffing Plan &amp; Schedule Approvals</h3>
-      <p class="muted-copy" style="margin:4px 0 0 0;">Translate daily doctor &amp; specialist demand into structured weekly shift allocations, review assignments, and notify staff of approved schedules.</p>
+      <h3 style="margin:0;"><i class="bi bi-calendar-check" aria-hidden="true"></i> Staffing Plans &amp; Shift Allocations</h3>
+      <p class="muted-copy" style="margin:4px 0 0 0;">Convert demand recommendations into official reviewable staff schedules, review pending assignments, and notify staff of approved schedules.</p>
     </div>
-    <div>
-      <a href="{{ url_for('staffing_plans') }}" class="btn">
-        <i class="bi bi-calendar2-week" aria-hidden="true"></i> Manage Staffing Plans
+    <div style="display:flex; gap:8px;">
+      <a href="{{ url_for('staff_allocations') }}" class="btn">
+        <i class="bi bi-clipboard-check" aria-hidden="true"></i> Review Allocations
+      </a>
+      <a href="{{ url_for('staffing_plans') }}" class="btn secondary">
+        <i class="bi bi-calendar2-week" aria-hidden="true"></i> Weekly Plans
       </a>
     </div>
   </div>
@@ -128,7 +131,7 @@
     </p>
     <table class="table resource-table">
       <thead>
-        <tr><th>Date</th><th>Role</th><th>Need</th><th>Available</th></tr>
+        <tr><th>Date</th><th>Role</th><th>Need</th><th>Available</th><th>Action</th></tr>
       </thead>
       <tbody>
         {% for row in week_alert_rows[:8] %}
@@ -137,9 +140,14 @@
             <td>{{ row.staff_role }}</td>
             <td><strong>{{ row.required_staff }}</strong></td>
             <td>{{ row.available_staff }}</td>
+            <td>
+              <a href="{{ url_for('create_staff_allocation', date=row.date, role=row.staff_role, reason='Staffing shortage alert: Need ' ~ row.required_staff ~ ' vs Available ' ~ row.available_staff) }}" class="btn btn-sm secondary" style="white-space:nowrap;">
+                <i class="bi bi-calendar-plus" aria-hidden="true"></i> Prepare Allocation
+              </a>
+            </td>
           </tr>
         {% else %}
-          <tr><td colspan="4">No daily staffing shortage predicted for this week.</td></tr>
+          <tr><td colspan="5">No daily staffing shortage predicted for this week.</td></tr>
         {% endfor %}
       </tbody>
     </table>

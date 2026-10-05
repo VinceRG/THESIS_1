@@ -1,0 +1,296 @@
+{
+  "branch_id": null,
+  "branch_name": "All Branches",
+  "branch_code": "ALL",
+  "total_consultations": 0,
+  "staff_count": 22,
+  "facility_staff_count": 22,
+  "staff_capacity_per_month": 20,
+  "top_diagnosis": "None",
+  "predicted_cases_next_month": 0,
+  "resource_readiness": 100,
+  "monthly_trend": [],
+  "consultation_distribution": [],
+  "gender_distribution": [],
+  "age_group_distribution": [],
+  "top_cases": [],
+  "predictions": [],
+  "demographic_forecast": {
+    "age_group": [],
+    "gender": [],
+    "segments": [],
+    "segments_grouped": []
+  },
+  "resource_recommendation": "Fallback forecast translated into staff-role guidance because Random Forest metrics are unavailable.",
+  "reference_month": "Nov 2025",
+  "predicted_month_label": "Nov 2026",
+  "predicted_month_full_label": "November 2026",
+  "services": [
+    "General Physician Consultation",
+    "Clinical Laboratory Services",
+    "Clinical Microscopy",
+    "Hematology",
+    "Clinical Chemistry",
+    "Immunology and Serology",
+    "Drug Testing",
+    "Electrocardiography (ECG)",
+    "X-ray",
+    "Ultrasound",
+    "Vascular Studies",
+    "Home Service",
+    "Annual Physical Examination (APE)"
+  ],
+  "equipment": [
+    "Automated Hematology Analyzer",
+    "Automated Clinical Chemistry Analyzer",
+    "Automated Immunoassay Analyzer",
+    "Automated Electrolyte Analyzer",
+    "Ultrasound Machine",
+    "X-ray System/Machine",
+    "Electrocardiograph (ECG) Machine"
+  ],
+  "facility_staff_complement": [
+    {
+      "role": "Pathologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Registered Medical Technologists",
+      "count": 6,
+      "notes": "Includes 2 Drug Test Analysts and 1 HIV Counselor"
+    },
+    {
+      "role": "Registered Radiologic Technologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Laboratory Technicians",
+      "count": 3,
+      "notes": ""
+    },
+    {
+      "role": "Internal Medicine Physicians",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "General Physicians",
+      "count": 4,
+      "notes": ""
+    },
+    {
+      "role": "Radiologists",
+      "count": 3,
+      "notes": ""
+    }
+  ],
+  "actual_staff_by_role": {
+    "Pathologists": 2,
+    "Registered Medical Technologists": 6,
+    "Registered Radiologic Technologists": 2,
+    "Laboratory Technicians": 3,
+    "Internal Medicine Physicians": 2,
+    "General Physicians": 4,
+    "Radiologists": 3
+  },
+  "staff_demand_forecast": {
+    "top_role": "No demand yet",
+    "top_role_demand": 0,
+    "monthly_rows": [
+      {
+        "staff_role": "Registered Medical Technologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 6,
+        "role_capacity": 120,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "General Physicians",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 4,
+        "role_capacity": 80,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Laboratory Technicians",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 3,
+        "role_capacity": 60,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Radiologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 3,
+        "role_capacity": 60,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Internal Medicine Physicians",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Pathologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Registered Radiologic Technologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      }
+    ],
+    "monthly_chart": {
+      "labels": [
+        "Registered Medical Technologists",
+        "General Physicians",
+        "Laboratory Technicians",
+        "Radiologists",
+        "Internal Medicine Physicians",
+        "Pathologists",
+        "Registered Radiologic Technologists"
+      ],
+      "planning_demand": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "capacity": [
+        120,
+        80,
+        60,
+        60,
+        40,
+        40,
+        40
+      ]
+    },
+    "daily_rows": [],
+    "daily_chart": {
+      "labels": [],
+      "datasets": []
+    },
+    "daily_prediction": {
+      "method": "Historical weekday average",
+      "daily_capacity_per_staff": 1,
+      "current_period": "Oct 05, 2026 - Oct 11, 2026",
+      "next_period": "Oct 12, 2026 - Oct 18, 2026",
+      "rows": [],
+      "current_week_rows": [],
+      "next_week_rows": [],
+      "current_week_summary": [],
+      "next_week_summary": [],
+      "alert_rows": [],
+      "chart": {
+        "labels": [
+          "Oct 05",
+          "Oct 06",
+          "Oct 07",
+          "Oct 08",
+          "Oct 09",
+          "Oct 10",
+          "Oct 11",
+          "Oct 12",
+          "Oct 13",
+          "Oct 14",
+          "Oct 15",
+          "Oct 16",
+          "Oct 17",
+          "Oct 18"
+        ],
+        "datasets": []
+      }
+    },
+    "attribution_rows": [],
+    "mapping_historical_count": 0,
+    "mapping_classifier_count": 0,
+    "mapping_fallback_count": 0,
+    "mapping_min_support": 5,
+    "mapping_min_share_pct": 50,
+    "mapping_min_similarity_pct": 55
+  },
+  "estimated_monthly_capacity": 440,
+  "forecast_pressure": 0,
+  "forecast_pressure_raw": 0,
+  "recommended_staff_count": 0,
+  "staff_gap": 0,
+  "capacity_status": "Healthy",
+  "resource_forecast_recommendation": "Current staffing and equipment capacity appears sufficient for forecasted demand.",
+  "rf_metrics": null,
+  "branch_breakdown": [
+    {
+      "branch_id": 1,
+      "branch_name": "Accudetek Main Branch",
+      "branch_code": "MAIN",
+      "total_consultations": 0,
+      "staff_count": 22,
+      "predicted_cases_next_month": 245,
+      "resource_readiness": 100,
+      "staffing_gap": 1,
+      "has_forecast": true
+    }
+  ],
+  "cache_version": 10
+}

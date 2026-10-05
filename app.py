@@ -496,6 +496,26 @@ class StaffShift(db.Model):
 
     staff = db.relationship('StaffMember', backref='assigned_shifts')
 
+class StaffAllocation(db.Model):
+    __tablename__ = 'staff_allocation'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=False)
+    staff_member_id = db.Column(db.Integer, db.ForeignKey('staff_member.id'), nullable=False)
+    role = db.Column(db.String(60), nullable=False)
+    schedule_date = db.Column(db.String(20), nullable=False)
+    shift_start = db.Column(db.String(20), nullable=True)
+    shift_end = db.Column(db.String(20), nullable=True)
+    reason = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(30), default='Pending', nullable=False)  # 'Pending', 'Approved', 'Notified', 'Cancelled'
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    notified_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    branch = db.relationship('Branch', backref='staff_allocations')
+    staff_member = db.relationship('StaffMember', backref='allocations')
+    approved_by = db.relationship('User', foreign_keys=[approved_by_id])
+
 def build_facility_staff_roster():
     return [
         {
@@ -3478,6 +3498,10 @@ def create_app():
                 'approve_staffing_plan': 'staffing_plans',
                 'reject_staffing_plan': 'staffing_plans',
                 'delete_staffing_plan': 'staffing_plans',
+                'create_staff_allocation': 'staff_allocations',
+                'approve_staff_allocation': 'staff_allocations',
+                'cancel_staff_allocation': 'staff_allocations',
+                'delete_staff_allocation': 'staff_allocations',
             }
             fallback_endpoint = csrf_fallbacks.get(request.endpoint, request.endpoint if request.endpoint and request.endpoint != 'static' else 'dashboard')
             try:
@@ -3502,6 +3526,8 @@ def create_app():
             'packages', 'create_package', 'edit_package', 'delete_package', 'import_packages', 'update_branch_package',
             'staffing_plans', 'generate_staffing_plan', 'view_staffing_plan', 'update_staffing_plan_shifts',
             'approve_staffing_plan', 'reject_staffing_plan', 'delete_staffing_plan',
+            'staff_allocations', 'create_staff_allocation', 'approve_staff_allocation',
+            'cancel_staff_allocation', 'delete_staff_allocation',
             'chatbot_ask',
         }
         if request.endpoint in protected_endpoints and 'user_id' not in session:
@@ -6491,6 +6517,203 @@ def create_app():
         db.session.commit()
         flash('Staffing plan deleted.', 'info')
         return redirect(url_for('staffing_plans'))
+
+    # -------------------------------------------------------------
+    # Staff Allocations (Direct Schedule Preparation & Approval)
+    # -------------------------------------------------------------
+    @app.route('/staff-allocations')
+    def staff_allocations():
+        branch = current_branch()
+        query = StaffAllocation.query
+        if branch is not None:
+            query = query.filter_by(branch_id=branch.id)
+
+        status_filter = request.args.get('status', '').strip()
+        if status_filter in {'Pending', 'Approved', 'Notified', 'Cancelled'}:
+            query = query.filter_by(status=status_filter)
+
+        allocations = query.order_by(StaffAllocation.schedule_date.desc(), StaffAllocation.created_at.desc()).all()
+
+        base_query = StaffAllocation.query
+        if branch is not None:
+            base_query = base_query.filter_by(branch_id=branch.id)
+        pending_count = base_query.filter_by(status='Pending').count()
+        approved_count = base_query.filter_by(status='Approved').count()
+        total_count = base_query.count()
+
+        return render_template(
+            'staff_allocations/index.html',
+            allocations=allocations,
+            status_filter=status_filter,
+            pending_count=pending_count,
+            approved_count=approved_count,
+            total_count=total_count,
+            operating_hours=CLINIC_OPERATING_HOURS,
+            can_manage=session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin',
+        )
+
+    @app.route('/staff-allocations/new', methods=['GET', 'POST'])
+    def create_staff_allocation():
+        redirect_response = require_specific_branch('staff_allocations')
+        if redirect_response:
+            return redirect_response
+
+        branch = current_branch()
+        if request.method == 'POST':
+            staff_id = request.form.get('staff_member_id', type=int)
+            staff = StaffMember.query.filter_by(id=staff_id, branch_id=branch.id, is_active=True).first()
+            if not staff:
+                flash('Please select an active staff member for this branch.', 'error')
+                return redirect(url_for('create_staff_allocation'))
+
+            schedule_date = request.form.get('schedule_date', '').strip()
+            if not schedule_date:
+                flash('Please specify a schedule date.', 'error')
+                return redirect(url_for('create_staff_allocation'))
+
+            role = request.form.get('role', '').strip() or staff.role
+            shift_start = request.form.get('shift_start', '').strip() or '6:00 AM'
+            shift_end = request.form.get('shift_end', '').strip() or '5:00 PM'
+            reason = request.form.get('reason', '').strip() or 'Staffing coverage recommendation'
+
+            allocation = StaffAllocation(
+                branch_id=branch.id,
+                staff_member_id=staff.id,
+                role=role,
+                schedule_date=schedule_date,
+                shift_start=shift_start,
+                shift_end=shift_end,
+                reason=reason,
+                status='Pending',
+            )
+            db.session.add(allocation)
+            db.session.commit()
+
+            log_audit('create_staff_allocation', 'StaffAllocation', allocation.id, {
+                'branch_id': branch.id,
+                'staff_name': staff.name,
+                'role': role,
+                'schedule_date': schedule_date,
+            })
+            flash(f'Allocation for {staff.name} on {schedule_date} saved as Pending. Awaiting admin review and approval.', 'success')
+            return redirect(url_for('staff_allocations'))
+
+        # GET request
+        prefill_date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        prefill_role = request.args.get('role', '')
+        prefill_staff_id = request.args.get('staff_id', type=int)
+        prefill_reason = request.args.get('reason', '')
+
+        try:
+            d_obj = datetime.strptime(prefill_date, '%Y-%m-%d')
+            day_name = d_obj.strftime('%A')
+            if day_name == 'Sunday':
+                default_start = '6:00 AM'
+                default_end = '12:00 NN'
+            else:
+                default_start = '6:00 AM'
+                default_end = '5:00 PM'
+        except Exception:
+            default_start = '6:00 AM'
+            default_end = '5:00 PM'
+
+        staff_members = StaffMember.query.filter_by(branch_id=branch.id, is_active=True).order_by(StaffMember.name.asc()).all()
+        return render_template(
+            'staff_allocations/new.html',
+            branch=branch,
+            staff_members=staff_members,
+            prefill_date=prefill_date,
+            prefill_role=prefill_role,
+            prefill_staff_id=prefill_staff_id,
+            prefill_reason=prefill_reason,
+            default_start=default_start,
+            default_end=default_end,
+        )
+
+    @app.route('/staff-allocations/<int:id>/approve', methods=['POST'])
+    def approve_staff_allocation(id):
+        allocation = db.session.get(StaffAllocation, id) or abort(404)
+        if not can_view_all_branches() and allocation.branch_id != current_branch_id():
+            abort(403)
+
+        allocation.status = 'Approved'
+        allocation.approved_by_id = session.get('user_id')
+        allocation.approved_at = datetime.now()
+
+        staff = allocation.staff_member
+        approver = db.session.get(User, session.get('user_id'))
+        approver_name = approver.username if approver else (session.get('username') or 'Clinic Administration')
+
+        email_sent = False
+        if staff and staff.email:
+            subject = f"Approved Work Schedule - {allocation.branch.name}"
+            body = (
+                f"Dear {staff.name},\n\n"
+                f"You have been scheduled for additional coverage on {allocation.schedule_date}, "
+                f"{allocation.shift_start or '6:00 AM'} to {allocation.shift_end or '5:00 PM'}.\n\n"
+                f"Role/Duty: {allocation.role}\n"
+                f"Clinic Branch: {allocation.branch.name}\n"
+                f"Reason: {allocation.reason or 'Forecasted patient coverage'}\n"
+                f"Approved by: {approver_name}\n\n"
+                f"Clinic Operating Hours:\n"
+                f"Monday - Saturday: 6:00 AM - 5:00 PM\n"
+                f"Sunday: 6:00 AM - 12:00 NN\n\n"
+                f"Please report on time. Thank you!\n\n"
+                f"Smart Healthcare Clinic Management"
+            )
+            try:
+                email_sent = app.send_appointment_email(staff.email, subject, body)
+            except Exception as e:
+                app.logger.warning(f"Could not send allocation email to {staff.email}: {e}")
+                email_sent = False
+
+            if email_sent:
+                allocation.notified_at = datetime.now()
+
+        log_audit('approve_staff_allocation', 'StaffAllocation', allocation.id, {
+            'staff_name': staff.name if staff else 'Unknown',
+            'schedule_date': allocation.schedule_date,
+            'email_notified': email_sent,
+        })
+        db.session.commit()
+
+        if email_sent:
+            flash(f"Allocation approved! Official schedule confirmed and email sent to {staff.name} ({staff.email}).", "success")
+        elif staff and staff.email:
+            flash(f"Allocation approved! Official schedule confirmed for {staff.name} (email notification queued or not delivered).", "success")
+        else:
+            flash(f"Allocation approved! Official schedule confirmed for {staff.name} (no email address on file).", "success")
+
+        return redirect(url_for('staff_allocations'))
+
+    @app.route('/staff-allocations/<int:id>/cancel', methods=['POST'])
+    def cancel_staff_allocation(id):
+        allocation = db.session.get(StaffAllocation, id) or abort(404)
+        if not can_view_all_branches() and allocation.branch_id != current_branch_id():
+            abort(403)
+
+        allocation.status = 'Cancelled'
+        log_audit('cancel_staff_allocation', 'StaffAllocation', allocation.id, {
+            'staff_member_id': allocation.staff_member_id,
+            'schedule_date': allocation.schedule_date,
+        })
+        db.session.commit()
+        flash('Staff allocation cancelled.', 'info')
+        return redirect(url_for('staff_allocations'))
+
+    @app.route('/staff-allocations/<int:id>/delete', methods=['POST'])
+    def delete_staff_allocation(id):
+        allocation = db.session.get(StaffAllocation, id) or abort(404)
+        if not can_view_all_branches() and allocation.branch_id != current_branch_id():
+            abort(403)
+
+        branch_id = allocation.branch_id
+        db.session.delete(allocation)
+        log_audit('delete_staff_allocation', 'StaffAllocation', id, {'branch_id': branch_id})
+        db.session.commit()
+        flash('Staff allocation record deleted.', 'info')
+        return redirect(url_for('staff_allocations'))
+
 
     report_definitions = {
         'monthly-consultation': {

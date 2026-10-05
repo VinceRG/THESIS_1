@@ -1,0 +1,166 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Staff Allocations · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Staff Allocations{% endblock %}
+{% block page_subtitle %}Review and approve staff schedule allocations derived from resource and demand forecasts.{% endblock %}
+
+{% block content %}
+<div class="section-stack">
+  <div class="page-heading-row" style="align-items:center;">
+    <div>
+      <h3 style="margin:0;"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Schedule Allocations</h3>
+      <p class="muted-copy" style="margin:4px 0 0 0;">Convert demand recommendations into official staff schedules with admin approval and email notifications.</p>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <a href="{{ url_for('create_staff_allocation') }}" class="btn">
+        <i class="bi bi-plus-circle" aria-hidden="true"></i> Prepare Allocation
+      </a>
+      <a href="{{ url_for('resources') }}" class="btn secondary">
+        <i class="bi bi-diagram-3" aria-hidden="true"></i> Resource Planning
+      </a>
+    </div>
+  </div>
+
+  <div class="grid cards">
+    <div class="card">
+      <h3>Total Allocations</h3>
+      <div class="value">{{ total_count }}</div>
+      <div class="trend">All scheduled assignments</div>
+    </div>
+    <div class="card">
+      <h3>Pending Review</h3>
+      <div class="value" style="color:var(--warning-color, #e67e22);">{{ pending_count }}</div>
+      <div class="trend">Awaiting admin sign-off</div>
+    </div>
+    <div class="card">
+      <h3>Approved &amp; Scheduled</h3>
+      <div class="value" style="color:var(--success-color, #27ae60);">{{ approved_count }}</div>
+      <div class="trend">Official active rosters</div>
+    </div>
+    <div class="card">
+      <h3>Operating Hours</h3>
+      <div class="value" style="font-size:16px; line-height:1.4;">
+        Mon–Sat: 6am–5pm<br>
+        Sun: 6am–12pm
+      </div>
+      <div class="trend">Official clinic schedule</div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="page-heading-row" style="margin-bottom:16px;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span style="font-weight:600; font-size:14px; margin-right:6px;">Filter by Status:</span>
+        <a href="{{ url_for('staff_allocations') }}" class="status-pill {% if not status_filter %}status-healthy{% else %}status-neutral{% endif %}" style="text-decoration:none;">All</a>
+        <a href="{{ url_for('staff_allocations', status='Pending') }}" class="status-pill {% if status_filter == 'Pending' %}status-high{% else %}status-neutral{% endif %}" style="text-decoration:none;">Pending ({{ pending_count }})</a>
+        <a href="{{ url_for('staff_allocations', status='Approved') }}" class="status-pill {% if status_filter == 'Approved' %}status-healthy{% else %}status-neutral{% endif %}" style="text-decoration:none;">Approved ({{ approved_count }})</a>
+        <a href="{{ url_for('staff_allocations', status='Cancelled') }}" class="status-pill {% if status_filter == 'Cancelled' %}status-high{% else %}status-neutral{% endif %}" style="text-decoration:none;">Cancelled</a>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table class="table resource-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Staff Member</th>
+            <th>Role</th>
+            <th>Shift Hours</th>
+            <th>Reason / Source</th>
+            <th>Status</th>
+            <th>Approved Info</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for alloc in allocations %}
+            <tr>
+              <td>
+                <strong>{{ alloc.schedule_date }}</strong>
+              </td>
+              <td>
+                <strong>{{ alloc.staff_member.name }}</strong>
+                {% if alloc.staff_member.email %}
+                  <div class="muted-copy" style="font-size:12px;">{{ alloc.staff_member.email }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <span class="status-pill status-neutral">{{ alloc.role }}</span>
+              </td>
+              <td>
+                {{ alloc.shift_start or '6:00 AM' }} - {{ alloc.shift_end or '5:00 PM' }}
+              </td>
+              <td style="max-width:240px; font-size:13px;">
+                {{ alloc.reason or 'Forecasted staffing coverage' }}
+              </td>
+              <td>
+                {% if alloc.status == 'Approved' %}
+                  <span class="status-pill status-healthy"><i class="bi bi-check-circle" aria-hidden="true"></i> Approved</span>
+                  {% if alloc.notified_at %}
+                    <div class="muted-copy" style="font-size:11px; margin-top:2px;">Notified via Email</div>
+                  {% endif %}
+                {% elif alloc.status == 'Pending' %}
+                  <span class="status-pill status-high"><i class="bi bi-clock-history" aria-hidden="true"></i> Pending</span>
+                {% elif alloc.status == 'Cancelled' %}
+                  <span class="status-pill status-neutral">Cancelled</span>
+                {% else %}
+                  <span class="status-pill">{{ alloc.status }}</span>
+                {% endif %}
+              </td>
+              <td style="font-size:12px;">
+                {% if alloc.approved_at %}
+                  <div>By: {{ alloc.approved_by.username if alloc.approved_by else 'Admin' }}</div>
+                  <div class="muted-copy">{{ alloc.approved_at.strftime('%b %d, %Y %I:%M %p') }}</div>
+                {% else %}
+                  <span class="muted-copy">&mdash;</span>
+                {% endif %}
+              </td>
+              <td style="text-align:right;">
+                <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+                  {% if alloc.status == 'Pending' and can_manage %}
+                    <form method="post" action="{{ url_for('approve_staff_allocation', id=alloc.id) }}"
+                          data-confirm-title="Approve and notify staff?"
+                          data-confirm="This will approve this shift allocation and automatically email {{ alloc.staff_member.name }} with their schedule. Continue?">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm" style="background:#27ae60; border-color:#27ae60;">
+                        <i class="bi bi-check-lg" aria-hidden="true"></i> Approve &amp; Notify
+                      </button>
+                    </form>
+                    <form method="post" action="{{ url_for('cancel_staff_allocation', id=alloc.id) }}"
+                          data-confirm-title="Cancel allocation?"
+                          data-confirm="Are you sure you want to cancel this allocation?">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm secondary admin-action-delete">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i> Cancel
+                      </button>
+                    </form>
+                  {% endif %}
+                  {% if can_manage %}
+                    <form method="post" action="{{ url_for('delete_staff_allocation', id=alloc.id) }}"
+                          data-confirm-title="Delete record?"
+                          data-confirm="Are you sure you want to permanently delete this allocation record?">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm secondary" title="Delete record" style="color:#c0392b;">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="8" style="text-align:center; padding:32px 16px;">
+                <p class="muted-copy" style="margin:0 0 10px;">No staff allocations found{% if status_filter %} with status "{{ status_filter }}"{% endif %}.</p>
+                <a href="{{ url_for('create_staff_allocation') }}" class="btn">
+                  <i class="bi bi-plus-circle" aria-hidden="true"></i> Prepare New Allocation
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

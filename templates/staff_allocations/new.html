@@ -1,0 +1,114 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Prepare Staff Allocation · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Prepare Staff Allocation{% endblock %}
+{% block page_subtitle %}Assign staff to a coverage shift based on demand forecasts or operational requirements.{% endblock %}
+
+{% block content %}
+<div class="section-stack" style="max-width:760px; margin:0 auto;">
+  <div class="page-heading-row">
+    <div>
+      <h3 style="margin:0;"><i class="bi bi-calendar-plus" aria-hidden="true"></i> New Shift Allocation</h3>
+      <p class="muted-copy" style="margin:4px 0 0 0;">Allocations are saved in <strong>Pending</strong> status until reviewed and approved by an administrator.</p>
+    </div>
+    <div>
+      <a href="{{ url_for('staff_allocations') }}" class="btn secondary">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Allocations
+      </a>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <form method="post" action="{{ url_for('create_staff_allocation') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Clinic Branch</label>
+        <input type="text" class="input-control" value="{{ branch.name }}" readonly style="background:#f8f9fa;">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label for="staff_member_id" style="display:block; font-weight:600; margin-bottom:6px;">Staff Member *</label>
+        <select name="staff_member_id" id="staff_member_id" class="input-control" required onchange="handleStaffChange(this)">
+          <option value="">-- Choose active staff member --</option>
+          {% for member in staff_members %}
+            <option value="{{ member.id }}"
+                    data-role="{{ member.role }}"
+                    {% if prefill_staff_id == member.id or (prefill_role and member.role == prefill_role) %}selected{% endif %}>
+              {{ member.name }} &mdash; {{ member.role }} ({{ member.availability }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label for="role" style="display:block; font-weight:600; margin-bottom:6px;">Role / Position *</label>
+        <input type="text" name="role" id="role" class="input-control" required
+               value="{{ prefill_role or (staff_members[0].role if staff_members else 'General Physicians') }}"
+               placeholder="e.g. General Physicians, Pediatrics">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label for="schedule_date" style="display:block; font-weight:600; margin-bottom:6px;">Scheduled Date *</label>
+        <input type="date" name="schedule_date" id="schedule_date" class="input-control" required
+               value="{{ prefill_date }}" onchange="handleDateChange(this)">
+        <small class="muted-copy" style="display:block; margin-top:4px;">
+          Clinic hours: Monday–Saturday: 6:00 AM – 5:00 PM | Sunday: 6:00 AM – 12:00 NN
+        </small>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div>
+          <label for="shift_start" style="display:block; font-weight:600; margin-bottom:6px;">Shift Start Time</label>
+          <input type="text" name="shift_start" id="shift_start" class="input-control"
+                 value="{{ default_start }}" placeholder="e.g. 6:00 AM">
+        </div>
+        <div>
+          <label for="shift_end" style="display:block; font-weight:600; margin-bottom:6px;">Shift End Time</label>
+          <input type="text" name="shift_end" id="shift_end" class="input-control"
+                 value="{{ default_end }}" placeholder="e.g. 5:00 PM">
+        </div>
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <label for="reason" style="display:block; font-weight:600; margin-bottom:6px;">Reason / Source Forecast</label>
+        <textarea name="reason" id="reason" rows="3" class="input-control"
+                  placeholder="e.g. Recommended coverage based on high patient forecast / staffing gap alert.">{{ prefill_reason }}</textarea>
+      </div>
+
+      <div class="form-actions" style="display:flex; justify-content:flex-end; gap:10px;">
+        <a href="{{ url_for('staff_allocations') }}" class="btn secondary">Cancel</a>
+        <button type="submit" class="btn">
+          <i class="bi bi-check-lg" aria-hidden="true"></i> Save as Pending Allocation
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function handleStaffChange(selectEl) {
+    const selectedOption = selectEl.options[selectEl.selectedIndex];
+    const role = selectedOption.getAttribute('data-role');
+    if (role) {
+      document.getElementById('role').value = role;
+    }
+  }
+
+  function handleDateChange(inputEl) {
+    if (!inputEl.value) return;
+    const parts = inputEl.value.split('-');
+    if (parts.length === 3) {
+      const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      if (date.getDay() === 0) {
+        // Sunday
+        document.getElementById('shift_start').value = '6:00 AM';
+        document.getElementById('shift_end').value = '12:00 NN';
+      } else {
+        document.getElementById('shift_start').value = '6:00 AM';
+        document.getElementById('shift_end').value = '5:00 PM';
+      }
+    }
+  }
+</script>
+{% endblock %}
