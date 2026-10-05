@@ -29,6 +29,8 @@ from app import (
     ConsultationRecord,
     Patient,
     StaffMember,
+    StaffingPlan,
+    StaffShift,
     User,
     app,
     apply_rare_diagnosis_grouping,
@@ -1454,6 +1456,64 @@ class StaffingGapNotificationTests(unittest.TestCase):
         with self.app.app_context():
             audit_row = AuditLog.query.filter_by(action='notify_selected_staff').order_by(AuditLog.id.desc()).first()
             self.assertIsNotNone(audit_row)
+
+    def test_staffing_plans_workflow_generate_review_approve(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            staff1 = StaffMember(branch_id=branch.id, name='Dr. Elena', role='General Physicians', email='elena@example.com', is_active=True)
+            db.session.add(staff1)
+            db.session.commit()
+            branch_id = branch.id
+
+        self._login()
+        # Set selected branch to specific branch
+        with self.client.session_transaction() as sess:
+            sess['selected_branch_id'] = str(branch_id)
+
+        # 1. Staffing plans index
+        res = self.client.get('/staffing-plans')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b'Staffing Plans', res.data)
+        self.assertIn(b'Clinic Operating Hours', res.data)
+
+        # 2. Generate plan
+        token = self._extract_csrf_token(res.data)
+        res_gen = self.client.post(
+            '/staffing-plans/generate',
+            data={'period': 'next_week', '_csrf_token': token},
+            follow_redirects=False,
+        )
+        self.assertEqual(res_gen.status_code, 302)
+        plan_id = int(res_gen.headers.get('Location').split('/')[-1])
+
+        # 3. View plan
+        res_view = self.client.get(f'/staffing-plans/{plan_id}')
+        self.assertEqual(res_view.status_code, 200)
+        self.assertIn(b'Staffing Plan Review', res_view.data)
+        self.assertIn(b'6:00 AM', res_view.data)
+
+        # 4. Approve plan with email notification mock
+        with patch.object(self.app, 'send_appointment_email', return_value=True) as mock_send:
+            res_approve = self.client.post(
+                f'/staffing-plans/{plan_id}/approve',
+                data={'_csrf_token': token},
+                follow_redirects=True,
+            )
+        self.assertEqual(res_approve.status_code, 200)
+        self.assertIn(b'Staffing plan approved', res_approve.data)
+        mock_send.assert_called()
+        email_args = mock_send.call_args[0]
+        self.assertEqual(email_args[0], 'elena@example.com')
+        self.assertIn('Approved Work Schedule', email_args[1])
+        self.assertIn('6:00 AM - 5:00 PM', email_args[2])
+
+        # 5. Verify database state
+        with self.app.app_context():
+            plan = db.session.get(StaffingPlan, plan_id)
+            self.assertEqual(plan.status, 'Approved')
+            self.assertIsNotNone(plan.reviewed_at)
+            audit = AuditLog.query.filter_by(action='approve_staffing_plan').first()
+            self.assertIsNotNone(audit)
 
 
 if __name__ == '__main__':

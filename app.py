@@ -456,6 +456,46 @@ class BranchPackageSetting(db.Model):
     package = db.relationship('ServicePackage', backref='branch_settings')
     __table_args__ = (db.UniqueConstraint('branch_id', 'package_id', name='uq_branch_package'),)
 
+CLINIC_OPERATING_HOURS = {
+    'Monday': '6:00 AM - 5:00 PM',
+    'Tuesday': '6:00 AM - 5:00 PM',
+    'Wednesday': '6:00 AM - 5:00 PM',
+    'Thursday': '6:00 AM - 5:00 PM',
+    'Friday': '6:00 AM - 5:00 PM',
+    'Saturday': '6:00 AM - 5:00 PM',
+    'Sunday': '6:00 AM - 12:00 NN',
+}
+
+class StaffingPlan(db.Model):
+    __tablename__ = 'staffing_plan'
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=False)
+    start_date = db.Column(db.String(10), nullable=False)
+    end_date = db.Column(db.String(10), nullable=False)
+    period_label = db.Column(db.String(80), nullable=False)
+    status = db.Column(db.String(20), default='Pending', nullable=False)  # 'Pending', 'Approved', 'Rejected'
+    created_by = db.Column(db.String(100), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    reviewed_by = db.Column(db.String(100), nullable=True)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    branch = db.relationship('Branch', backref='staffing_plans')
+    shifts = db.relationship('StaffShift', backref='plan', cascade='all, delete-orphan', lazy=True)
+
+class StaffShift(db.Model):
+    __tablename__ = 'staff_shift'
+    id = db.Column(db.Integer, primary_key=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey('staffing_plan.id'), nullable=False)
+    staff_id = db.Column(db.Integer, db.ForeignKey('staff_member.id'), nullable=True)
+    shift_date = db.Column(db.String(10), nullable=False)
+    day_name = db.Column(db.String(20), nullable=False)
+    role = db.Column(db.String(100), nullable=False)
+    shift_hours = db.Column(db.String(60), nullable=False)
+    notified_at = db.Column(db.DateTime, nullable=True)
+
+    staff = db.relationship('StaffMember', backref='assigned_shifts')
+
 def build_facility_staff_roster():
     return [
         {
@@ -3433,6 +3473,11 @@ def create_app():
                 'update_appointment_status': 'appointments',
                 'complete_appointment': 'appointments',
                 'settings': 'settings',
+                'generate_staffing_plan': 'staffing_plans',
+                'update_staffing_plan_shifts': 'staffing_plans',
+                'approve_staffing_plan': 'staffing_plans',
+                'reject_staffing_plan': 'staffing_plans',
+                'delete_staffing_plan': 'staffing_plans',
             }
             fallback_endpoint = csrf_fallbacks.get(request.endpoint, request.endpoint if request.endpoint and request.endpoint != 'static' else 'dashboard')
             try:
@@ -3455,6 +3500,8 @@ def create_app():
             'appointments', 'create_appointment', 'update_appointment_status', 'complete_appointment',
             'services', 'create_service', 'edit_service', 'delete_service', 'import_services', 'update_branch_service',
             'packages', 'create_package', 'edit_package', 'delete_package', 'import_packages', 'update_branch_package',
+            'staffing_plans', 'generate_staffing_plan', 'view_staffing_plan', 'update_staffing_plan_shifts',
+            'approve_staffing_plan', 'reject_staffing_plan', 'delete_staffing_plan',
             'chatbot_ask',
         }
         if request.endpoint in protected_endpoints and 'user_id' not in session:
@@ -6163,6 +6210,287 @@ def create_app():
         get_dashboard_summary(force_refresh=True)
         flash('Staff member permanently deleted.', 'success')
         return redirect(url_for('staff'))
+
+    # -------------------------------------------------------------
+    # Staffing Plans & Shift Scheduling (with Admin Approval Flow)
+    # -------------------------------------------------------------
+    @app.route('/staffing-plans')
+    def staffing_plans():
+        branch = current_branch()
+        query = StaffingPlan.query
+        if branch is not None:
+            query = query.filter_by(branch_id=branch.id)
+
+        status_filter = request.args.get('status', '').strip()
+        if status_filter in {'Pending', 'Approved', 'Rejected'}:
+            query = query.filter_by(status=status_filter)
+
+        plans = query.order_by(StaffingPlan.created_at.desc()).all()
+        return render_template(
+            'staffing_plans/index.html',
+            plans=plans,
+            status_filter=status_filter,
+            operating_hours=CLINIC_OPERATING_HOURS,
+            can_manage=session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin',
+        )
+
+    @app.route('/staffing-plans/generate', methods=['POST'])
+    def generate_staffing_plan():
+        redirect_response = require_specific_branch('staffing_plans')
+        if redirect_response:
+            return redirect_response
+
+        branch = current_branch()
+        period_type = request.form.get('period', 'next_week').strip()
+
+        today = datetime.now().date()
+        if period_type == 'current_week':
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=6)
+        else:
+            start_date = today - timedelta(days=today.weekday()) + timedelta(days=7)
+            end_date = start_date + timedelta(days=6)
+
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        period_label = f"{start_date.strftime('%b %d, %Y')} - {end_date.strftime('%b %d, %Y')}"
+
+        staff_members = StaffMember.query.filter_by(branch_id=branch.id, is_active=True).all()
+        actual_staff_by_role = Counter(m.role for m in staff_members)
+        historical_map = build_historical_role_map(branch)
+        classifier_state = build_diagnosis_role_classifier(historical_map)
+        daily_pred = build_daily_staff_prediction(branch, actual_staff_by_role, STAFF_CAPACITY_PER_MONTH, historical_map, classifier_state)
+
+        plan = StaffingPlan(
+            branch_id=branch.id,
+            start_date=start_str,
+            end_date=end_str,
+            period_label=period_label,
+            status='Pending',
+            created_by=session.get('username') or 'admin',
+            notes=request.form.get('notes', '').strip() or None,
+        )
+        db.session.add(plan)
+        db.session.flush()
+
+        staff_by_role = {}
+        for m in staff_members:
+            if m.availability != 'On Leave':
+                staff_by_role.setdefault(m.role, []).append(m)
+
+        role_assignment_idx = defaultdict(int)
+        target_dates = [start_date + timedelta(days=i) for i in range(7)]
+
+        forecast_lookup = {}
+        for row in daily_pred.get('rows', []):
+            forecast_lookup[(row['date'], row['staff_role'])] = int(row.get('required_staff', 1))
+
+        all_roles = sorted(set(actual_staff_by_role.keys()) | {r['staff_role'] for r in daily_pred.get('rows', [])})
+        if not all_roles:
+            all_roles = ['General Physicians']
+
+        total_shifts_created = 0
+        for d in target_dates:
+            d_str = d.strftime('%Y-%m-%d')
+            day_name = d.strftime('%A')
+            shift_hours = CLINIC_OPERATING_HOURS.get(day_name, '6:00 AM - 5:00 PM')
+
+            for role in all_roles:
+                needed = forecast_lookup.get((d_str, role), 0)
+                if needed <= 0 and role in actual_staff_by_role and actual_staff_by_role[role] > 0:
+                    needed = 1
+
+                candidates = staff_by_role.get(role, [])
+                for _ in range(needed):
+                    assigned_staff = None
+                    if candidates:
+                        idx = role_assignment_idx[role] % len(candidates)
+                        assigned_staff = candidates[idx]
+                        role_assignment_idx[role] += 1
+
+                    shift = StaffShift(
+                        plan_id=plan.id,
+                        staff_id=assigned_staff.id if assigned_staff else None,
+                        shift_date=d_str,
+                        day_name=day_name,
+                        role=role,
+                        shift_hours=shift_hours,
+                    )
+                    db.session.add(shift)
+                    total_shifts_created += 1
+
+        log_audit('generate_staffing_plan', 'StaffingPlan', plan.id, {
+            'branch_id': branch.id,
+            'start_date': start_str,
+            'end_date': end_str,
+            'shifts_count': total_shifts_created,
+        })
+        db.session.commit()
+
+        flash(f'Recommended staffing plan generated for {period_label}. Please review allocations below before approving.', 'success')
+        return redirect(url_for('view_staffing_plan', plan_id=plan.id))
+
+    @app.route('/staffing-plans/<int:plan_id>')
+    def view_staffing_plan(plan_id):
+        plan = db.session.get(StaffingPlan, plan_id) or abort(404)
+        if not can_view_all_branches() and plan.branch_id != current_branch_id():
+            abort(403)
+
+        shifts = StaffShift.query.filter_by(plan_id=plan.id).order_by(StaffShift.shift_date.asc(), StaffShift.role.asc()).all()
+        branch_staff = StaffMember.query.filter_by(branch_id=plan.branch_id, is_active=True).order_by(StaffMember.name.asc()).all()
+        staff_by_role = {}
+        for m in branch_staff:
+            staff_by_role.setdefault(m.role, []).append(m)
+
+        total_shifts = len(shifts)
+        filled_shifts = sum(1 for s in shifts if s.staff_id is not None)
+        unfilled_shifts = total_shifts - filled_shifts
+        notified_count = sum(1 for s in shifts if s.notified_at is not None)
+
+        shifts_by_date = {}
+        for s in shifts:
+            shifts_by_date.setdefault(s.shift_date, []).append(s)
+
+        dates_sorted = sorted(shifts_by_date.keys())
+
+        return render_template(
+            'staffing_plans/view.html',
+            plan=plan,
+            shifts=shifts,
+            shifts_by_date=shifts_by_date,
+            dates_sorted=dates_sorted,
+            branch_staff=branch_staff,
+            staff_by_role=staff_by_role,
+            total_shifts=total_shifts,
+            filled_shifts=filled_shifts,
+            unfilled_shifts=unfilled_shifts,
+            notified_count=notified_count,
+            operating_hours=CLINIC_OPERATING_HOURS,
+            can_manage=session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin',
+        )
+
+    @app.route('/staffing-plans/<int:plan_id>/update-shifts', methods=['POST'])
+    def update_staffing_plan_shifts(plan_id):
+        require_service_manager()
+        plan = db.session.get(StaffingPlan, plan_id) or abort(404)
+        if plan.status != 'Pending':
+            flash('Only pending staffing plans can be modified.', 'error')
+            return redirect(url_for('view_staffing_plan', plan_id=plan.id))
+
+        shifts = StaffShift.query.filter_by(plan_id=plan.id).all()
+        for shift in shifts:
+            field_name = f'shift_{shift.id}_staff'
+            val = request.form.get(field_name, '')
+            if val == '' or val == '0':
+                shift.staff_id = None
+            else:
+                try:
+                    staff_id = int(val)
+                    shift.staff_id = staff_id
+                except ValueError:
+                    pass
+
+        notes = request.form.get('notes')
+        if notes is not None:
+            plan.notes = notes.strip() or None
+
+        db.session.commit()
+        flash('Staff allocations updated successfully.', 'success')
+        return redirect(url_for('view_staffing_plan', plan_id=plan.id))
+
+    @app.route('/staffing-plans/<int:plan_id>/approve', methods=['POST'])
+    def approve_staffing_plan(plan_id):
+        require_service_manager()
+        plan = db.session.get(StaffingPlan, plan_id) or abort(404)
+        if plan.status == 'Approved':
+            flash('This staffing plan has already been approved.', 'warning')
+            return redirect(url_for('view_staffing_plan', plan_id=plan.id))
+
+        plan.status = 'Approved'
+        plan.reviewed_by = session.get('username') or 'admin'
+        plan.reviewed_at = datetime.now()
+
+        shifts = StaffShift.query.filter_by(plan_id=plan.id).all()
+        shifts_by_staff = defaultdict(list)
+        for s in shifts:
+            if s.staff_id:
+                shifts_by_staff[s.staff_id].append(s)
+
+        notified_count = 0
+        missing_email_count = 0
+        branch_name = plan.branch.name if plan.branch else 'Accudetek Clinic'
+        now_timestamp = datetime.now()
+
+        for staff_id, staff_shifts in shifts_by_staff.items():
+            staff_member = db.session.get(StaffMember, staff_id)
+            if not staff_member or not staff_member.email:
+                missing_email_count += 1
+                continue
+
+            schedule_lines = []
+            for s in sorted(staff_shifts, key=lambda x: x.shift_date):
+                schedule_lines.append(f"  * {s.day_name}, {s.shift_date}: {s.role} ({s.shift_hours})")
+            schedule_text = "\n".join(schedule_lines)
+
+            email_subject = f"Your Approved Work Schedule: {plan.period_label} ({branch_name})"
+            email_body = (
+                f"Hi {staff_member.name},\n\n"
+                f"Your work schedule for {plan.period_label} at {branch_name} has been reviewed and approved by clinic administration.\n\n"
+                f"Assigned Shifts:\n"
+                f"{schedule_text}\n\n"
+                f"Clinic Operating Hours:\n"
+                f"  * Monday - Saturday: 6:00 AM - 5:00 PM\n"
+                f"  * Sunday: 6:00 AM - 12:00 NN\n\n"
+                f"Please report on time according to your assigned shifts. If you have any scheduling conflicts, please coordinate with your clinic supervisor immediately.\n\n"
+                f"Thank you,\n"
+                f"Accudetek Health Diagnostics Scheduling"
+            )
+
+            sent = app.send_appointment_email(staff_member.email, email_subject, email_body)
+            if sent:
+                notified_count += 1
+                for s in staff_shifts:
+                    s.notified_at = now_timestamp
+
+        log_audit('approve_staffing_plan', 'StaffingPlan', plan.id, {
+            'branch_id': plan.branch_id,
+            'approved_by': plan.reviewed_by,
+            'notified_count': notified_count,
+            'missing_email_count': missing_email_count,
+        })
+        db.session.commit()
+
+        msg = f'Staffing plan approved! {notified_count} staff member(s) were notified of their schedule via email.'
+        if missing_email_count > 0:
+            msg += f' ({missing_email_count} staff member(s) have no email on file).'
+        flash(msg, 'success')
+        return redirect(url_for('view_staffing_plan', plan_id=plan.id))
+
+    @app.route('/staffing-plans/<int:plan_id>/reject', methods=['POST'])
+    def reject_staffing_plan(plan_id):
+        require_service_manager()
+        plan = db.session.get(StaffingPlan, plan_id) or abort(404)
+        plan.status = 'Rejected'
+        plan.reviewed_by = session.get('username') or 'admin'
+        plan.reviewed_at = datetime.now()
+        log_audit('reject_staffing_plan', 'StaffingPlan', plan.id, {
+            'branch_id': plan.branch_id,
+            'rejected_by': plan.reviewed_by,
+        })
+        db.session.commit()
+        flash('Staffing plan marked as Rejected. You can generate a revised plan at any time.', 'info')
+        return redirect(url_for('view_staffing_plan', plan_id=plan.id))
+
+    @app.route('/staffing-plans/<int:plan_id>/delete', methods=['POST'])
+    def delete_staffing_plan(plan_id):
+        require_service_manager()
+        plan = db.session.get(StaffingPlan, plan_id) or abort(404)
+        branch_id = plan.branch_id
+        db.session.delete(plan)
+        log_audit('delete_staffing_plan', 'StaffingPlan', plan_id, {'branch_id': branch_id})
+        db.session.commit()
+        flash('Staffing plan deleted.', 'info')
+        return redirect(url_for('staffing_plans'))
 
     report_definitions = {
         'monthly-consultation': {

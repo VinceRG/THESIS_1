@@ -1,0 +1,155 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Staffing Plans · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Staffing Plans &amp; Schedules{% endblock %}
+{% block page_subtitle %}Review forecast-based staffing plans, manage shift allocations, and notify staff of approved schedules{% endblock %}
+
+{% block content %}
+<div class="section-stack">
+
+  <!-- Clinic Operating Hours Reference Card -->
+  <div class="chart-card">
+    <div class="page-heading-row" style="align-items: center;">
+      <div>
+        <h3 style="margin:0;"><i class="bi bi-clock-history" aria-hidden="true"></i> Clinic Operating Hours</h3>
+        <p class="muted-copy" style="margin:4px 0 0 0;">Weekly shift schedules align with Accudetek clinic hours:</p>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <span class="status-pill status-healthy">
+          <strong>Mon &ndash; Sat:</strong> 6:00 AM &ndash; 5:00 PM
+        </span>
+        <span class="status-pill status-moderate">
+          <strong>Sunday:</strong> 6:00 AM &ndash; 12:00 NN
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staffing Plans Management Card -->
+  <div class="chart-card">
+    <div class="page-heading-row">
+      <div>
+        <h3 style="margin:0;">Staffing Plans</h3>
+        <p class="muted-copy" style="margin:4px 0 0 0;">
+          {{ plans|length }} plan{{ '' if plans|length == 1 else 's' }} recorded for {{ active_branch_label }}.
+        </p>
+      </div>
+      {% if can_manage and selected_branch_value != 'all' %}
+        <form method="post" action="{{ url_for('generate_staffing_plan') }}" style="display:inline-flex; gap:8px; align-items:center;">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <select name="period" style="padding:8px 12px; border-radius:6px; border:1px solid var(--admin-line); background:#fff; font-size:13px;">
+            <option value="next_week" selected>Generate for Next Week</option>
+            <option value="current_week">Generate for Current Week</option>
+          </select>
+          <button type="submit" class="btn">
+            <i class="bi bi-magic" aria-hidden="true"></i> Generate Plan
+          </button>
+        </form>
+      {% elif can_manage %}
+        <span class="topbar-pill">Select a specific branch to generate plans</span>
+      {% endif %}
+    </div>
+
+    <!-- Filter by Status -->
+    <div style="display:flex; gap:8px; margin: 16px 0 12px 0; flex-wrap:wrap;">
+      <a href="{{ url_for('staffing_plans') }}" class="btn secondary{{ ' active' if not status_filter else '' }}" style="font-size:13px; padding:6px 14px;">All</a>
+      <a href="{{ url_for('staffing_plans', status='Pending') }}" class="btn secondary{{ ' active' if status_filter == 'Pending' else '' }}" style="font-size:13px; padding:6px 14px;">
+        <i class="bi bi-hourglass-split" aria-hidden="true"></i> Pending Review
+      </a>
+      <a href="{{ url_for('staffing_plans', status='Approved') }}" class="btn secondary{{ ' active' if status_filter == 'Approved' else '' }}" style="font-size:13px; padding:6px 14px;">
+        <i class="bi bi-check-circle" aria-hidden="true"></i> Approved
+      </a>
+      <a href="{{ url_for('staffing_plans', status='Rejected') }}" class="btn secondary{{ ' active' if status_filter == 'Rejected' else '' }}" style="font-size:13px; padding:6px 14px;">
+        <i class="bi bi-x-circle" aria-hidden="true"></i> Rejected
+      </a>
+    </div>
+
+    <!-- Plans Table -->
+    <div class="table-scroll">
+      <table class="table table-sticky-head">
+        <thead>
+          <tr>
+            <th>Period / Week</th>
+            <th>Branch</th>
+            <th>Status</th>
+            <th>Total Shifts</th>
+            <th>Filled / Gap</th>
+            <th>Created By</th>
+            <th>Reviewed By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for plan in plans %}
+            {% set total = plan.shifts|length %}
+            {% set filled = plan.shifts|selectattr('staff_id')|list|length %}
+            {% set unfilled = total - filled %}
+            <tr>
+              <td>
+                <strong>{{ plan.period_label }}</strong>
+                <div class="muted-copy" style="font-size:12px;">{{ plan.start_date }} to {{ plan.end_date }}</div>
+              </td>
+              <td>{{ plan.branch.name if plan.branch else 'All Branches' }}</td>
+              <td>
+                {% if plan.status == 'Approved' %}
+                  <span class="status-pill status-healthy"><i class="bi bi-check-lg" aria-hidden="true"></i> Approved</span>
+                {% elif plan.status == 'Rejected' %}
+                  <span class="status-pill status-high"><i class="bi bi-x-lg" aria-hidden="true"></i> Rejected</span>
+                {% else %}
+                  <span class="status-pill status-moderate"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Pending Review</span>
+                {% endif %}
+              </td>
+              <td>{{ total }} shifts</td>
+              <td>
+                <span style="font-weight:600; color:var(--text);">{{ filled }} filled</span>
+                {% if unfilled > 0 %}
+                  <span style="color:var(--critical); font-size:12px; margin-left:4px;">({{ unfilled }} unfilled)</span>
+                {% endif %}
+              </td>
+              <td>{{ plan.created_by or 'System' }}</td>
+              <td>
+                {% if plan.reviewed_by %}
+                  {{ plan.reviewed_by }}
+                  <div class="muted-copy" style="font-size:11px;">{{ plan.reviewed_at.strftime('%b %d, %H:%M') if plan.reviewed_at else '' }}</div>
+                {% else %}
+                  <span class="muted-copy">&mdash;</span>
+                {% endif %}
+              </td>
+              <td class="admin-actions-cell">
+                <div class="admin-action-group">
+                  <a href="{{ url_for('view_staffing_plan', plan_id=plan.id) }}" class="btn secondary">
+                    <i class="bi bi-eye" aria-hidden="true"></i> Review Plan
+                  </a>
+                  {% if can_manage and plan.status != 'Approved' %}
+                    <form method="post" action="{{ url_for('delete_staffing_plan', plan_id=plan.id) }}"
+                          data-confirm-title="Delete staffing plan?"
+                          data-confirm="Are you sure you want to delete this staffing plan?">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn secondary admin-action-toggle" style="color:var(--critical);">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr class="table-empty-state">
+              <td colspan="8">
+                <strong>No staffing plans found.</strong>
+                {% if can_manage and selected_branch_value != 'all' %}
+                  Click <strong>Generate Plan</strong> above to generate a recommended staffing plan based on current demand forecasts.
+                {% else %}
+                  Select a specific branch to create and manage staffing plans.
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

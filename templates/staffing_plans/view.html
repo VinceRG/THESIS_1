@@ -1,0 +1,200 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Review Staffing Plan · {{ plan.period_label }}{% endblock %}
+{% block page_title %}Staffing Plan Review{% endblock %}
+{% block page_subtitle %}Review AI-recommended staff allocations, adjust shift assignments, and approve notifications{% endblock %}
+
+{% block content %}
+<div class="section-stack">
+
+  <!-- Heading Card with Status & Action Buttons -->
+  <div class="chart-card">
+    <div class="page-heading-row" style="align-items:flex-start;">
+      <div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+          <h2 style="margin:0; font-size:22px;">{{ plan.period_label }}</h2>
+          {% if plan.status == 'Approved' %}
+            <span class="status-pill status-healthy"><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Approved</span>
+          {% elif plan.status == 'Rejected' %}
+            <span class="status-pill status-high"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Rejected</span>
+          {% else %}
+            <span class="status-pill status-moderate"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Pending Approval</span>
+          {% endif %}
+        </div>
+        <p class="muted-copy" style="margin:0;">
+          <strong>Branch:</strong> {{ plan.branch.name if plan.branch else 'All Branches' }} &middot;
+          <strong>Created:</strong> {{ plan.created_at.strftime('%b %d, %Y %H:%M') }} by {{ plan.created_by or 'System' }}
+          {% if plan.reviewed_by %}
+            &middot; <strong>Reviewed:</strong> {{ plan.reviewed_at.strftime('%b %d, %Y %H:%M') }} by {{ plan.reviewed_by }}
+          {% endif %}
+        </p>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="{{ url_for('staffing_plans') }}" class="btn secondary">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Plans
+        </a>
+
+        {% if can_manage and plan.status == 'Pending' %}
+          <!-- Reject Button -->
+          <form method="post" action="{{ url_for('reject_staffing_plan', plan_id=plan.id) }}"
+                data-confirm-title="Reject staffing plan?"
+                data-confirm="Are you sure you want to mark this staffing plan as Rejected?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn secondary" style="color:var(--critical);">
+              <i class="bi bi-x-lg" aria-hidden="true"></i> Reject
+            </button>
+          </form>
+
+          <!-- Approve & Notify Button -->
+          <form method="post" action="{{ url_for('approve_staffing_plan', plan_id=plan.id) }}"
+                data-confirm-title="Approve staffing plan & notify staff?"
+                data-confirm="Approving this plan will finalize the schedule and send individual notification emails to all assigned staff members. Continue?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn">
+              <i class="bi bi-check-lg" aria-hidden="true"></i> Approve &amp; Notify Staff
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Metric Overview Cards -->
+  <div class="grid grid-auto-fit">
+    <div class="card">
+      <h3>Total Shifts</h3>
+      <div class="value">{{ total_shifts }}</div>
+      <p class="hint">Across 7 days based on forecasted patient volume</p>
+    </div>
+    <div class="card">
+      <h3>Filled Shifts</h3>
+      <div class="value" style="color:var(--secondary);">{{ filled_shifts }}</div>
+      <p class="hint">Staff members assigned and scheduled</p>
+    </div>
+    <div class="card">
+      <h3>Unfilled Gaps</h3>
+      <div class="value" style="color:{{ 'var(--critical)' if unfilled_shifts > 0 else 'var(--secondary)' }};">{{ unfilled_shifts }}</div>
+      <p class="hint">{{ 'Requires assigning staff' if unfilled_shifts > 0 else 'All shifts fully covered' }}</p>
+    </div>
+    <div class="card">
+      <h3>Staff Notified</h3>
+      <div class="value">{{ notified_count }}</div>
+      <p class="hint">{{ 'Emails sent upon approval' if plan.status != 'Approved' else 'Shift notifications dispatched' }}</p>
+    </div>
+  </div>
+
+  {% if plan.status == 'Approved' %}
+    <div class="flash-message flash-success">
+      <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+      This staffing allocation was approved by <strong>{{ plan.reviewed_by }}</strong> on <strong>{{ plan.reviewed_at.strftime('%B %d, %Y at %I:%M %p') }}</strong>. Assigned staff have been notified of their schedules via email.
+    </div>
+  {% elif plan.status == 'Pending' %}
+    <div class="flash-message flash-warning">
+      <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+      <strong>Review mode:</strong> You can modify staff shift assignments in the table below and click <strong>Save Allocations</strong>. Once you are satisfied with the schedule, click <strong>Approve &amp; Notify Staff</strong> to lock in the plan and send schedule emails.
+    </div>
+  {% endif %}
+
+  <!-- Shift Allocation Form & Table -->
+  <form method="post" action="{{ url_for('update_staffing_plan_shifts', plan_id=plan.id) }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+    {% for d_str in dates_sorted %}
+      {% set day_shifts = shifts_by_date[d_str] %}
+      {% set first_shift = day_shifts[0] %}
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="page-heading-row" style="align-items:center; margin-bottom:12px;">
+          <div>
+            <h3 style="margin:0; font-size:17px;">
+              <i class="bi bi-calendar-event" aria-hidden="true"></i>
+              {{ first_shift.day_name }} &ndash; {{ d_str }}
+            </h3>
+          </div>
+          <div>
+            <span class="status-pill status-healthy" style="font-size:12px;">
+              <i class="bi bi-clock" aria-hidden="true"></i> {{ first_shift.shift_hours }}
+            </span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:28%;">Role Needed</th>
+                <th style="width:24%;">Shift Hours</th>
+                <th style="width:32%;">Assigned Staff Member</th>
+                <th style="width:16%;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for shift in day_shifts %}
+                <tr>
+                  <td>
+                    <strong>{{ shift.role }}</strong>
+                  </td>
+                  <td>
+                    <span class="muted-copy">{{ shift.shift_hours }}</span>
+                  </td>
+                  <td>
+                    {% if plan.status == 'Pending' and can_manage %}
+                      <select name="shift_{{ shift.id }}_staff" style="width:100%; max-width:280px; padding:6px 10px; border-radius:6px; border:1px solid var(--admin-line); font-size:13px; background:#fff;">
+                        <option value="0" {{ 'selected' if not shift.staff_id else '' }}>-- Unfilled (No Staff Assigned) --</option>
+                        {% for cand in staff_by_role.get(shift.role, branch_staff) %}
+                          <option value="{{ cand.id }}" {{ 'selected' if shift.staff_id == cand.id else '' }}>
+                            {{ cand.name }}{% if cand.availability and cand.availability != 'Available' %} ({{ cand.availability }}){% endif %}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    {% else %}
+                      {% if shift.staff %}
+                        <strong>{{ shift.staff.name }}</strong>
+                        {% if shift.staff.email %}
+                          <span class="muted-copy" style="font-size:12px; display:block;">{{ shift.staff.email }}</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="status-pill status-high" style="font-size:11px;">Unfilled</span>
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if shift.notified_at %}
+                      <span class="status-pill status-healthy" style="font-size:11px;">
+                        <i class="bi bi-envelope-check" aria-hidden="true"></i> Notified
+                      </span>
+                    {% elif shift.staff_id %}
+                      <span class="status-pill status-moderate" style="font-size:11px;">
+                        <i class="bi bi-person-check" aria-hidden="true"></i> Assigned
+                      </span>
+                    {% else %}
+                      <span class="status-pill status-high" style="font-size:11px;">
+                        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Uncovered
+                      </span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+
+    {% if plan.status == 'Pending' and can_manage %}
+      <div class="chart-card" style="margin-top:20px;">
+        <div style="margin-bottom:12px;">
+          <label for="planNotes" style="font-weight:600; display:block; margin-bottom:6px;">Staffing Notes / Remarks</label>
+          <textarea id="planNotes" name="notes" rows="2" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--admin-line); font-family:inherit; font-size:14px;" placeholder="Optional notes for this staffing plan...">{{ plan.notes or '' }}</textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="submit" class="btn secondary">
+            <i class="bi bi-save" aria-hidden="true"></i> Save Shift Allocations
+          </button>
+        </div>
+      </div>
+    {% endif %}
+  </form>
+
+</div>
+{% endblock %}

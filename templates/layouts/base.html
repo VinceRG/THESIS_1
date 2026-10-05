@@ -39,6 +39,7 @@
         <div class="nav-group">
           <span class="nav-group-label">Management</span>
           <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}"><i class="bi bi-person-badge nav-icon" aria-hidden="true"></i>Staff Management</a>
+          <a href="/staffing-plans" class="{% if request.path.startswith('/staffing-plans') %}active{% endif %}"><i class="bi bi-calendar2-week nav-icon" aria-hidden="true"></i>Staffing Plans</a>
           {% if can_manage_services %}
             <a href="/services" class="{% if request.path.startswith('/services') %}active{% endif %}"><i class="bi bi-list-check nav-icon" aria-hidden="true"></i>Services</a>
             <a href="/packages" class="{% if request.path.startswith('/packages') %}active{% endif %}"><i class="bi bi-box-seam nav-icon" aria-hidden="true"></i>Packages</a>
