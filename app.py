@@ -6628,6 +6628,7 @@ def create_app():
             prefill_reason=prefill_reason,
             default_start=default_start,
             default_end=default_end,
+            today=datetime.now().strftime('%Y-%m-%d'),
         )
 
     @app.route('/staff-allocations/<int:id>/approve', methods=['POST'])
