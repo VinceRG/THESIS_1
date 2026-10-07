@@ -11,8 +11,22 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    #topProgressBar {
+      position: fixed; top: 0; left: 0; height: 3px;
+      background: linear-gradient(90deg, #0f5b8a, #2ba7c5);
+      z-index: 99999; width: 0%; opacity: 0;
+      transition: width 0.25s ease, opacity 0.2s ease;
+      pointer-events: none;
+    }
+    #topProgressBar.active { opacity: 1; }
+    form[data-submitting="true"] button[type="submit"] {
+      opacity: 0.75; cursor: not-allowed;
+    }
+  </style>
 </head>
 <body class="admin-app">
+  <div id="topProgressBar" aria-hidden="true"></div>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
@@ -352,14 +366,26 @@
     async function fetchPage(path) {
       const contentElement = document.querySelector('.content');
       if (!contentElement) return;
-      startLoading('Loading page', 'Fetching the requested page and preparing the interface.');
-      contentElement.innerHTML = '<div class="loading-state">Loading page...</div>';
+
+      // Immediately highlight the selected tab in the sidebar
+      updateActiveLink(path);
+
+      // Start sleek top progress bar
+      const topBar = document.getElementById('topProgressBar');
+      if (topBar) {
+        topBar.style.width = '35%';
+        topBar.classList.add('active');
+      }
+      contentElement.style.transition = 'opacity 0.15s ease';
+      contentElement.style.opacity = '0.55';
+
       try {
         const response = await fetch(path, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         if (!response.ok) {
           window.location.href = path;
           return;
         }
+        if (topBar) topBar.style.width = '85%';
         const html = await response.text();
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
@@ -370,25 +396,36 @@
 
         if (newContent) {
           contentElement.innerHTML = newContent.innerHTML;
-        } else {
-          contentElement.innerHTML = '<div class="loading-state">Unable to load page content.</div>';
         }
 
         if (newPageTitle) document.title = newPageTitle;
-        if (newTopTitle) document.querySelector('header.topbar h1').innerText = newTopTitle;
-        if (newTopSubtitle) document.querySelector('header.topbar p').innerText = newTopSubtitle;
+        if (newTopTitle) {
+          const h1 = document.querySelector('header.topbar h1');
+          if (h1) h1.innerText = newTopTitle;
+        }
+        if (newTopSubtitle) {
+          const p = document.querySelector('header.topbar p');
+          if (p) p.innerText = newTopSubtitle;
+        }
 
-        updateActiveLink(path);
         if (window.location.pathname !== path) {
           window.history.pushState({}, '', path);
         }
 
         injectCsrfTokens(contentElement);
         await runInlineScripts(contentElement);
-        finishLoading();
       } catch (error) {
         console.error(error);
         window.location.href = path;
+      } finally {
+        contentElement.style.opacity = '1';
+        if (topBar) {
+          topBar.style.width = '100%';
+          window.setTimeout(() => {
+            topBar.classList.remove('active');
+            topBar.style.width = '0%';
+          }, 240);
+        }
       }
     }
 
@@ -472,10 +509,18 @@
           openConfirmModal(form, form.dataset.confirm, form.dataset.confirmTitle || 'Confirm action');
           return;
         }
+        if (form.dataset.submitting === 'true') {
+          event.preventDefault();
+          return;
+        }
+        form.dataset.submitting = 'true';
+        const submitter = event.submitter;
+        if (submitter) {
+          submitter.disabled = true;
+        }
         if (form.dataset.confirmed === 'true') {
           delete form.dataset.confirmed;
         }
-        const submitter = event.submitter;
         const buttonText = submitter?.textContent?.trim() || '';
         const enctype = form.getAttribute('enctype') || '';
 
@@ -490,6 +535,13 @@
         }
 
         startLoading('Processing request', 'Saving your changes and refreshing the page.');
+      });
+
+      window.addEventListener('pageshow', () => {
+        document.querySelectorAll('form[data-submitting="true"]').forEach(f => {
+          delete f.dataset.submitting;
+          f.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(b => b.disabled = false);
+        });
       });
 
       document.getElementById('confirmCancel')?.addEventListener('click', closeConfirmModal);

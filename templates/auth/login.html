@@ -83,8 +83,15 @@
     input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(43,167,197,0.18); }
     button {
       margin-top:6px; padding:12px 14px; border:none; border-radius:12px; background:linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%); color:white; font-weight:700; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px; transition:opacity 0.2s, filter 0.2s;
     }
-    button:hover { filter:brightness(1.04); }
+    button:hover:not(:disabled) { filter:brightness(1.04); }
+    button:disabled { opacity:0.75; cursor:not-allowed; filter:none; }
+    .btn-spinner {
+      width:16px; height:16px; border:2px solid rgba(255,255,255,0.35); border-top-color:#ffffff; border-radius:50%;
+      animation:btn-spin 0.75s linear infinite; display:inline-block;
+    }
+    @keyframes btn-spin { to { transform:rotate(360deg); } }
     .meta { margin-top:14px; font-size:13px; color:var(--muted); line-height:1.5; }
     .meta a { color:var(--primary); font-weight:700; text-decoration:none; }
     .meta a:hover { text-decoration:underline; }
@@ -122,7 +129,7 @@
       </div>
 
       <div class="photo-slot">
-        <img src="{{ url_for('static', filename='Screenshot 2026-07-09 000115.png') }}" alt="Clinic preview" style="width:100%; height:100%; object-fit:cover;">
+        <img src="{{ url_for('static', filename='login-preview.webp') }}" alt="Clinic preview" style="width:100%; height:100%; object-fit:cover;" loading="eager" decoding="async">
       </div>
 
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -135,22 +142,39 @@
         {% endif %}
       {% endwith %}
 
-      <form method="post">
+      <form method="post" id="loginForm">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <label>
           Username
-          <input name="username" placeholder="Enter your username" required>
+          <input name="username" placeholder="Enter your username" required autocomplete="username">
         </label>
         <label>
           Password
-          <input name="password" type="password" placeholder="Enter your password" required>
+          <input name="password" type="password" placeholder="Enter your password" required autocomplete="current-password">
         </label>
-        <button type="submit">Sign In</button>
+        <button type="submit" id="submitBtn">Sign In</button>
       </form>
       <div class="meta">
         For authorized personnel only. Use your clinic credentials to continue.
       </div>
     </div>
   </div>
+  <script>
+    (function() {
+      const loginForm = document.getElementById('loginForm');
+      const submitBtn = document.getElementById('submitBtn');
+      if (loginForm && submitBtn) {
+        loginForm.addEventListener('submit', function(e) {
+          if (loginForm.dataset.submitting === 'true') {
+            e.preventDefault();
+            return false;
+          }
+          loginForm.dataset.submitting = 'true';
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span> Signing in...';
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

@@ -1928,6 +1928,7 @@ def create_app():
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 604800
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
@@ -2156,7 +2157,28 @@ def create_app():
         except Exception:
             pass
 
+    _cached_default_branch_id = None
+    _cached_branches = {'data': None, 'expires_at': 0}
+
+    def invalidate_branch_cache():
+        _cached_branches['data'] = None
+        _cached_branches['expires_at'] = 0
+
+    def get_all_active_branches(force_refresh=False):
+        now = time.time()
+        if not force_refresh and _cached_branches['data'] is not None and now < _cached_branches['expires_at']:
+            return _cached_branches['data']
+        branches = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
+        _cached_branches['data'] = branches
+        _cached_branches['expires_at'] = now + 60.0
+        return branches
+
     def ensure_default_branch():
+        nonlocal _cached_default_branch_id
+        if _cached_default_branch_id:
+            branch = db.session.get(Branch, _cached_default_branch_id)
+            if branch:
+                return branch
         branch = Branch.query.filter_by(code=DEFAULT_BRANCH_CODE).first()
         if branch is None:
             branch = Branch(
@@ -2168,6 +2190,9 @@ def create_app():
             )
             db.session.add(branch)
             db.session.commit()
+            invalidate_branch_cache()
+        if branch:
+            _cached_default_branch_id = branch.id
         return branch
 
     def can_view_all_branches():
@@ -3536,25 +3561,51 @@ def create_app():
                 and request.endpoint not in {'change_password', 'logout', 'static'}):
             return redirect(url_for('change_password'))
 
+    @app.after_request
+    def set_cache_and_perf_headers(response):
+        if request.path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=604800, immutable'
+        return response
+
     @app.context_processor
     def inject_branch_context():
         try:
-            current_user = db.session.get(User, session.get('user_id')) if session.get('user_id') else None
-            if can_view_all_branches():
-                branch_options = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
+            current_user_name = session.get('username')
+            user_role = session.get('role') or ''
+            can_all = can_view_all_branches()
+
+            if can_all:
+                branch_options = get_all_active_branches()
             else:
-                branch_options = Branch.query.filter_by(id=session.get('branch_id'), is_active=True).all()
+                user_branch_id = session.get('branch_id')
+                all_active = get_all_active_branches()
+                branch_options = [b for b in all_active if b.id == user_branch_id]
+                if not branch_options and user_branch_id:
+                    b_obj = db.session.get(Branch, user_branch_id)
+                    if b_obj and b_obj.is_active:
+                        branch_options = [b_obj]
+
+            scope = selected_branch_scope()
+            if scope is None:
+                active_branch = None
+                active_label = 'All Branches'
+            else:
+                active_branch = next((b for b in branch_options if b.id == scope), None)
+                if not active_branch:
+                    active_branch = db.session.get(Branch, scope) or ensure_default_branch()
+                active_label = active_branch.name if active_branch else DEFAULT_BRANCH_NAME
+
             return {
-                'active_branch': current_branch(),
-                'active_branch_label': branch_scope_label(),
-                'selected_branch_value': ALL_BRANCHES_SCOPE if selected_branch_scope() is None else str(selected_branch_scope()),
+                'active_branch': active_branch,
+                'active_branch_label': active_label,
+                'selected_branch_value': ALL_BRANCHES_SCOPE if scope is None else str(scope),
                 'branch_options': branch_options,
-                'can_view_all_branches': can_view_all_branches(),
-                'can_manage_services': session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin',
-                'can_use_chatbot': can_view_all_branches(),
-                'current_user_name': current_user.username if current_user else None,
-                'current_user_role_label': (session.get('role') or '').replace('_', ' ').title(),
-                'current_access_label': 'All branches' if can_view_all_branches() else branch_scope_label(),
+                'can_view_all_branches': can_all,
+                'can_manage_services': user_role in MAIN_ADMIN_ROLES or user_role == 'branch_admin',
+                'can_use_chatbot': can_all,
+                'current_user_name': current_user_name,
+                'current_user_role_label': user_role.replace('_', ' ').title(),
+                'current_access_label': 'All branches' if can_all else active_label,
                 'csrf_token': csrf_token,
             }
         except Exception:
@@ -3566,7 +3617,7 @@ def create_app():
                 'can_view_all_branches': False,
                 'can_manage_services': False,
                 'can_use_chatbot': False,
-                'current_user_name': None,
+                'current_user_name': session.get('username'),
                 'current_user_role_label': '',
                 'current_access_label': DEFAULT_BRANCH_NAME,
                 'csrf_token': csrf_token,
@@ -4856,6 +4907,7 @@ def create_app():
             db.session.flush()
             log_audit('create_branch', 'Branch', branch.id, {'name': branch.name, 'code': branch.code}, branch_id=branch.id)
             db.session.commit()
+            invalidate_branch_cache()
             flash('Branch added successfully.', 'success')
             return redirect(url_for('branches'))
 
@@ -4893,6 +4945,7 @@ def create_app():
             branch.contact_number = contact_number
             log_audit('edit_branch', 'Branch', branch.id, {'name': branch.name, 'code': branch.code}, branch_id=branch.id)
             db.session.commit()
+            invalidate_branch_cache()
             get_dashboard_summary(force_refresh=True, branch_id=branch.id)
             flash('Branch updated successfully.', 'success')
             return redirect(url_for('branches'))
@@ -4917,6 +4970,7 @@ def create_app():
         branch.is_active = not branch.is_active
         log_audit('toggle_branch', 'Branch', branch.id, {'name': branch.name, 'is_active': branch.is_active}, branch_id=branch.id)
         db.session.commit()
+        invalidate_branch_cache()
         if session.get('selected_branch_id') == branch.id and not branch.is_active:
             session['selected_branch_id'] = session.get('branch_id') or ensure_default_branch().id
         flash('Branch status updated.', 'success')

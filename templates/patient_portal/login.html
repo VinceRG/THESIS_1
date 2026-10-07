@@ -12,13 +12,35 @@
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <section class="patient-profile-card patient-lookup-card">
       <span class="patient-kicker">Patient Portal</span><h1>Sign in to your account</h1><p>View your profile, appointment status, and appointment history.</p>
-      <form method="post" class="patient-auth-form"><label>Email Address<input type="email" name="email" required autofocus autocomplete="email" placeholder="you@example.com"></label><label>Password<input type="password" name="password" required autocomplete="current-password"></label><button type="submit">Sign In Securely</button></form>
+      <form method="post" class="patient-auth-form" id="patientLoginForm"><label>Email Address<input type="email" name="email" required autofocus autocomplete="email" placeholder="you@example.com"></label><label>Password<input type="password" name="password" required autocomplete="current-password"></label><button type="submit" id="patientSubmitBtn">Sign In Securely</button></form>
       <p class="patient-auth-footer"><a href="{{ url_for('patient_forgot_password') }}">Forgot your password?</a></p>
       <p class="patient-auth-footer">New patient? <a href="{{ url_for('patient_register') }}">Create an account</a>.</p>
     </section>
   </main>
   <footer class="clinic-home-footer patient-flow-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>Care you can trust, from booking to results.</p><a href="{{ url_for('landing_page') }}">Return home</a></footer>
+<style>
+  #patientSubmitBtn:disabled { opacity: 0.75; cursor: not-allowed; }
+  .btn-spinner {
+    width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+    border-radius: 50%; animation: btn-spin 0.75s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes btn-spin { to { transform: rotate(360deg); } }
+</style>
 <script>
+  const patientLoginForm = document.getElementById('patientLoginForm');
+  const patientSubmitBtn = document.getElementById('patientSubmitBtn');
+  if (patientLoginForm && patientSubmitBtn) {
+    patientLoginForm.addEventListener('submit', function (e) {
+      if (patientLoginForm.dataset.submitting === 'true') {
+        e.preventDefault();
+        return false;
+      }
+      patientLoginForm.dataset.submitting = 'true';
+      patientSubmitBtn.disabled = true;
+      patientSubmitBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span> Signing in securely...';
+    });
+  }
+
   const menuToggle = document.querySelector('.clinic-menu-toggle');
   const homeHeader = document.querySelector('.clinic-home-header');
   menuToggle?.addEventListener('click', () => {
