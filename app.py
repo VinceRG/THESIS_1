@@ -7653,20 +7653,14 @@ def create_app():
             return {'error': 'No consultation records available in this scope.'}
 
         now = datetime.now()
-        next_month, next_year = now.month + 1, now.year
-        if next_month > 12:
-            next_month, next_year = 1, next_year + 1
-
-        months_out = (target_year - next_year) * 12 + (target_month - next_month)
+        months_out = (target_year - now.year) * 12 + (target_month - now.month)
         if months_out < 0:
             return {
-                'error': 'This tool is for a future month beyond the immediate next one. '
-                         'For the upcoming month use tool_predictions; for a past month use tool_backtest_forecast.',
+                'error': f'{target_month}/{target_year} is a past month. For the upcoming general forecast, use tool_predictions; for historical consultations that already occurred, use tool_query_consultations or tool_historical_analysis; for forecast accuracy on a past month, use tool_backtest_forecast.',
             }
-        if months_out > MAX_FUTURE_FORECAST_MONTHS - 1:
+        if months_out > MAX_FUTURE_FORECAST_MONTHS:
             return {
-                'error': f'{target_month}/{target_year} is more than {MAX_FUTURE_FORECAST_MONTHS} months ahead of the '
-                         'next forecastable month, which is too far out to forecast with any reliability. Ask about a nearer month.',
+                'error': f'{target_month}/{target_year} is more than {MAX_FUTURE_FORECAST_MONTHS} months ahead, which is too far out to forecast with reliability. Ask about a nearer month.',
             }
 
         # Historical (age_group, gender) mix per diagnosis -- used to split
@@ -7684,7 +7678,7 @@ def create_app():
         }
 
         working_df = full_df.copy()
-        step_month, step_year = next_month, next_year
+        step_month, step_year = now.month, now.year
         for _ in range(months_out):
             _total, forecast, _metrics = generate_forecast_for_specific_month(
                 working_df, step_month, step_year, fast=True, compute_model_b=False,
@@ -7715,7 +7709,7 @@ def create_app():
             return {'error': 'Could not generate a forecast for this month even after chaining -- not enough historical data.'}
 
         if months_out == 0:
-            confidence = 'High -- this is the standard next-month forecast, based entirely on real historical data.'
+            confidence = 'High -- based directly on real historical consultation data.'
         elif months_out <= 2:
             confidence = f'Moderate -- {months_out} intermediate month(s) had to be predicted first and chained forward, so treat this as a trend estimate rather than a precise number.'
         else:
@@ -7877,6 +7871,8 @@ def create_app():
         user_context = {
             'role_label': (session.get('role') or '').replace('_', ' ').title() or 'Superadmin',
             'branch_label': branch_scope_label(),
+            'current_date': datetime.now().strftime('%B %d, %Y'),
+            'current_month': datetime.now().strftime('%B %Y'),
         }
 
         def report_progress(tool_name):
