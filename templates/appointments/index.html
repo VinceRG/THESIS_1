@@ -41,38 +41,38 @@
 
 <div class="chart-card" style="margin-top:20px;">
   <h3>Booked Appointments</h3>
-  <div class="table-scroll">
-    <table class="table table-sticky-head appointment-table">
+  <div class="table-scroll appointment-table-scroll" role="region" aria-label="Booked appointments" tabindex="0">
+    <table class="table table-sticky-head appointment-table{% if all_branches_view %} appointment-table-all-branches{% endif %}">
       <thead>
         <tr>
-          {% if all_branches_view %}<th>Branch</th>{% endif %}
-          <th>Patient</th>
-          <th>Schedule</th>
-          <th>Requested Services</th>
-          <th>Consultation Reasons</th>
-          <th>Recommended Staff</th>
-          <th>Equipment</th>
-          <th>Status</th>
+          {% if all_branches_view %}<th scope="col" class="appointment-col-branch">Branch</th>{% endif %}
+          <th scope="col" class="appointment-col-patient">Patient</th>
+          <th scope="col" class="appointment-col-schedule">Schedule</th>
+          <th scope="col" class="appointment-col-requested">Requested Services</th>
+          <th scope="col" class="appointment-col-reasons">Consultation Reasons</th>
+          <th scope="col" class="appointment-col-staff">Recommended Staff</th>
+          <th scope="col" class="appointment-col-equipment">Equipment</th>
+          <th scope="col" class="appointment-col-status">Status</th>
         </tr>
       </thead>
       <tbody>
         {% for appointment in appointments.items %}
           <tr>
-            {% if all_branches_view %}<td>{{ appointment.branch.name if appointment.branch else 'Unassigned' }}</td>{% endif %}
-            <td>
+            {% if all_branches_view %}<td class="appointment-col-branch" data-label="Branch">{{ appointment.branch.name if appointment.branch else 'Unassigned' }}</td>{% endif %}
+            <td class="appointment-col-patient" data-label="Patient">
               <strong>{{ appointment.patient.full_name if appointment.patient else 'Unknown patient' }}</strong>
               {% if appointment.patient %}
                 <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ appointment.patient.patient_number }}</div>
               {% endif %}
             </td>
-            <td>
+            <td class="appointment-col-schedule" data-label="Schedule">
               {{ appointment.appointment_date }}
               <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ format_appointment_time(appointment.appointment_time) }}</div>
             </td>
-            <td>
+            <td class="appointment-col-requested" data-label="Requested Services">
               <div class="tag-stack">
                 {% for package in appointment.package_items() %}
-                  <span class="tag-pill tag-primary">Package: {{ package }}</span>
+                  <span class="tag-pill tag-primary appointment-package-pill"><span class="appointment-screen-reader-only">Package: </span>{{ package }}</span>
                 {% endfor %}
                 {% for service in appointment.service_items() %}
                   <span class="tag-pill">{{ service }}</span>
@@ -82,7 +82,7 @@
                 {% endif %}
               </div>
             </td>
-            <td>
+            <td class="appointment-col-reasons" data-label="Consultation Reasons">
               <div class="tag-stack">
                 {% for reason in appointment.reason_items() %}
                   <span class="tag-pill">{{ reason }}</span>
@@ -92,7 +92,7 @@
                 {% endif %}
               </div>
             </td>
-            <td>
+            <td class="appointment-col-staff" data-label="Recommended Staff">
               <div class="tag-stack">
                 {% for role in appointment.role_items() %}
                   <span class="tag-pill tag-primary">{{ role }}</span>
@@ -102,7 +102,7 @@
                 <div style="color:#64748b; font-size:12px; margin-top:6px;">{{ note }}</div>
               {% endfor %}
             </td>
-            <td>
+            <td class="appointment-col-equipment" data-label="Equipment">
               {% if appointment.equipment_items() %}
                 <div class="tag-stack">
                   {% for equipment in appointment.equipment_items() %}
@@ -113,12 +113,12 @@
                 <span style="color:#64748b;">No equipment required</span>
               {% endif %}
             </td>
-            <td class="admin-status-cell">
+            <td class="appointment-col-status admin-status-cell" data-label="Status">
               {% if not all_branches_view and not appointment.converted_to_records %}
                 <form method="post" action="{{ url_for('update_appointment_status', appointment_id=appointment.id) }}" class="inline-status-form admin-status-control"
                       data-confirm-title="Update appointment status?"
                       data-confirm="This will update the appointment status. Continue?">
-                  <select name="status">
+                  <select name="status" aria-label="Update status for {{ appointment.patient.full_name if appointment.patient else 'unknown patient' }}">
                     {% for status in status_options %}
                       <option value="{{ status }}" {% if appointment.status == status %}selected{% endif %}>{{ status }}</option>
                     {% endfor %}

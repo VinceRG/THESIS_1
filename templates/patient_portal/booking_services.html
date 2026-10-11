@@ -5,8 +5,8 @@
 {% block step_content %}
   <form method="post">
     <nav class="patient-service-tabs" aria-label="Jump within this step">
+      <a class="is-active" href="#services" aria-current="location">Services</a>
       <a href="#packages">Packages</a>
-      <a href="#services">Services</a>
     </nav>
 
     {% if field_errors.services %}<p class="patient-field-error patient-field-error-block">{{ field_errors.services }}</p>{% endif %}
@@ -16,20 +16,32 @@
         <span class="patient-step-badge">Step 3A</span>
         <div>
           <h2>Packages</h2>
-          <p>Select bundled services if the patient wants a package.</p>
+          <p>Choose a bundled package, or select individual services below.</p>
         </div>
-        <input type="search" placeholder="Search packages" data-public-package-search aria-controls="package-search-status">
+        <input type="search" placeholder="Search packages" aria-label="Search packages" data-public-package-search aria-controls="package-search-status">
       </div>
       <p class="patient-search-status" data-public-package-search-status id="package-search-status" role="status" aria-live="polite"></p>
       <div class="patient-option-grid">
         {% for package in package_options %}
-          <label class="patient-option-card" data-public-package-option data-public-package-text="{{ package.label|lower }}">
-            <input type="checkbox" name="selected_packages" value="{{ package.value }}" data-public-package-checkbox data-price="{{ package.price_php }}" {% if package.value in values.selected_packages %}checked{% endif %}>
-            <span>
-              <strong>{{ package.label }}</strong>
-              <small>{{ package.item_count }} service{{ '' if package.item_count == 1 else 's' }}{% if package.price_php %} | PHP {{ package.price_php }}{% endif %}</small>
-            </span>
-          </label>
+          <div class="patient-option-card patient-package-option-card" data-public-package-option data-public-package-text="{{ package.label|lower }}">
+            <label class="patient-package-choice">
+              <input type="checkbox" name="selected_packages" value="{{ package.value }}" data-public-package-checkbox data-price="{{ package.price_php }}" {% if package.value in values.selected_packages %}checked{% endif %}>
+              <span>
+                <strong>{{ package.label }}</strong>
+                <small>{{ package.item_count }} included service{{ '' if package.item_count == 1 else 's' }}{% if package.price_php %} | PHP {{ package.price_php }}{% endif %}</small>
+              </span>
+            </label>
+            {% if package.included_services %}
+              <details class="patient-package-details">
+                <summary>View Included Services</summary>
+                <ul aria-label="{{ package.label }} included services">
+                  {% for included_service in package.included_services %}<li>{{ included_service }}</li>{% endfor %}
+                </ul>
+              </details>
+            {% else %}
+              <p class="patient-package-details-unavailable">Included service details are unavailable.</p>
+            {% endif %}
+          </div>
         {% else %}
           <div class="patient-empty-state">No packages available for this branch.</div>
         {% endfor %}
@@ -43,7 +55,7 @@
           <h2>Services</h2>
           <p>Select one or more consultation, laboratory, imaging, or diagnostic services.</p>
         </div>
-        <input type="search" placeholder="Search services" data-public-service-search aria-controls="service-search-status">
+        <input type="search" placeholder="Search services" aria-label="Search individual services" data-public-service-search aria-controls="service-search-status">
       </div>
       <p class="patient-search-status" data-public-service-search-status id="service-search-status" role="status" aria-live="polite"></p>
       <div class="patient-service-list">
@@ -52,7 +64,7 @@
             <h3>{{ category }}</h3>
             <div class="patient-option-grid">
               {% for service in services %}
-                <label class="patient-option-card" data-public-service-option data-public-service-text="{{ (service.label ~ ' ' ~ service.section ~ ' ' ~ service.category)|lower }}">
+                <label class="patient-option-card patient-service-option-card" data-public-service-option data-public-service-text="{{ (service.label ~ ' ' ~ service.section ~ ' ' ~ service.category)|lower }}">
                   <input type="checkbox" name="selected_services" value="{{ service.value }}" data-public-service-checkbox data-price="{{ service.price_php }}" {% if service.value in values.selected_services %}checked{% endif %}>
                   <span>
                     <strong>{{ service.label }}</strong>
@@ -101,6 +113,22 @@
 <script>
   const servicePreparation = {{ service_preparation|tojson }};
   const packagePreparation = {{ package_preparation|tojson }};
+  const selectionTabLinks = document.querySelectorAll('.patient-service-tabs a');
+
+  function updateSelectionTab() {
+    const activeHash = Array.from(selectionTabLinks).some(link => link.hash === location.hash)
+      ? location.hash
+      : '#services';
+    selectionTabLinks.forEach(link => {
+      const isActive = link.hash === activeHash;
+      link.classList.toggle('is-active', isActive);
+      if (isActive) link.setAttribute('aria-current', 'location');
+      else link.removeAttribute('aria-current');
+    });
+  }
+
+  window.addEventListener('hashchange', updateSelectionTab);
+  updateSelectionTab();
 
   function unique(values) {
     return Array.from(new Set(values.filter(Boolean)));

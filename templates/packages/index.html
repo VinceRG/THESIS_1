@@ -72,7 +72,7 @@
                 <strong>{{ package.package_name }}</strong>
                 <div class="muted-copy">{{ package.source_page or 'manual' }}</div>
               </td>
-              <td>
+              <td class="package-included-services">
                 <div class="muted-copy">{{ package.items|length }} item{{ '' if package.items|length == 1 else 's' }}</div>
                 <details class="package-details">
                   <summary>View included services</summary>
@@ -136,7 +136,7 @@
                   </div>
                 {% endif %}
               </td>
-              <td>
+              <td class="package-included-services">
                 <div class="muted-copy">{{ package.items|length }} item{{ '' if package.items|length == 1 else 's' }}</div>
                 <details class="package-details">
                   <summary>View included services</summary>

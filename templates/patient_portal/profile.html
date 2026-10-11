@@ -21,9 +21,18 @@
   </header>
 
   <main class="patient-profile-main">
+    <div class="patient-profile-notifications">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}<div class="patient-flash-stack">{% for category, message in messages %}<div class="flash-message flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+      <div class="patient-flash-stack">
+        {% for category, message in messages %}
+          <div class="flash-message flash-{{ category }}" role="{{ 'alert' if category in ['error', 'danger'] else 'status' }}" aria-live="{{ 'assertive' if category in ['error', 'danger'] else 'polite' }}" tabindex="0">
+            <span>{{ message }}</span>
+            <button type="button" class="flash-dismiss" aria-label="Dismiss notification" data-patient-flash-dismiss>&times;</button>
+          </div>
+        {% endfor %}
+      </div>
     {% endwith %}
+    </div>
 
     <div class="patient-dashboard">
       <aside class="patient-profile-sidebar" aria-label="Patient profile navigation">
@@ -48,14 +57,20 @@
         <span class="patient-kicker">My information</span><div class="patient-profile-heading"><div><h2>Personal and contact details</h2><p>Keep your details current so the clinic can provide safe, accurate care.</p></div><span class="patient-profile-number">{{ patient.patient_number }}</span></div>
         <form method="post" class="patient-profile-form">
           <input type="hidden" name="action" value="update_profile">
-          <label>Full Name<input name="full_name" value="{{ patient.full_name or '' }}" maxlength="140" required></label>
-          <label>Birthdate<input type="date" name="birthdate" value="{{ patient.birthdate or '' }}" required></label>
-          <label>Gender<select name="gender" required><option value="Female" {% if patient.gender == 'Female' %}selected{% endif %}>Female</option><option value="Male" {% if patient.gender == 'Male' %}selected{% endif %}>Male</option></select></label>
-          <label>Contact Number<input name="contact_number" value="{{ patient.contact_number or '' }}" maxlength="60"></label>
-          <label>Email Address<input type="email" value="{{ patient.email or '' }}" maxlength="140" readonly aria-describedby="email-help"><small id="email-help">Email changes require verification. Please contact the clinic for assistance.</small></label>
-          <label class="patient-form-wide">Address<input name="address" value="{{ patient.address or '' }}" maxlength="255"></label>
-          <label>Emergency Contact Name<input name="emergency_contact_name" value="{{ patient.emergency_contact_name or '' }}" maxlength="140"></label>
-          <label>Emergency Contact Number<input name="emergency_contact_number" value="{{ patient.emergency_contact_number or '' }}" maxlength="60"></label>
+          <fieldset class="patient-profile-fieldset">
+            <legend>Personal information</legend>
+            <label>Full Name<input name="full_name" value="{{ patient.full_name or '' }}" maxlength="140" required></label>
+            <label>Birthdate<input type="date" name="birthdate" value="{{ patient.birthdate or '' }}" required></label>
+            <label>Gender<select name="gender" required><option value="Female" {% if patient.gender == 'Female' %}selected{% endif %}>Female</option><option value="Male" {% if patient.gender == 'Male' %}selected{% endif %}>Male</option></select></label>
+          </fieldset>
+          <fieldset class="patient-profile-fieldset">
+            <legend>Contact information</legend>
+            <label>Contact Number<input name="contact_number" value="{{ patient.contact_number or '' }}" maxlength="60"></label>
+            <label>Email Address<input type="email" value="{{ patient.email or '' }}" maxlength="140" readonly aria-describedby="email-help"><small id="email-help">Email changes require verification. Please contact the clinic for assistance.</small></label>
+            <label class="patient-form-wide">Address<input name="address" value="{{ patient.address or '' }}" maxlength="255"></label>
+            <label>Emergency Contact Name<input name="emergency_contact_name" value="{{ patient.emergency_contact_name or '' }}" maxlength="140"></label>
+            <label>Emergency Contact Number<input name="emergency_contact_number" value="{{ patient.emergency_contact_number or '' }}" maxlength="60"></label>
+          </fieldset>
           <button type="submit">Save Profile Changes</button>
         </form>
       </section>
@@ -151,6 +166,9 @@
       const target = tab.dataset.profileTab;
       profileTabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', String(active)); });
       profilePanels.forEach(panel => { const active = panel.dataset.profilePanel === target; panel.classList.toggle('is-active', active); panel.hidden = !active; });
+    }));
+    document.querySelectorAll('[data-patient-flash-dismiss]').forEach(button => button.addEventListener('click', () => {
+      button.closest('.flash-message')?.remove();
     }));
     document.querySelector('[data-profile-photo-input]')?.addEventListener('change', event => {
       document.querySelector('[data-profile-photo-save]')?.toggleAttribute('hidden', !event.target.files.length);

@@ -32,6 +32,7 @@ from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
+from report_pdf_renderer import build_report_pdf as build_preview_report_pdf
 
 # -------------------------------------------------------------
 # Constants
@@ -601,6 +602,53 @@ def generate_forecast_for_specific_month(df, target_month, target_year, fast=Tru
     except Exception:
         traceback.print_exc()
         return None, None, None
+
+def generate_chained_forecast_for_month(df, first_period, target_period, compute_model_b=True):
+    step_count = target_period.ordinal - first_period.ordinal + 1
+    if step_count > MAX_FUTURE_FORECAST_MONTHS:
+        return None, None, None
+
+    segment_counts = df.groupby(['diagnosis', 'age_group', 'gender']).size().rename('n').reset_index()
+    diagnosis_totals = df.groupby('diagnosis').size().rename('total').reset_index()
+    shares = segment_counts.merge(diagnosis_totals, on='diagnosis')
+    shares['share'] = shares['n'] / shares['total']
+    shares_by_diagnosis = {
+        diagnosis: list(zip(group['age_group'], group['gender'], group['share']))
+        for diagnosis, group in shares.groupby('diagnosis')
+    }
+
+    working_df = df.copy()
+    step_period = first_period
+    while step_period < target_period:
+        _, forecast, _ = generate_forecast_for_specific_month(
+            working_df, step_period.month, step_period.year,
+            fast=True, compute_model_b=False,
+        )
+        if not forecast:
+            return None, None, None
+        step_date = f'{step_period.year:04d}-{step_period.month:02d}-01'
+        synthetic_rows = []
+        for diagnosis, count in forecast:
+            segments = shares_by_diagnosis.get(diagnosis) or [('Adult', 'Unknown', 1.0)]
+            for age_group, gender, share in segments:
+                segment_count = max(0, int(round(count * share)))
+                synthetic_rows.extend([{
+                    'consultation_date': step_date,
+                    'diagnosis': diagnosis,
+                    'age_group': age_group,
+                    'gender': gender,
+                    'department': '',
+                    'physician': '',
+                    'consultation_type': '',
+                }] * segment_count)
+        if synthetic_rows:
+            working_df = pd.concat([working_df, pd.DataFrame(synthetic_rows)], ignore_index=True)
+        step_period += 1
+
+    return generate_forecast_for_specific_month(
+        working_df, target_period.month, target_period.year,
+        fast=True, compute_model_b=compute_model_b,
+    )
 
 def build_forecasting_training_frame(df, apply_year_filter=True, keep_diagnoses=None):
     """Build one diagnosis-age-gender-month row per observed month, with honest lag features.
@@ -1623,7 +1671,7 @@ def _build_report_pdf(payload, logo_path=None):
     pages = []
 
     def clip(value, limit):
-        return str(value)
+        return str(value)[:limit]
 
     def new_page(title=None):
         commands = [
@@ -1691,7 +1739,8 @@ def _build_report_pdf(payload, logo_path=None):
     def draw_line_chart(commands, chart, title, note, x=42, y=705, w=528, h=330):
         commands.append(_pdf_text(x, y, clip(title, 74), 14, text, 'F2'))
         if note:
-            commands.append(_pdf_text(x, y - 16, clip(note, 110), 8, muted))
+            for line_index, line in enumerate(wrap_words(note, 110)[:2]):
+                commands.append(_pdf_text(x, y - 16 - line_index * 12, line, 8, muted))
         left, bottom, chart_w, chart_h = x + 36, y - h + 34, w - 58, h - 95
         commands.extend([f'1 1 1 rg {x} {bottom - 34} {w} {h - 35} re f', f'{border} RG {x} {bottom - 34} {w} {h - 35} re S', f'{border} RG {left} {bottom} {chart_w} {chart_h} re S'])
         labels = chart.get('labels', [])
@@ -1706,7 +1755,7 @@ def _build_report_pdf(payload, logo_path=None):
         label_divisor = max(1, len(labels) - 1)
         for idx, label in enumerate(labels):
             xx = left + (chart_w * idx / label_divisor)
-            commands.append(_pdf_text(xx - 8, bottom - 18, clip(label, 6), 7, muted))
+            commands.append(_pdf_text(xx - 8, bottom - 18, clip(label, 12), 7, muted))
         legend_x, legend_y = left, bottom + chart_h + 16
         for ds_idx, dataset in enumerate(datasets):
             r, g, b = colors[ds_idx % len(colors)]
@@ -1733,6 +1782,15 @@ def _build_report_pdf(payload, logo_path=None):
         commands.append(_pdf_text(x, y, clip(chart.get('title', 'Chart'), 74), 14, text, 'F2'))
         labels = chart.get('labels', [])
         values = chart.get('data', [])
+        if values:
+            peak_index = max(range(len(values)), key=values.__getitem__)
+            explanation = (
+                f"Bars compare {chart.get('y_title', 'the displayed measure')} by category. "
+                f"The highest value is {values[peak_index]} for {labels[peak_index]}."
+            )
+        else:
+            explanation = f"Bars compare {chart.get('y_title', 'the displayed measure')} by category."
+        commands.append(_pdf_text(x, y - 16, clip(explanation, 110), 8, muted))
         max_value = max(values + [1])
         left, bottom, chart_w, chart_h = x + 34, y - h + 38, w - 62, h - 78
         commands.extend([f'1 1 1 rg {x} {bottom - 34} {w} {h - 25} re f', f'{border} RG {x} {bottom - 34} {w} {h - 25} re S'])
@@ -1848,8 +1906,26 @@ def _build_report_pdf(payload, logo_path=None):
             draw_table(page, demographic_tables[2].get('title', 'Top Diagnosis-Demographic Forecast Segments'), demographic_tables[2].get('rows', []), y=335, max_rows=8)
         add_footer(page)
     elif payload.get('key') in {'monthly-consultation', 'quarterly'} and payload.get('chart_rows', {}).get('datasets'):
-        draw_line_chart(first, payload['chart_rows'], payload.get('details_title', 'Trend Graph'), payload.get('details_note', ''), y=500, h=360)
         add_footer(first)
+        chart_page = new_page(payload.get('details_title', 'Trend Graph'))
+        chart_rows = payload['chart_rows']
+        datasets = chart_rows.get('datasets', [])
+        labels = chart_rows.get('labels', [])
+        peak = max(
+            (
+                (value, labels[index])
+                for dataset in datasets
+                for index, value in enumerate(dataset.get('data', []))
+                if index < len(labels)
+            ),
+            default=None,
+            key=lambda item: item[0],
+        )
+        chart_note = payload.get('details_note', '')
+        if peak is not None:
+            chart_note += f" Highest displayed count is {peak[0]} in {peak[1]}."
+        draw_line_chart(chart_page, chart_rows, payload.get('details_title', 'Trend Graph'), chart_note, y=705, h=360)
+        add_footer(chart_page)
     elif payload.get('rows'):
         add_footer(first)
         page = new_page(payload.get('details_title', payload['title']))
@@ -2459,6 +2535,7 @@ def create_app():
                 'label': package_name,
                 'value': package_name,
                 'item_count': len(included_services),
+                'included_services': list(included_services),
                 'price_php': '',
             })
             recommendations[package_name] = {
@@ -3230,22 +3307,20 @@ def create_app():
             for month, count in sorted(monthly_counts.items())
         ]
 
-        # Forecast one month past the latest complete data, not one month past today's
-        # date: the lag and rolling features can only be built from months that are
-        # actually finished and populated.
         now = datetime.now()
+        next_calendar_month = pd.Period(now.strftime('%Y-%m'), freq='M') + 1
         anchor = resolve_forecast_anchor(monthly_counts, now.date())
         if anchor:
             anchor_year, anchor_month = anchor
+            first_forecast_period = pd.Period(year=anchor_year, month=anchor_month, freq='M') + 1
         else:
-            anchor_year, anchor_month = now.year, now.month
-        predicted_month = anchor_month + 1
-        predicted_year = anchor_year
-        if predicted_month > 12:
-            predicted_month = 1
-            predicted_year += 1
-        reference_month = predicted_month
-        reference_year = predicted_year - 1
+            first_forecast_period = next_calendar_month
+        forecast_period = max(next_calendar_month, first_forecast_period)
+        predicted_month = forecast_period.month
+        predicted_year = forecast_period.year
+        reference_period = forecast_period - 12
+        reference_month = reference_period.month
+        reference_year = reference_period.year
 
         predicted_month_label = datetime(predicted_year, predicted_month, 1).strftime('%b %Y')
         predicted_month_full_label = datetime(predicted_year, predicted_month, 1).strftime('%B %Y')
@@ -3270,7 +3345,15 @@ def create_app():
                 'physician': r.physician,
                 'consultation_type': r.consultation_type,
             } for r in records])
-            total_pred, forecast, rf_metrics = generate_forecast_for_specific_month(df, predicted_month, predicted_year, compute_model_b=compute_model_b)
+            if forecast_period == first_forecast_period:
+                total_pred, forecast, rf_metrics = generate_forecast_for_specific_month(
+                    df, predicted_month, predicted_year, compute_model_b=compute_model_b,
+                )
+            else:
+                total_pred, forecast, rf_metrics = generate_chained_forecast_for_month(
+                    df, first_forecast_period, forecast_period,
+                    compute_model_b=compute_model_b,
+                )
             demographic_forecast = getattr(generate_forecast_for_month, 'last_demographic_forecast', {
                 'age_group': [],
                 'gender': [],
@@ -3457,7 +3540,18 @@ def create_app():
         if not force_refresh:
             cached = load_cached_dashboard_summary(branch_id)
             if cached is not None:
-                return cached
+                try:
+                    cached_period = pd.Period(
+                        datetime.strptime(cached['predicted_month_label'], '%b %Y').strftime('%Y-%m'),
+                        freq='M',
+                    )
+                    next_calendar_month = pd.Period(datetime.now().strftime('%Y-%m'), freq='M') + 1
+                except (KeyError, TypeError, ValueError):
+                    cached_period = None
+                    next_calendar_month = None
+                if cached_period is not None and next_calendar_month is not None and cached_period >= next_calendar_month:
+                    return cached
+                force_refresh = True
 
         branch = None if branch_id is None else (db.session.get(Branch, branch_id) or ensure_default_branch())
         records = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id).all()
@@ -6812,13 +6906,52 @@ def create_app():
             'consultation_type': r.consultation_type,
         } for r in records])
 
-    def build_report_payload(report_key):
+    report_scope_labels = {
+        'monthly': 'Monthly',
+        'annually': 'Annually',
+        'quarterly': 'Quarterly',
+        'date-range': 'Date range',
+    }
+
+    def normalize_report_scope(scope, date_from='', date_to=''):
+        if scope not in report_scope_labels:
+            raise ValueError('Select a valid report scope.')
+        if scope != 'date-range':
+            return scope, '', '', None, None
+        try:
+            scope_start = datetime.strptime(date_from, '%Y-%m-%d').date()
+            scope_end = datetime.strptime(date_to, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            raise ValueError('Enter valid start and end dates for the report range.')
+        if scope_end < scope_start:
+            raise ValueError('The report end date must be on or after the start date.')
+        return scope, date_from, date_to, scope_start, scope_end
+
+    def build_report_payload(report_key, scope='monthly', date_from='', date_to=''):
         if report_key not in report_definitions:
             return None
+
+        scope, date_from, date_to, scope_start, scope_end = normalize_report_scope(
+            scope, date_from, date_to,
+        )
 
         summary = get_dashboard_summary()
         df = records_to_dataframe()
         title = report_definitions[report_key]['title']
+        description = report_definitions[report_key]['description']
+        if report_key == 'monthly-consultation':
+            title = {
+                'monthly': 'Monthly Consultation Report',
+                'annually': 'Annual Consultation Report',
+                'quarterly': 'Quarterly Consultation Report',
+                'date-range': 'Consultation Report - Date Range',
+            }[scope]
+            description = {
+                'monthly': 'Monthly consultation totals and most common diagnoses.',
+                'annually': 'Annual consultation totals and most common diagnoses.',
+                'quarterly': 'Quarterly consultation totals and most common diagnoses.',
+                'date-range': 'Consultation totals and most common diagnoses within the selected date range.',
+            }[scope]
         generated_at = datetime.now().strftime('%Y-%m-%d %H:%M')
         sections = []
         rows = []
@@ -6827,10 +6960,22 @@ def create_app():
         extra_tables = []
         details_title = 'Details'
         details_note = 'Supporting rows used for this report.'
+        filter_note = ''
+        historical_period_label = 'No consultation records'
 
         if not df.empty:
             df['consultation_date'] = pd.to_datetime(df['consultation_date'], errors='coerce')
             df = df.dropna(subset=['consultation_date'])
+            if not df.empty:
+                historical_period_label = (
+                    f"{df['consultation_date'].min().strftime('%B %Y')} - "
+                    f"{df['consultation_date'].max().strftime('%B %Y')}"
+                )
+            if scope == 'date-range':
+                df = df[
+                    (df['consultation_date'].dt.date >= scope_start)
+                    & (df['consultation_date'].dt.date <= scope_end)
+                ]
             for col in ['age_group', 'gender']:
                 if col not in df.columns:
                     df[col] = 'Unknown'
@@ -6870,23 +7015,71 @@ def create_app():
             direction = 'increased' if change_pct > 0 else 'decreased' if change_pct < 0 else 'remained unchanged'
             return f'Latest quarter {direction} by {abs(change_pct)}% compared with the previous quarter'
 
+        def period_trend_interpretation(period_frame, period_label):
+            if period_frame is None or len(period_frame) < 2:
+                return f'Not enough {period_label.lower()} history to determine trend'
+            ordered = period_frame.sort_values('period')
+            previous = int(ordered.iloc[-2]['consultations'])
+            latest = int(ordered.iloc[-1]['consultations'])
+            if previous == 0:
+                return f'Latest {period_label.lower()} has consultations but previous {period_label.lower()} had none'
+            change_pct = round(((latest - previous) / previous) * 100, 2)
+            if change_pct >= 5:
+                direction = 'Increasing'
+            elif change_pct <= -5:
+                direction = 'Decreasing'
+            else:
+                direction = 'Stable'
+            return f'{direction}: latest {period_label.lower()} changed by {change_pct}% compared with the previous {period_label.lower()}'
+
         if report_key == 'monthly-consultation':
             monthly_rows = []
-            average_monthly_consultations = 0
-            average_monthly_top_diagnosis_consultations = 0
-            total_months_analyzed = 0
-            trend_interpretation = 'No consultation records available'
-            chart_rows = {
-                'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                'x_title': 'Month of Year',
-                'datasets': []
+            average_period_consultations = 0
+            average_period_top_diagnosis_consultations = 0
+            top_diagnosis = 'None'
+            total_periods_analyzed = 0
+            period_name = 'month'
+            period_adjective = 'Monthly'
+            trend_interpretation = 'No monthly consultation records available'
+            scope_titles = {
+                'monthly': 'Monthly',
+                'annually': 'Annual',
+                'quarterly': 'Quarterly',
+                'date-range': 'Date range',
             }
+            chart_rows = {'labels': [], 'x_title': 'Period', 'datasets': [], 'scope': scope}
             forecast_month_label = summary.get('predicted_month_label', 'Next Month')
             try:
                 forecast_month_label = datetime.strptime(forecast_month_label, '%b %Y').strftime('%B %Y')
             except Exception:
                 pass
             if not df.empty:
+                if scope == 'annually':
+                    period_values = df['consultation_date'].dt.year.astype(str)
+                    period_name = 'year'
+                    period_adjective = 'Annual'
+                elif scope == 'quarterly':
+                    period_values = df['consultation_date'].dt.to_period('Q').astype(str)
+                    period_name = 'quarter'
+                    period_adjective = 'Quarterly'
+                else:
+                    period_values = df['consultation_date'].dt.to_period('M').astype(str)
+                    period_name = 'month'
+                    period_adjective = 'Monthly'
+                if scope in {'monthly', 'quarterly'}:
+                    included_periods = sorted(period_values.unique())[-12:]
+                    df = df.loc[period_values.isin(included_periods)].copy()
+                    period_values = period_values.loc[df.index]
+                period_frame = (
+                    df.assign(period=period_values)
+                    .groupby('period')
+                    .size()
+                    .reset_index(name='consultations')
+                    .sort_values('period')
+                )
+                total_periods_analyzed = int(period_frame['period'].nunique())
+                average_period_consultations = round(period_frame['consultations'].mean(), 2)
+                trend_interpretation = period_trend_interpretation(period_frame, period_name)
                 monthly = (
                     df.assign(month=df['consultation_date'].dt.strftime('%Y-%m'))
                     .groupby('month')
@@ -6895,34 +7088,58 @@ def create_app():
                     .sort_values('month', ascending=False)
                 )
                 monthly_rows = monthly.head(12).to_dict('records')
-                total_months_analyzed = int(monthly['month'].nunique())
-                trend_interpretation = monthly_trend_interpretation(monthly)
-                monthly_for_chart = df.assign(
-                    year=df['consultation_date'].dt.year,
-                    month_number=df['consultation_date'].dt.month
-                ).groupby(['year', 'month_number']).size().reset_index(name='consultations')
-                chart_rows['datasets'] = [
-                    {
-                        'year': int(year),
-                        'data': [
-                            int(year_data.loc[year_data['month_number'] == month_number, 'consultations'].sum())
-                            for month_number in range(1, 13)
-                        ]
-                    }
-                    for year, year_data in monthly_for_chart.groupby('year')
-                ]
-                average_monthly_consultations = round(monthly['consultations'].mean(), 2)
-                top_diagnosis = summary.get('top_diagnosis', 'None')
+                if scope in {'monthly', 'date-range'}:
+                    monthly_for_chart = (
+                        df.assign(period=df['consultation_date'].dt.to_period('M').astype(str))
+                        .groupby('period')
+                        .size()
+                        .sort_index()
+                    )
+                    if scope == 'monthly':
+                        monthly_for_chart = monthly_for_chart.tail(12)
+                    chart_rows['labels'] = [
+                        datetime.strptime(period, '%Y-%m').strftime('%b %Y')
+                        for period in monthly_for_chart.index
+                    ]
+                    chart_rows['x_title'] = 'Month'
+                    chart_data = monthly_for_chart.astype(int).tolist()
+                elif scope == 'annually':
+                    annual_for_chart = (
+                        df.assign(period=df['consultation_date'].dt.year.astype(str))
+                        .groupby('period')
+                        .size()
+                        .sort_index()
+                    )
+                    chart_rows['labels'] = annual_for_chart.index.tolist()
+                    chart_rows['x_title'] = 'Year'
+                    chart_data = annual_for_chart.astype(int).tolist()
+                else:
+                    quarterly_for_chart = (
+                        df.assign(period=df['consultation_date'].dt.to_period('Q').astype(str))
+                        .groupby('period')
+                        .size()
+                        .sort_index()
+                        .tail(12)
+                    )
+                    chart_rows['labels'] = quarterly_for_chart.index.tolist()
+                    chart_rows['x_title'] = 'Quarter'
+                    chart_data = quarterly_for_chart.astype(int).tolist()
+                chart_rows['datasets'] = [{
+                    'label': scope_titles[scope],
+                    'data': chart_data,
+                }]
+                diagnosis_counts = df['diagnosis'].value_counts()
+                top_diagnosis = diagnosis_counts.index[0] if not diagnosis_counts.empty else 'None'
                 if top_diagnosis != 'None':
-                    top_diagnosis_monthly = (
+                    top_diagnosis_periods = (
                         df[df['diagnosis'] == top_diagnosis]
-                        .assign(month=df['consultation_date'].dt.strftime('%Y-%m'))
-                        .groupby('month')
+                        .assign(period=period_values.loc[df[df['diagnosis'] == top_diagnosis].index])
+                        .groupby('period')
                         .size()
                         .reset_index(name='consultations')
                     )
-                    if not top_diagnosis_monthly.empty:
-                        average_monthly_top_diagnosis_consultations = round(top_diagnosis_monthly['consultations'].mean(), 2)
+                    if not top_diagnosis_periods.empty:
+                        average_period_top_diagnosis_consultations = round(top_diagnosis_periods['consultations'].mean(), 2)
                 top_diagnosis_summary = (
                     df.groupby('diagnosis')
                     .size()
@@ -6938,78 +7155,87 @@ def create_app():
                         'data': top_diagnosis_summary['consultations'].astype(int).tolist(),
                         'y_title': 'Total Consultations'
                     })
-                age_monthly = (
-                    df.assign(month=df['consultation_date'].dt.strftime('%Y-%m'))
-                    .groupby(['age_group', 'month'])
+                age_periods = (
+                    df.assign(period=period_values)
+                    .groupby(['age_group', 'period'])
                     .size()
                     .reset_index(name='consultations')
                 )
-                if not age_monthly.empty:
+                if not age_periods.empty:
                     age_summary = (
-                        age_monthly.groupby('age_group')['consultations']
+                        age_periods.groupby('age_group')['consultations']
                         .mean()
                         .round(2)
                         .reset_index(name='consultations')
                         .sort_values('consultations', ascending=False)
                     )
                     extra_charts.append({
-                        'title': 'Average Monthly Consultations by Age Group',
+                        'title': f'Average {period_adjective} Consultations by Age Group',
                         'type': 'bar',
                         'labels': age_summary['age_group'].tolist(),
                         'data': age_summary['consultations'].tolist(),
-                        'y_title': 'Average Consultations'
+                        'y_title': f'Average Consultations per {period_name}'
                     })
-                gender_monthly = (
-                    df.assign(month=df['consultation_date'].dt.strftime('%Y-%m'))
-                    .groupby(['gender', 'month'])
+                gender_periods = (
+                    df.assign(period=period_values)
+                    .groupby(['gender', 'period'])
                     .size()
                     .reset_index(name='consultations')
                 )
-                if not gender_monthly.empty:
+                if not gender_periods.empty:
                     gender_summary = (
-                        gender_monthly.groupby('gender')['consultations']
+                        gender_periods.groupby('gender')['consultations']
                         .mean()
                         .round(2)
                         .reset_index(name='consultations')
                         .sort_values('consultations', ascending=False)
                     )
                     extra_charts.append({
-                        'title': 'Average Monthly Consultations by Sex',
+                        'title': f'Average {period_adjective} Consultations by Sex',
                         'type': 'bar',
                         'labels': gender_summary['gender'].tolist(),
                         'data': gender_summary['consultations'].tolist(),
-                        'y_title': 'Average Consultations'
+                        'y_title': f'Average Consultations per {period_name}'
                     })
             sections = [
+                {
+                    'metric': 'Report Scope',
+                    'value': scope_titles[scope],
+                    'explanation': 'Controls whether the consultation trend is grouped by month, year, quarter, or a selected date range.'
+                },
                 {
                     'metric': 'Data Period Covered',
                     'value': report_period_label(),
                     'explanation': 'Shows the historical consultation period included in this report.'
                 },
                 {
-                    'metric': 'Total Months Analyzed',
-                    'value': total_months_analyzed,
-                    'explanation': 'Number of monthly periods used to calculate the report summaries.'
+                    'metric': {
+                        'month': 'Total Months Analyzed',
+                        'year': 'Total Years Analyzed',
+                        'quarter': 'Total Quarters Analyzed',
+                    }[period_name],
+                    'value': total_periods_analyzed,
+                    'explanation': f'Number of {period_name} periods used to calculate the report summaries.'
                 },
                 {
-                    'metric': 'Average Monthly Consultations',
-                    'value': average_monthly_consultations,
-                    'explanation': 'Average number of consultations per month based on the uploaded records.'
+                    'metric': f'Average {period_adjective} Consultations',
+                    'value': average_period_consultations,
+                    'explanation': f'Average number of consultations per {period_name} based on the uploaded records.'
                 },
                 {
                     'metric': 'Top Diagnosis',
-                    'value': summary.get('top_diagnosis', 'None'),
-                    'explanation': 'The diagnosis with the highest total count across all uploaded records.'
+                    'value': top_diagnosis,
+                    'explanation': 'The diagnosis with the highest total count in the records included in this report.'
                 },
                 {
-                    'metric': 'Average Monthly Consultations of Top Diagnosis',
-                    'value': average_monthly_top_diagnosis_consultations,
-                    'explanation': 'Average monthly consultation count for the top diagnosis across uploaded records.'
+                    'metric': f'Average {period_adjective} Consultations of Top Diagnosis',
+                    'value': average_period_top_diagnosis_consultations,
+                    'explanation': f'Average {period_name} consultation count for the top diagnosis in the records included in this report.'
                 },
                 {
-                    'metric': 'Monthly Trend Interpretation',
+                    'metric': f'{period_adjective} Trend Interpretation',
                     'value': trend_interpretation,
-                    'explanation': 'Brief reading of whether the latest monthly consultation volume is increasing, decreasing, or stable.'
+                    'explanation': f'Brief reading of whether the latest {period_name} consultation volume is increasing, decreasing, or stable.'
                 },
                 {
                     'metric': f'Forecasted Total Cases for the Next Month ({forecast_month_label})',
@@ -7018,10 +7244,21 @@ def create_app():
                 },
             ]
             rows = []
-            details_title = 'Monthly Consultation Trend Graph'
-            details_note = 'This graph shows monthly consultation totals by year so the clinic can compare seasonal demand patterns and growth more easily.'
+            details_title = f'{period_adjective} Consultation Trend Graph'
+            if scope == 'date-range':
+                scope_start_label = scope_start.strftime('%B %d, %Y').replace(' 0', ' ')
+                scope_end_label = scope_end.strftime('%B %d, %Y').replace(' 0', ' ')
+                scope_description = f'from {scope_start_label} through {scope_end_label}'
+                details_note = f'Monthly consultation totals within the selected date range {scope_description}.'
+            elif scope == 'monthly':
+                details_note = 'Monthly consultation totals for the latest 12 months with recorded data.'
+            elif scope == 'annually':
+                details_note = 'Annual consultation totals across the available historical data.'
+            else:
+                details_note = 'Quarterly consultation totals for the latest 12 quarters with recorded data.'
 
         elif report_key == 'quarterly':
+            filter_note = 'Quarterly Report always aggregates consultation counts by quarter. A selected date range is applied to the source records before those quarter totals are calculated.'
             quarterly_rows = []
             average_quarterly_consultations = 0
             total_quarters_analyzed = 0
@@ -7156,6 +7393,7 @@ def create_app():
             details_note = 'This graph has four points per year, one for each quarter. Each colored line represents a year so quarter-to-quarter changes are easier to compare.'
 
         elif report_key == 'prediction':
+            filter_note = 'Forecast totals and model validation use the model\'s available historical data. The global scope is shown for context and does not retrain or restrict the forecast.'
             forecast = summary.get('predictions', [])
             metrics = summary.get('rf_metrics') or {}
             demographic_forecast = summary.get('demographic_forecast') or {}
@@ -7245,6 +7483,7 @@ def create_app():
             ]
 
         elif report_key == 'resource-recommendation':
+            filter_note = 'Staffing recommendations use the current forecast, active staff roster, and configured capacity. The global scope does not alter those inputs.'
             staff_capacity = int(load_app_settings().get('staff_capacity_per_month', STAFF_CAPACITY_PER_MONTH))
             actual_staff_by_role = summary.get('actual_staff_by_role', {})
             report_historical_map = build_historical_role_map(current_branch())
@@ -7311,6 +7550,7 @@ def create_app():
             details_note = 'This table compares forecasted demand mapped to staff roles against current active staff counts and the configured staff capacity setting. It is a decision-support recommendation, not an independent clinical staffing diagnosis.'
 
         elif report_key == 'attribution-gaps':
+            filter_note = 'Attribution uses the current forecast and all available diagnosis/physician history so role mappings remain consistent with the clinic records.'
             staff_forecast = summary.get('staff_demand_forecast', {}) or {}
             attribution_rows = staff_forecast.get('attribution_rows', [])
             non_historical_rows = [row for row in attribution_rows if row.get('source') != 'historical']
@@ -7349,8 +7589,9 @@ def create_app():
         return {
             'key': report_key,
             'title': title,
-            'description': report_definitions[report_key]['description'],
+            'description': description,
             'generated_at': generated_at,
+            'historical_period_label': historical_period_label,
             'branch_name': summary.get('branch_name', DEFAULT_BRANCH_NAME),
             'branch_code': summary.get('branch_code', DEFAULT_BRANCH_CODE),
             'sections': sections,
@@ -7360,6 +7601,16 @@ def create_app():
             'extra_tables': [table for table in extra_tables if table.get('rows')],
             'details_title': details_title,
             'details_note': details_note,
+            'scope': scope,
+            'scope_label': report_scope_labels[scope],
+            'date_from': date_from,
+            'date_to': date_to,
+            'date_range_label': (
+                f'{scope_start.strftime("%B %d, %Y").replace(" 0", " ")} - '
+                f'{scope_end.strftime("%B %d, %Y").replace(" 0", " ")}'
+                if scope_start and scope_end else ''
+            ),
+            'filter_note': filter_note,
         }
 
     def report_lines(payload):
@@ -8227,16 +8478,43 @@ def create_app():
 
     @app.route('/reports')
     def reports():
+        try:
+            scope, date_from, date_to, scope_start, scope_end = normalize_report_scope(
+                request.args.get('scope', 'monthly'),
+                request.args.get('date_from', ''),
+                request.args.get('date_to', ''),
+            )
+        except ValueError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('reports'))
         return render_template(
             'reports/index.html',
             reports=report_definitions,
+            scope=scope,
+            scope_label=report_scope_labels[scope],
+            date_from=date_from,
+            date_to=date_to,
+            date_range_label=(
+                f'{scope_start.strftime("%B %d, %Y").replace(" 0", " ")} - '
+                f'{scope_end.strftime("%B %d, %Y").replace(" 0", " ")}'
+                if scope_start and scope_end else ''
+            ),
             current_date=datetime.now().strftime('%Y-%m-%d'),
             current_time=datetime.now().strftime('%H:%M'),
         )
 
     @app.route('/reports/<report_key>')
     def report_view(report_key):
-        payload = build_report_payload(report_key)
+        try:
+            payload = build_report_payload(
+                report_key,
+                scope=request.args.get('scope', 'monthly'),
+                date_from=request.args.get('date_from', ''),
+                date_to=request.args.get('date_to', ''),
+            )
+        except ValueError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('report_view', report_key=report_key))
         if payload is None:
             flash('Report not found.', 'error')
             return redirect(url_for('reports'))
@@ -8250,7 +8528,16 @@ def create_app():
 
     @app.route('/reports/<report_key>/print')
     def report_print(report_key):
-        payload = build_report_payload(report_key)
+        try:
+            payload = build_report_payload(
+                report_key,
+                scope=request.args.get('scope', 'monthly'),
+                date_from=request.args.get('date_from', ''),
+                date_to=request.args.get('date_to', ''),
+            )
+        except ValueError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('report_view', report_key=report_key))
         if payload is None:
             flash('Report not found.', 'error')
             return redirect(url_for('reports'))
@@ -8264,12 +8551,26 @@ def create_app():
 
     @app.route('/reports/<report_key>/pdf')
     def report_pdf(report_key):
-        payload = build_report_payload(report_key)
+        try:
+            payload = build_report_payload(
+                report_key,
+                scope=request.args.get('scope', 'monthly'),
+                date_from=request.args.get('date_from', ''),
+                date_to=request.args.get('date_to', ''),
+            )
+        except ValueError as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('report_view', report_key=report_key))
         if payload is None:
             flash('Report not found.', 'error')
             return redirect(url_for('reports'))
+        current_user = db.session.get(User, session.get('user_id')) if session.get('user_id') else None
         logo_path = os.path.join(app.static_folder, 'acudetek.jfif')
-        pdf_bytes = _build_report_pdf(payload, logo_path=logo_path)
+        pdf_bytes = build_preview_report_pdf(
+            payload,
+            logo_path=logo_path,
+            prepared_by=current_user.username if current_user else None,
+        )
         filename = f"{report_key}-{datetime.now().strftime('%Y%m%d')}.pdf"
         return Response(
             pdf_bytes,
