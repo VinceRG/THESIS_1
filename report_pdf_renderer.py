@@ -84,7 +84,11 @@ class _ReportPdf:
 
     def write_table_row(self, values, bold=False):
         column_count = max(1, len(values))
-        column_width = max(8, (124 - (3 * (column_count - 1))) // column_count)
+        # Keep the composed row within the same printable width used by write().
+        # A fixed minimum per column made wide tables exceed the page and overlap.
+        row_width = 110
+        separator = ' | '
+        column_width = max(1, (row_width - (len(separator) * (column_count - 1))) // column_count)
         wrapped = [
             textwrap.wrap(' '.join(str(value).split()), width=column_width,
                           break_long_words=True, break_on_hyphens=False) or ['']
@@ -95,7 +99,7 @@ class _ReportPdf:
                 (wrapped[index][line_index] if line_index < len(wrapped[index]) else '').ljust(column_width)
                 for index in range(column_count)
             ]
-            self.write(' | '.join(cells).rstrip(), size=7, bold=bold, family='DejaVu Sans Mono')
+            self.write(separator.join(cells).rstrip(), size=7, bold=bold, family='DejaVu Sans Mono')
 
     def draw_line_chart(self, chart, title):
         self.heading(title)
@@ -149,8 +153,17 @@ class _ReportPdf:
         values = chart.get('data', [])
         if not values:
             return
-        chart_height = 190
-        self.ensure_space(chart_height + 8)
+        # Wrap category names to fit between ticks and size the gap for their height.
+        chart_height = 210
+        chart_labels = labels[:len(values)]
+        label_width = max(4, min(18, int(150 / max(1, len(chart_labels)))))
+        wrapped_labels = [
+            '\n'.join(textwrap.wrap(str(label), width=label_width, break_long_words=True, break_on_hyphens=False))
+            for label in chart_labels
+        ]
+        max_label_lines = max((label.count('\n') + 1 for label in wrapped_labels), default=1)
+        label_clearance = max(34, (max_label_lines * 9) + 18)
+        self.ensure_space(chart_height + label_clearance)
         bottom = self.y - chart_height
         axes = self.figure.add_axes([
             MARGIN / PAGE_WIDTH,
@@ -158,19 +171,17 @@ class _ReportPdf:
             (PAGE_WIDTH - (MARGIN * 2)) / PAGE_WIDTH,
             chart_height / PAGE_HEIGHT,
         ])
-        axes.bar(labels, values, color='#777777', edgecolor='#222222', linewidth=0.6)
+        axes.bar(range(len(values)), values, color='#777777', edgecolor='#222222', linewidth=0.6)
+        axes.set_xticks(range(len(wrapped_labels)))
+        axes.set_xticklabels(wrapped_labels, rotation=0, ha='center')
         axes.set_ylabel(str(chart.get('y_title', 'Value')), color='#111111', fontsize=8)
-        axes.tick_params(axis='both', colors='#111111', labelsize=7)
+        axes.tick_params(axis='both', colors='#111111', labelsize=6.5, pad=3)
         axes.grid(axis='y', color='#d0d0d0', linewidth=0.5)
         axes.set_axisbelow(True)
         for spine in axes.spines.values():
             spine.set_color('#777777')
             spine.set_linewidth(0.6)
-        if len(labels) > 4:
-            axes.tick_params(axis='x', labelrotation=35)
-            for label in axes.get_xticklabels():
-                label.set_horizontalalignment('right')
-        self.y = bottom - 16
+        self.y = bottom - label_clearance
 
     def finish(self):
         if self.figure is not None:

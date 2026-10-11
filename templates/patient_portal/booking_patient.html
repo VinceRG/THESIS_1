@@ -37,19 +37,20 @@
           </select>
           {% if field_errors.gender %}<small class="patient-field-error">{{ field_errors.gender }}</small>{% endif %}
         </label>
-        <label>
+        <label class="{% if field_errors.contact_number %}has-error{% endif %}">
           Contact Number
-          <input type="tel" name="contact_number" value="{{ values.contact_number }}" placeholder="e.g. 0917 123 4567" pattern="[0-9+\-() ]{7,20}" title="Digits, spaces, and + - ( ) only">
+          <input type="tel" name="contact_number" value="{{ values.contact_number }}" placeholder="e.g. 0917 123 4567" pattern="[0-9+\-() ]{7,20}" title="Digits, spaces, and + - ( ) only" required>
           {% if field_errors.contact_number %}<small class="patient-field-error">{{ field_errors.contact_number }}</small>{% endif %}
         </label>
-        <label>
+        <label class="{% if field_errors.email %}has-error{% endif %}">
           Email
           <input type="email" name="email" value="{{ values.email }}" placeholder="name@example.com" required>
           {% if field_errors.email %}<small class="patient-field-error">{{ field_errors.email }}</small>{% endif %}
         </label>
-        <label class="patient-wide-field">
+        <label class="patient-wide-field {% if field_errors.address %}has-error{% endif %}">
           Address
-          <textarea name="address" rows="2">{{ values.address }}</textarea>
+          <textarea name="address" rows="2" required>{{ values.address }}</textarea>
+          {% if field_errors.address %}<small class="patient-field-error">{{ field_errors.address }}</small>{% endif %}
         </label>
       </div>
     </section>

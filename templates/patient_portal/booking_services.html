@@ -11,14 +11,77 @@
 
     {% if field_errors.services %}<p class="patient-field-error patient-field-error-block">{{ field_errors.services }}</p>{% endif %}
 
+    <section class="patient-form-section patient-service-block" id="services">
+      <div class="patient-step-heading patient-step-heading-search">
+        <div class="patient-step-heading-main">
+          <span class="patient-step-badge">Step 3A</span>
+          <div class="patient-step-heading-copy">
+            <h2>Services</h2>
+            <p>Select one or more consultation, laboratory, imaging, or diagnostic services.</p>
+          </div>
+        </div>
+        <div class="patient-search-bar" role="search">
+          <button type="button" class="patient-search-icon-btn" aria-label="Search services" title="Search">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+          <input type="search" placeholder="Search services..." aria-label="Search individual services" data-public-service-search aria-controls="service-search-status" autocomplete="off">
+          <button type="button" class="patient-search-clear-btn" data-search-clear aria-label="Clear services search" title="Clear search" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <p class="patient-search-status" data-public-service-search-status id="service-search-status" role="status" aria-live="polite"></p>
+      <div class="patient-service-list">
+        {% for category, services in service_groups.items() %}
+          <section data-public-service-group>
+            <h3>{{ category }}</h3>
+            <div class="patient-option-grid">
+              {% for service in services %}
+                <label class="patient-option-card patient-service-option-card" data-public-service-option data-public-service-text="{{ (service.label ~ ' ' ~ service.section ~ ' ' ~ service.category)|lower }}">
+                  <input type="checkbox" name="selected_services" value="{{ service.value }}" data-public-service-checkbox data-price="{{ service.price_php }}" {% if service.value in values.selected_services %}checked{% endif %}>
+                  <span>
+                    <strong>{{ service.label }}</strong>
+                    <small>{{ service.section or service.category }}{% if service.price_php %} | PHP {{ service.price_php }}{% endif %}</small>
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          </section>
+        {% else %}
+          <div class="patient-empty-state">No services available for this branch.</div>
+        {% endfor %}
+      </div>
+    </section>
     <section class="patient-form-section patient-service-block" id="packages">
       <div class="patient-step-heading patient-step-heading-search">
-        <span class="patient-step-badge">Step 3A</span>
-        <div>
-          <h2>Packages</h2>
-          <p>Choose a bundled package, or select individual services below.</p>
+        <div class="patient-step-heading-main">
+          <span class="patient-step-badge">Step 3B</span>
+          <div class="patient-step-heading-copy">
+            <h2>Packages</h2>
+            <p>Choose a bundled package, or select individual services below.</p>
+          </div>
         </div>
-        <input type="search" placeholder="Search packages" aria-label="Search packages" data-public-package-search aria-controls="package-search-status">
+        <div class="patient-search-bar" role="search">
+          <button type="button" class="patient-search-icon-btn" aria-label="Search packages" title="Search">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
+          <input type="search" placeholder="Search packages..." aria-label="Search packages" data-public-package-search aria-controls="package-search-status" autocomplete="off">
+          <button type="button" class="patient-search-clear-btn" data-search-clear aria-label="Clear packages search" title="Clear search" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
       <p class="patient-search-status" data-public-package-search-status id="package-search-status" role="status" aria-live="polite"></p>
       <div class="patient-option-grid">
@@ -48,37 +111,6 @@
       </div>
     </section>
 
-    <section class="patient-form-section patient-service-block" id="services">
-      <div class="patient-step-heading patient-step-heading-search">
-        <span class="patient-step-badge">Step 3B</span>
-        <div>
-          <h2>Services</h2>
-          <p>Select one or more consultation, laboratory, imaging, or diagnostic services.</p>
-        </div>
-        <input type="search" placeholder="Search services" aria-label="Search individual services" data-public-service-search aria-controls="service-search-status">
-      </div>
-      <p class="patient-search-status" data-public-service-search-status id="service-search-status" role="status" aria-live="polite"></p>
-      <div class="patient-service-list">
-        {% for category, services in service_groups.items() %}
-          <section data-public-service-group>
-            <h3>{{ category }}</h3>
-            <div class="patient-option-grid">
-              {% for service in services %}
-                <label class="patient-option-card patient-service-option-card" data-public-service-option data-public-service-text="{{ (service.label ~ ' ' ~ service.section ~ ' ' ~ service.category)|lower }}">
-                  <input type="checkbox" name="selected_services" value="{{ service.value }}" data-public-service-checkbox data-price="{{ service.price_php }}" {% if service.value in values.selected_services %}checked{% endif %}>
-                  <span>
-                    <strong>{{ service.label }}</strong>
-                    <small>{{ service.section or service.category }}{% if service.price_php %} | PHP {{ service.price_php }}{% endif %}</small>
-                  </span>
-                </label>
-              {% endfor %}
-            </div>
-          </section>
-        {% else %}
-          <div class="patient-empty-state">No services available for this branch.</div>
-        {% endfor %}
-      </div>
-    </section>
     <div class="patient-wizard-controls">
       <a class="patient-wizard-back" href="{{ url_for('patient_portal_patient_step') }}">← Back</a>
       <button type="submit" class="patient-wizard-next">Next: Check-up Reasons →</button>
@@ -199,7 +231,11 @@
   function filterOptions(inputSelector, optionSelector, textAttribute, groupSelector, statusSelector) {
     const input = document.querySelector(inputSelector);
     if (!input) return;
-    input.addEventListener('input', () => {
+    const bar = input.closest('.patient-search-bar');
+    const clearBtn = bar ? bar.querySelector('[data-search-clear]') : null;
+    const searchIconBtn = bar ? bar.querySelector('.patient-search-icon-btn') : null;
+
+    function applyFilter() {
       const term = input.value.trim().toLowerCase();
       let visibleCount = 0;
       document.querySelectorAll(optionSelector).forEach(option => {
@@ -217,7 +253,33 @@
       if (status) {
         status.textContent = term ? `${visibleCount} result${visibleCount === 1 ? '' : 's'} for "${input.value.trim()}"` : '';
       }
+      if (clearBtn) {
+        clearBtn.style.display = term ? 'inline-flex' : 'none';
+      }
+    }
+
+    input.addEventListener('input', applyFilter);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyFilter();
+      }
     });
+
+    if (searchIconBtn) {
+      searchIconBtn.addEventListener('click', () => {
+        input.focus();
+        applyFilter();
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        input.value = '';
+        applyFilter();
+        input.focus();
+      });
+    }
   }
 
   document.querySelectorAll('[data-public-service-checkbox], [data-public-package-checkbox]').forEach(input => {

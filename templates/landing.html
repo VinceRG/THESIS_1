@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20261011-ava-landing">
 </head>
 <body class="clinic-home-body">
   <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -39,6 +39,7 @@
     <section class="clinic-visit" id="visit"><div class="clinic-visit-card"><span class="clinic-section-label">Visit our clinic</span><h2>Here when you need us.</h2><address>Ground Floor, J Building, #12 M.H. del Pilar Street<br>San Nicolas, Pasig City 1600</address><a class="clinic-direction-link" href="https://www.google.com/maps/search/?api=1&query=Accudetek+Health+Diagnostics+Pasig" target="_blank" rel="noopener">Get directions <span>↗</span></a></div><div class="clinic-hours-card"><h3>Clinic hours</h3><div><span>Monday - Saturday</span><strong>6:00 AM - 5:00 PM</strong></div><div><span>Sunday</span><strong>6:00 AM - 12:00 NN</strong></div><hr><h3>Contact us</h3><a href="tel:09173238391">0917-323-8391</a><a href="tel:09535132333">0953-513-2333</a><a href="mailto:accudetekhealthdiagnostics@gmail.com">accudetekhealthdiagnostics@gmail.com</a></div></section>
   </main>
   <footer class="clinic-home-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>#PasyenteAngUnaMaagapNaResulta</p><a href="{{ url_for('login') }}">Staff portal</a></footer>
+  {% include 'partials/patient_chatbot.html' %}
   <script>
     const menuToggle = document.querySelector('.clinic-menu-toggle');
     const homeHeader = document.querySelector('.clinic-home-header');

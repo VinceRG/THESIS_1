@@ -4389,8 +4389,12 @@ def create_app():
                 field_errors['gender'] = 'Please select gender.'
             if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', values['email']):
                 field_errors['email'] = 'Please enter a valid email address so we can send your appointment confirmation.'
-            if values['contact_number'] and not re.fullmatch(r'[0-9+\-()\s]{7,20}', values['contact_number']):
+            if not values['contact_number']:
+                field_errors['contact_number'] = 'Contact number is required.'
+            elif not re.fullmatch(r'[0-9+\-()\s]{7,20}', values['contact_number']):
                 field_errors['contact_number'] = 'Please enter a valid phone number.'
+            if not values['address']:
+                field_errors['address'] = 'Address is required.'
 
             if field_errors:
                 flash('Please fix the highlighted fields below before continuing.', 'error')
@@ -4547,6 +4551,12 @@ def create_app():
                 field_errors['gender'] = 'Please select gender.'
             if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
                 field_errors['email'] = 'Please enter a valid email address so we can send your appointment confirmation.'
+            if not contact_number:
+                field_errors['contact_number'] = 'Contact number is required.'
+            elif not re.fullmatch(r'[0-9+\-()\s]{7,20}', contact_number):
+                field_errors['contact_number'] = 'Please enter a valid phone number.'
+            if not address:
+                field_errors['address'] = 'Address is required.'
             now = datetime.now()
             if appointment_date is None or appointment_date < now.date():
                 field_errors['appointment_date'] = 'Please choose a valid appointment date.'
