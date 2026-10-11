@@ -11,9 +11,9 @@
     <h3>{{ report.title }}</h3>
     <p class="muted-copy" style="margin-bottom:14px;">{{ report.description }}</p>
     <div class="report-card-actions">
-      <a class="btn" href="{{ url_for('report_view', report_key=key) }}" data-loading-link="report-view">View</a>
-      <a class="btn secondary" href="{{ url_for('report_print', report_key=key) }}">Print</a>
-      <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key) }}">Download PDF</a>
+      <a class="btn" href="{{ url_for('report_view', report_key=key) }}" data-loading-link="report-view"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
+      <a class="btn secondary" href="{{ url_for('report_print', report_key=key) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+      <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key) }}"><i class="bi bi-download" aria-hidden="true"></i> Download PDF</a>
     </div>
   </div>
   {% else %}

@@ -7,9 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="admin-app">
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
@@ -20,25 +23,39 @@
         </div>
       </div>
       <nav class="nav-links">
-        <a href="/dashboard" class="{% if request.path == '/dashboard' %}active{% endif %}">Dashboard</a>
-        <a href="/patients" class="{% if request.path.startswith('/patients') %}active{% endif %}">Patients</a>
-        <a href="/appointments" class="{% if request.path.startswith('/appointments') %}active{% endif %}">Appointments</a>
-        {% if can_manage_services %}
-          <a href="/services" class="{% if request.path.startswith('/services') %}active{% endif %}">Services</a>
-          <a href="/packages" class="{% if request.path.startswith('/packages') %}active{% endif %}">Packages</a>
-        {% endif %}
-        <a href="/records" class="{% if request.path == '/records' %}active{% endif %}">Consultation Records</a>
-        <a href="/predict" class="{% if request.path == '/predict' %}active{% endif %}">Predictions</a>
-        <a href="/resources" class="{% if request.path == '/resources' %}active{% endif %}">Resource Planning</a>
-        <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}">Reports</a>
-        <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}">Staff Management</a>
+        <div class="nav-group">
+          <span class="nav-group-label">Main</span>
+          <a href="/dashboard" class="{% if request.path == '/dashboard' %}active{% endif %}"><i class="bi bi-speedometer2 nav-icon" aria-hidden="true"></i>Dashboard</a>
+          <a href="/patients" class="{% if request.path.startswith('/patients') %}active{% endif %}"><i class="bi bi-people nav-icon" aria-hidden="true"></i>Patients</a>
+          <a href="/appointments" class="{% if request.path.startswith('/appointments') %}active{% endif %}"><i class="bi bi-calendar-check nav-icon" aria-hidden="true"></i>Appointments</a>
+          <a href="/records" class="{% if request.path == '/records' %}active{% endif %}"><i class="bi bi-clipboard2-pulse nav-icon" aria-hidden="true"></i>Consultation Records</a>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-label">Analytics</span>
+          <a href="/predict" class="{% if request.path == '/predict' %}active{% endif %}"><i class="bi bi-graph-up-arrow nav-icon" aria-hidden="true"></i>Predictions</a>
+          <a href="/resources" class="{% if request.path == '/resources' %}active{% endif %}"><i class="bi bi-diagram-3 nav-icon" aria-hidden="true"></i>Resource Planning</a>
+          <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}"><i class="bi bi-file-earmark-bar-graph nav-icon" aria-hidden="true"></i>Reports</a>
+        </div>
+        <div class="nav-group">
+          <span class="nav-group-label">Management</span>
+          <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}"><i class="bi bi-person-badge nav-icon" aria-hidden="true"></i>Staff Management</a>
+          {% if can_manage_services %}
+            <a href="/services" class="{% if request.path.startswith('/services') %}active{% endif %}"><i class="bi bi-list-check nav-icon" aria-hidden="true"></i>Services</a>
+            <a href="/packages" class="{% if request.path.startswith('/packages') %}active{% endif %}"><i class="bi bi-box-seam nav-icon" aria-hidden="true"></i>Packages</a>
+          {% endif %}
+        </div>
         {% if can_view_all_branches %}
-          <span class="section-heading-eyebrow">Administration</span>
-          <a href="/branches" class="{% if request.path.startswith('/branches') %}active{% endif %}">Branches</a>
-          <a href="/audit-logs" class="{% if request.path.startswith('/audit-logs') %}active{% endif %}">Audit Logs</a>
+          <div class="nav-group">
+          <span class="nav-group-label">System</span>
+          <a href="/branches" class="{% if request.path.startswith('/branches') %}active{% endif %}"><i class="bi bi-building nav-icon" aria-hidden="true"></i>Branches</a>
+          <a href="/audit-logs" class="{% if request.path.startswith('/audit-logs') %}active{% endif %}"><i class="bi bi-clock-history nav-icon" aria-hidden="true"></i>Audit Logs</a>
+          </div>
         {% endif %}
-        <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}">Settings</a>
-        <a href="/logout">Logout</a>
+        <div class="nav-group nav-group-account">
+          <span class="nav-group-label">Account</span>
+          <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}"><i class="bi bi-gear nav-icon" aria-hidden="true"></i>Settings</a>
+          <a href="/logout"><i class="bi bi-box-arrow-right nav-icon" aria-hidden="true"></i>Logout</a>
+        </div>
       </nav>
       {% if current_user_name %}
         <div class="sidebar-user">
@@ -62,6 +79,7 @@
         <div class="topbar-actions">
           {% if branch_options %}
             <form method="post" action="{{ url_for('select_branch') }}" class="branch-selector">
+              <i class="bi bi-building" aria-hidden="true"></i>
               <select name="branch_scope" aria-label="Select branch" onchange="this.form.submit()">
                 {% if can_view_all_branches %}
                   <option value="all" {% if selected_branch_value == 'all' %}selected{% endif %}>All Branches</option>
@@ -74,9 +92,9 @@
           {% else %}
             <span class="topbar-pill">{{ active_branch_label }}</span>
           {% endif %}
-          <span class="topbar-pill">{{ current_date }}</span>
-          <span class="topbar-pill">{{ current_time }}</span>
-          <a href="/logout" class="topbar-link">Logout</a>
+          <span class="topbar-pill topbar-context"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ current_date }}</span>
+          <span class="topbar-pill topbar-context"><i class="bi bi-clock" aria-hidden="true"></i>{{ current_time }}</span>
+          <a href="/logout" class="topbar-link"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Logout</a>
         </div>
       </header>
       <section class="content">
@@ -84,7 +102,11 @@
           {% if messages %}
             <div class="flash-stack">
               {% for category, message in messages %}
-                <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                <div class="flash-message flash-{{ category }}">
+                  <i class="bi {% if category == 'success' %}bi-check-circle-fill{% elif category in ['error', 'danger'] %}bi-exclamation-triangle-fill{% elif category == 'warning' %}bi-exclamation-circle-fill{% else %}bi-info-circle-fill{% endif %}" aria-hidden="true"></i>
+                  <span>{{ message }}</span>
+                  <button type="button" class="flash-dismiss" aria-label="Dismiss notification">&times;</button>
+                </div>
               {% endfor %}
             </div>
           {% endif %}
@@ -109,8 +131,8 @@
       <h3 id="confirmTitle">Confirm action</h3>
       <p id="confirmMessage">Are you sure you want to continue?</p>
       <div class="confirm-actions">
-        <button type="button" class="btn secondary" id="confirmCancel">Cancel</button>
-        <button type="button" class="btn" id="confirmProceed">Continue</button>
+        <button type="button" class="btn secondary admin-cancel" id="confirmCancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</button>
+        <button type="button" class="btn" id="confirmProceed"><i class="bi bi-check-lg" aria-hidden="true"></i> Continue</button>
       </div>
     </div>
   </div>
@@ -369,6 +391,9 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.flash-dismiss').forEach(button => {
+        button.addEventListener('click', () => button.closest('.flash-message')?.remove());
+      });
       const sidebar = document.getElementById('sidebar');
       const sidebarToggle = document.getElementById('sidebarToggle');
       const sidebarBackdrop = document.getElementById('sidebarBackdrop');

@@ -1,0 +1,1315 @@
+{
+  "branch_id": 1,
+  "branch_name": "Accudetek Main Branch",
+  "branch_code": "MAIN",
+  "total_consultations": 10161,
+  "staff_count": 22,
+  "facility_staff_count": 22,
+  "staff_capacity_per_month": 20,
+  "top_diagnosis": "Hypertension Monitoring",
+  "predicted_cases_next_month": 245,
+  "resource_readiness": 100,
+  "monthly_trend": [
+    {
+      "month": "Jan 2023",
+      "count": 197
+    },
+    {
+      "month": "Feb 2023",
+      "count": 185
+    },
+    {
+      "month": "Mar 2023",
+      "count": 200
+    },
+    {
+      "month": "Apr 2023",
+      "count": 182
+    },
+    {
+      "month": "May 2023",
+      "count": 200
+    },
+    {
+      "month": "Jun 2023",
+      "count": 213
+    },
+    {
+      "month": "Jul 2023",
+      "count": 205
+    },
+    {
+      "month": "Aug 2023",
+      "count": 201
+    },
+    {
+      "month": "Sep 2023",
+      "count": 197
+    },
+    {
+      "month": "Oct 2023",
+      "count": 187
+    },
+    {
+      "month": "Nov 2023",
+      "count": 179
+    },
+    {
+      "month": "Dec 2023",
+      "count": 204
+    },
+    {
+      "month": "Jan 2024",
+      "count": 236
+    },
+    {
+      "month": "Feb 2024",
+      "count": 216
+    },
+    {
+      "month": "Mar 2024",
+      "count": 234
+    },
+    {
+      "month": "Apr 2024",
+      "count": 214
+    },
+    {
+      "month": "May 2024",
+      "count": 232
+    },
+    {
+      "month": "Jun 2024",
+      "count": 228
+    },
+    {
+      "month": "Jul 2024",
+      "count": 236
+    },
+    {
+      "month": "Aug 2024",
+      "count": 235
+    },
+    {
+      "month": "Sep 2024",
+      "count": 232
+    },
+    {
+      "month": "Oct 2024",
+      "count": 225
+    },
+    {
+      "month": "Nov 2024",
+      "count": 210
+    },
+    {
+      "month": "Dec 2024",
+      "count": 229
+    },
+    {
+      "month": "Jan 2025",
+      "count": 254
+    },
+    {
+      "month": "Feb 2025",
+      "count": 248
+    },
+    {
+      "month": "Mar 2025",
+      "count": 263
+    },
+    {
+      "month": "Apr 2025",
+      "count": 234
+    },
+    {
+      "month": "May 2025",
+      "count": 259
+    },
+    {
+      "month": "Jun 2025",
+      "count": 257
+    },
+    {
+      "month": "Jul 2025",
+      "count": 271
+    },
+    {
+      "month": "Aug 2025",
+      "count": 263
+    },
+    {
+      "month": "Sep 2025",
+      "count": 259
+    },
+    {
+      "month": "Oct 2025",
+      "count": 241
+    },
+    {
+      "month": "Nov 2025",
+      "count": 230
+    },
+    {
+      "month": "Dec 2025",
+      "count": 251
+    },
+    {
+      "month": "Jan 2026",
+      "count": 300
+    },
+    {
+      "month": "Feb 2026",
+      "count": 286
+    },
+    {
+      "month": "Mar 2026",
+      "count": 294
+    },
+    {
+      "month": "Apr 2026",
+      "count": 275
+    },
+    {
+      "month": "May 2026",
+      "count": 298
+    },
+    {
+      "month": "Jun 2026",
+      "count": 298
+    },
+    {
+      "month": "Jul 2026",
+      "count": 300
+    },
+    {
+      "month": "Aug 2026",
+      "count": 3
+    }
+  ],
+  "consultation_distribution": [
+    [
+      "Hypertension Monitoring",
+      781
+    ],
+    [
+      "Upper Respiratory Infection",
+      759
+    ],
+    [
+      "Diabetes Mellitus Monitoring",
+      582
+    ],
+    [
+      "Asthma Monitoring",
+      428
+    ],
+    [
+      "Gastritis",
+      408
+    ],
+    [
+      "Dermatitis and Allergy",
+      331
+    ],
+    [
+      "Fever",
+      310
+    ],
+    [
+      "Routine Medical Consultation",
+      288
+    ],
+    [
+      "Headache",
+      233
+    ],
+    [
+      "Preventive Health Check-up",
+      225
+    ]
+  ],
+  "gender_distribution": [
+    [
+      "Female",
+      5174
+    ],
+    [
+      "Male",
+      4987
+    ]
+  ],
+  "age_group_distribution": [
+    [
+      "Adult",
+      6899
+    ],
+    [
+      "Senior",
+      1684
+    ],
+    [
+      "Child",
+      1578
+    ]
+  ],
+  "top_cases": [
+    [
+      "Hypertension Monitoring",
+      781
+    ],
+    [
+      "Upper Respiratory Infection",
+      759
+    ],
+    [
+      "Diabetes Mellitus Monitoring",
+      582
+    ],
+    [
+      "Asthma Monitoring",
+      428
+    ],
+    [
+      "Gastritis",
+      408
+    ]
+  ],
+  "predictions": [
+    {
+      "diagnosis": "Hypertension Monitoring",
+      "current_month": 24,
+      "predicted_next_month": 19,
+      "predicted_low": 12,
+      "predicted_high": 30,
+      "predicted_month": "Aug 2026",
+      "trend": "Decreasing"
+    },
+    {
+      "diagnosis": "Upper Respiratory Infection",
+      "current_month": 23,
+      "predicted_next_month": 18,
+      "predicted_low": 12,
+      "predicted_high": 27,
+      "predicted_month": "Aug 2026",
+      "trend": "Decreasing"
+    },
+    {
+      "diagnosis": "Diabetes Mellitus Monitoring",
+      "current_month": 15,
+      "predicted_next_month": 14,
+      "predicted_low": 8,
+      "predicted_high": 23,
+      "predicted_month": "Aug 2026",
+      "trend": "Decreasing"
+    },
+    {
+      "diagnosis": "Asthma Monitoring",
+      "current_month": 13,
+      "predicted_next_month": 11,
+      "predicted_low": 6,
+      "predicted_high": 19,
+      "predicted_month": "Aug 2026",
+      "trend": "Decreasing"
+    },
+    {
+      "diagnosis": "Fever",
+      "current_month": 7,
+      "predicted_next_month": 10,
+      "predicted_low": 5,
+      "predicted_high": 14,
+      "predicted_month": "Aug 2026",
+      "trend": "Increasing"
+    }
+  ],
+  "demographic_forecast": {
+    "age_group": [
+      {
+        "age_group": "Adult",
+        "forecasted_cases": 175
+      },
+      {
+        "age_group": "Senior",
+        "forecasted_cases": 37
+      },
+      {
+        "age_group": "Child",
+        "forecasted_cases": 33
+      }
+    ],
+    "gender": [
+      {
+        "gender": "Male",
+        "forecasted_cases": 124
+      },
+      {
+        "gender": "Female",
+        "forecasted_cases": 121
+      }
+    ],
+    "segments": [
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 45
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 42
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Child",
+        "gender": "Male",
+        "forecasted_cases": 10
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Child",
+        "gender": "Female",
+        "forecasted_cases": 9
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 9
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 9
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 7
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Dermatitis and Allergy",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Dermatitis and Allergy",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Routine Medical Consultation",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Gastritis",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Fever",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Preventive Health Check-up",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Gastritis",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Fever",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Abdominal Pain",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Fever",
+        "age_group": "Child",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Urinary Tract Infection",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Child",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Routine Medical Consultation",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Preventive Health Check-up",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Urinary Tract Infection",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Headache",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Headache",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Fever",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Child",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Amylase",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Abdominal Pain",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Amylase",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      }
+    ],
+    "segments_grouped": [
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Adult",
+        "male_cases": 7,
+        "female_cases": 6,
+        "total_cases": 13,
+        "bar_percent": 100
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Adult",
+        "male_cases": 6,
+        "female_cases": 6,
+        "total_cases": 12,
+        "bar_percent": 92
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "male_cases": 5,
+        "female_cases": 4,
+        "total_cases": 9,
+        "bar_percent": 69
+      },
+      {
+        "diagnosis": "Dermatitis and Allergy",
+        "age_group": "Adult",
+        "male_cases": 4,
+        "female_cases": 4,
+        "total_cases": 8,
+        "bar_percent": 62
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "male_cases": 4,
+        "female_cases": 4,
+        "total_cases": 8,
+        "bar_percent": 62
+      }
+    ]
+  },
+  "resource_recommendation": "Random Forest consultation forecast translated into staff-role guidance through configured clinic role mappings.",
+  "reference_month": "Aug 2025",
+  "predicted_month_label": "Aug 2026",
+  "predicted_month_full_label": "August 2026",
+  "services": [
+    "General Physician Consultation",
+    "Clinical Laboratory Services",
+    "Clinical Microscopy",
+    "Hematology",
+    "Clinical Chemistry",
+    "Immunology and Serology",
+    "Drug Testing",
+    "Electrocardiography (ECG)",
+    "X-ray",
+    "Ultrasound",
+    "Vascular Studies",
+    "Home Service",
+    "Annual Physical Examination (APE)"
+  ],
+  "equipment": [
+    "Automated Hematology Analyzer",
+    "Automated Clinical Chemistry Analyzer",
+    "Automated Immunoassay Analyzer",
+    "Automated Electrolyte Analyzer",
+    "Ultrasound Machine",
+    "X-ray System/Machine",
+    "Electrocardiograph (ECG) Machine"
+  ],
+  "facility_staff_complement": [
+    {
+      "role": "Pathologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Registered Medical Technologists",
+      "count": 6,
+      "notes": "Includes 2 Drug Test Analysts and 1 HIV Counselor"
+    },
+    {
+      "role": "Registered Radiologic Technologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Laboratory Technicians",
+      "count": 3,
+      "notes": ""
+    },
+    {
+      "role": "Internal Medicine Physicians",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "General Physicians",
+      "count": 4,
+      "notes": ""
+    },
+    {
+      "role": "Radiologists",
+      "count": 3,
+      "notes": ""
+    }
+  ],
+  "actual_staff_by_role": {
+    "Pathologists": 2,
+    "Registered Medical Technologists": 6,
+    "Registered Radiologic Technologists": 2,
+    "Laboratory Technicians": 3,
+    "Internal Medicine Physicians": 2,
+    "General Physicians": 4,
+    "Radiologists": 3
+  },
+  "staff_demand_forecast": {
+    "top_role": "Internal Medicine Physicians",
+    "top_role_demand": 44,
+    "monthly_rows": [
+      {
+        "staff_role": "Internal Medicine Physicians",
+        "forecast_demand": 44,
+        "appointment_demand": 2,
+        "planning_demand": 44,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 3,
+        "required_low": 2,
+        "required_high": 4,
+        "gap": 1,
+        "status": "Needs Staff",
+        "status_class": "high"
+      },
+      {
+        "staff_role": "General Physicians",
+        "forecast_demand": 28,
+        "appointment_demand": 4,
+        "planning_demand": 28,
+        "available_staff": 4,
+        "role_capacity": 80,
+        "estimated_required": 2,
+        "required_low": 1,
+        "required_high": 3,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Registered Medical Technologists",
+        "forecast_demand": 0,
+        "appointment_demand": 1,
+        "planning_demand": 1,
+        "available_staff": 6,
+        "role_capacity": 120,
+        "estimated_required": 1,
+        "required_low": 1,
+        "required_high": 1,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Laboratory Technicians",
+        "forecast_demand": 0,
+        "appointment_demand": 1,
+        "planning_demand": 1,
+        "available_staff": 3,
+        "role_capacity": 60,
+        "estimated_required": 1,
+        "required_low": 1,
+        "required_high": 1,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Radiologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 3,
+        "role_capacity": 60,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Pathologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Registered Radiologic Technologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      }
+    ],
+    "monthly_chart": {
+      "labels": [
+        "Internal Medicine Physicians",
+        "General Physicians",
+        "Registered Medical Technologists",
+        "Laboratory Technicians",
+        "Radiologists",
+        "Pathologists",
+        "Registered Radiologic Technologists"
+      ],
+      "planning_demand": [
+        44,
+        28,
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "capacity": [
+        40,
+        80,
+        120,
+        60,
+        60,
+        40,
+        40
+      ]
+    },
+    "daily_rows": [
+      {
+        "date": "2026-10-03",
+        "staff_role": "General Physicians",
+        "scheduled_demand": 2,
+        "available_staff": 4,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "date": "2026-10-03",
+        "staff_role": "Laboratory Technicians",
+        "scheduled_demand": 2,
+        "available_staff": 3,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "date": "2026-10-03",
+        "staff_role": "Registered Medical Technologists",
+        "scheduled_demand": 2,
+        "available_staff": 6,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      }
+    ],
+    "daily_chart": {
+      "labels": [
+        "2026-10-03"
+      ],
+      "datasets": [
+        {
+          "label": "General Physicians",
+          "data": [
+            2
+          ]
+        },
+        {
+          "label": "Laboratory Technicians",
+          "data": [
+            2
+          ]
+        },
+        {
+          "label": "Registered Medical Technologists",
+          "data": [
+            2
+          ]
+        }
+      ]
+    },
+    "daily_prediction": {
+      "method": "Random Forest daily role-demand forecast",
+      "daily_capacity_per_staff": 1,
+      "current_period": "Oct 03, 2026 - Oct 09, 2026",
+      "next_period": "Oct 10, 2026 - Oct 16, 2026",
+      "rows": [
+        {
+          "date": "2026-10-03",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 2,
+          "required_staff": 2,
+          "available_staff": 4,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-03",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 2,
+          "required_staff": 2,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-03",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 2,
+          "scheduled_appointments": 2,
+          "required_staff": 2,
+          "available_staff": 6,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        }
+      ],
+      "current_week_rows": [
+        {
+          "date": "2026-10-03",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 2,
+          "required_staff": 2,
+          "available_staff": 4,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-03",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 2,
+          "required_staff": 2,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-03",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 2,
+          "scheduled_appointments": 2,
+          "required_staff": 2,
+          "available_staff": 6,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        }
+      ],
+      "next_week_rows": [],
+      "current_week_summary": [
+        {
+          "date": "2026-10-03",
+          "day_name": "Sat",
+          "predicted_patients": 6,
+          "scheduled_appointments": 6,
+          "required_staff_total": 6,
+          "available_staff_total": 13,
+          "role_summary": [
+            "General Physicians: 2 needed, 4 available",
+            "Laboratory Technicians: 2 needed, 3 available",
+            "Registered Medical Technologists: 2 needed, 6 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "General Physicians: 2 needed, 4 available; Laboratory Technicians: 2 needed, 3 available; Registered Medical Technologists: 2 needed, 6 available",
+          "short_role_summary": "General Physicians: 2/4, Laboratory Technicians: 2/3, Registered Medical Technologists: 2/6"
+        }
+      ],
+      "next_week_summary": [],
+      "alert_rows": [],
+      "chart": {
+        "labels": [
+          "Oct 03",
+          "Oct 04",
+          "Oct 05",
+          "Oct 06",
+          "Oct 07",
+          "Oct 08",
+          "Oct 09",
+          "Oct 10",
+          "Oct 11",
+          "Oct 12",
+          "Oct 13",
+          "Oct 14",
+          "Oct 15",
+          "Oct 16"
+        ],
+        "datasets": [
+          {
+            "label": "General Physicians",
+            "data": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "label": "Laboratory Technicians",
+            "data": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "label": "Registered Medical Technologists",
+            "data": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "attribution_rows": [
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "source": "historical",
+        "roles": [
+          "Internal Medicine Physicians"
+        ],
+        "support_count": 781,
+        "share": 0.9987,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 19,
+        "trend": "Decreasing"
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "source": "historical",
+        "roles": [
+          "General Physicians"
+        ],
+        "support_count": 759,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 18,
+        "trend": "Decreasing"
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "source": "historical",
+        "roles": [
+          "Internal Medicine Physicians"
+        ],
+        "support_count": 582,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 14,
+        "trend": "Decreasing"
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "source": "historical",
+        "roles": [
+          "Internal Medicine Physicians"
+        ],
+        "support_count": 428,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 11,
+        "trend": "Decreasing"
+      },
+      {
+        "diagnosis": "Fever",
+        "source": "historical",
+        "roles": [
+          "General Physicians"
+        ],
+        "support_count": 310,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 10,
+        "trend": "Increasing"
+      }
+    ],
+    "mapping_historical_count": 5,
+    "mapping_classifier_count": 0,
+    "mapping_fallback_count": 0,
+    "mapping_min_support": 5,
+    "mapping_min_share_pct": 50,
+    "mapping_min_similarity_pct": 55
+  },
+  "estimated_monthly_capacity": 440,
+  "forecast_pressure": 55,
+  "forecast_pressure_raw": 55,
+  "recommended_staff_count": 13,
+  "staff_gap": 0,
+  "capacity_status": "Healthy",
+  "resource_forecast_recommendation": "Current staffing and equipment capacity appears sufficient for forecasted demand.",
+  "rf_metrics": {
+    "total_training_rows": 3672,
+    "total_segments": 102,
+    "diagnosis_count": 17,
+    "age_group_count": 3,
+    "gender_count": 2,
+    "complete_year_rule": true,
+    "original_training_years": [
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "used_training_years": [
+      2023,
+      2024,
+      2025
+    ],
+    "excluded_training_years": [
+      2026
+    ],
+    "excluded_year_record_count": 2054,
+    "complete_year_fallback_reason": null,
+    "diagnosis_grouping_minimum_records": 50,
+    "original_diagnosis_count": 292,
+    "modeled_diagnosis_count": 17,
+    "grouped_diagnosis_count": 276,
+    "grouped_record_count": 4122,
+    "data_period_start": "2023-01",
+    "data_period_end": "2025-12",
+    "r2_score": 0.9347,
+    "mae": 1.0498,
+    "mse": 2.7761,
+    "rmse": 1.6662,
+    "validation_r2": 0.9347,
+    "validation_mae": 1.0498,
+    "validation_mse": 2.7761,
+    "validation_rmse": 1.6662,
+    "training_r2": 0.9315,
+    "training_mae": 0.9216,
+    "training_rmse": 1.5207,
+    "baseline_mae": 1.2451,
+    "baseline_rmse": 2.1252,
+    "baseline_r2": 0.8938,
+    "improvement_vs_baseline_pct": 15.69,
+    "cv_r2_mean": 0.9129,
+    "cv_r2_std": 0.0,
+    "cv_mae_mean": 0.9628,
+    "cv_rmse_mean": 1.6035,
+    "common_diagnoses": [
+      "Hypertension Monitoring",
+      "Upper Respiratory Infection",
+      "Diabetes Mellitus Monitoring",
+      "Gastritis",
+      "Asthma Monitoring",
+      "Dermatitis and Allergy",
+      "Fever",
+      "Routine Medical Consultation",
+      "Headache",
+      "Preventive Health Check-up"
+    ],
+    "common_diagnoses_count": 10,
+    "common_validation_row_count": 360,
+    "common_validation_r2": 0.513,
+    "common_validation_mae": 1.0791,
+    "common_validation_mse": 2.3525,
+    "common_validation_rmse": 1.5338,
+    "common_cv_r2_mean": 0.5067,
+    "common_cv_mae_mean": 0.9439,
+    "common_cv_rmse_mean": 1.3432,
+    "training_months": 30,
+    "validation_months": 6,
+    "validation_period_start": "2025-07",
+    "validation_period_end": "2025-12",
+    "best_params": {
+      "n_estimators": 80,
+      "max_depth": 6,
+      "min_samples_split": 5,
+      "min_samples_leaf": 2,
+      "max_features": "sqrt"
+    },
+    "model_b_without_demographics": {
+      "training_grain": "diagnosis by month",
+      "training_rows": 612,
+      "validation_r2": 0.9717,
+      "validation_mae": 2.947,
+      "validation_rmse": 4.93,
+      "baseline_mae": 3.8235,
+      "improvement_vs_baseline_pct": 22.92,
+      "training_months": 30,
+      "validation_months": 6,
+      "validation_period_start": "2025-07",
+      "validation_period_end": "2025-12"
+    },
+    "model_verdict": "Acceptable",
+    "prediction_intervals": {
+      "Other Services/Cases": [
+        105,
+        145
+      ],
+      "Hypertension Monitoring": [
+        12,
+        30
+      ],
+      "Upper Respiratory Infection": [
+        12,
+        27
+      ],
+      "Diabetes Mellitus Monitoring": [
+        8,
+        23
+      ],
+      "Asthma Monitoring": [
+        6,
+        19
+      ],
+      "Fever": [
+        5,
+        14
+      ],
+      "Dermatitis and Allergy": [
+        5,
+        15
+      ],
+      "Gastritis": [
+        4,
+        14
+      ],
+      "Preventive Health Check-up": [
+        3,
+        9
+      ],
+      "Headache": [
+        2,
+        8
+      ],
+      "Routine Medical Consultation": [
+        3,
+        11
+      ],
+      "Urinary Tract Infection": [
+        2,
+        10
+      ],
+      "Abdominal Pain": [
+        2,
+        9
+      ],
+      "Sodium (Na)": [
+        1,
+        9
+      ],
+      "CBC": [
+        0,
+        7
+      ],
+      "Amylase": [
+        1,
+        8
+      ],
+      "Magnesium": [
+        0,
+        7
+      ]
+    }
+  },
+  "cache_version": 10
+}

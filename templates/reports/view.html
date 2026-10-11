@@ -7,9 +7,9 @@
 {% block content %}
 <div class="section-stack">
 <div class="page-actions">
-  <a class="btn secondary" href="{{ url_for('reports') }}">Back to Reports</a>
-  <a class="btn secondary" href="{{ url_for('report_print', report_key=report.key) }}">Print</a>
-  <a class="btn" href="{{ url_for('report_pdf', report_key=report.key) }}">Download PDF</a>
+  <a class="btn secondary" href="{{ url_for('reports') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Reports</a>
+  <a class="btn secondary" href="{{ url_for('report_print', report_key=report.key) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+  <a class="btn" href="{{ url_for('report_pdf', report_key=report.key) }}"><i class="bi bi-download" aria-hidden="true"></i> Download PDF</a>
 </div>
 
 <div class="chart-card">

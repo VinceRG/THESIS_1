@@ -8,15 +8,15 @@
 {% block content %}
 <div class="chart-card">
   <h3>Search and Filter</h3>
-  <p>Search by date, diagnosis, age group, or gender. Import and export options are available for administrative use.</p>
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+  <p class="admin-section-description">Find records by date, diagnosis, age group, or sex.</p>
+  <div class="admin-record-actions">
     {% if not all_branches_view %}
-      <a class="btn" href="/upload">Import Records</a>
-      <a class="btn secondary" href="{{ url_for('patients') }}">Add Patient Consultation</a>
+      <a class="btn" href="/upload"><i class="bi bi-upload" aria-hidden="true"></i> Import Records</a>
+      <a class="btn secondary" href="{{ url_for('patients') }}"><i class="bi bi-clipboard2-plus" aria-hidden="true"></i> Add Patient Consultation</a>
       <form action="{{ url_for('clear_records') }}" method="post"
             data-confirm-title="Clear branch consultation records?"
             data-confirm="This will permanently remove consultation records for the current branch only. Continue?">
-        <button type="submit" class="btn secondary">Clear All Records</button>
+        <button type="submit" class="btn admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Clear All Records</button>
       </form>
     {% else %}
       <span class="topbar-pill">All-branch view is read-only. Select one branch to import or clear records.</span>
@@ -26,47 +26,50 @@
 
 <div class="chart-card" style="margin-top:20px;">
   <h3>Consultation Records</h3>
-  <table class="table">
-    <thead>
-      <tr>
-        {% if all_branches_view %}<th>Branch</th>{% endif %}
-        <th>Patient</th>
-        <th>Date</th>
-        <th>Age</th>
-        <th>Age Group</th>
-        <th>Gender</th>
-        <th>Diagnosis</th>
-        <th>Physician</th>
-        <th>Type</th>
-        <th>Department</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for record in records.items %}
+  <p class="admin-section-description">View and manage recorded consultation records.</p>
+  <div class="table-scroll">
+    <table class="table table-sticky-head">
+      <thead>
         <tr>
-          {% if all_branches_view %}<td>{{ record.branch.name if record.branch else 'Unassigned' }}</td>{% endif %}
-          <td>
-            {% if record.patient %}
-              <strong>{{ record.patient.full_name }}</strong>
-              <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ record.patient.patient_number }}</div>
-            {% else %}
-              <span style="color:#64748b;">Uploaded census record</span>
-            {% endif %}
-          </td>
-          <td>{{ record.consultation_date }}</td>
-          <td>{{ record.patient_age if record.patient_age is not none else 'Not provided' }}</td>
-          <td>{{ record.age_group }}</td>
-          <td>{{ record.gender }}</td>
-          <td>{{ record.diagnosis }}</td>
-          <td>{{ record.physician }}</td>
-          <td>{{ record.consultation_type }}</td>
-          <td>{{ record.department }}</td>
+          {% if all_branches_view %}<th>Branch</th>{% endif %}
+          <th>Patient</th>
+          <th>Date</th>
+          <th>Age</th>
+          <th>Age Group</th>
+          <th>Sex</th>
+          <th>Diagnosis</th>
+          <th>Physician</th>
+          <th>Type</th>
+          <th>Department</th>
         </tr>
-      {% else %}
-        <tr><td colspan="{{ 10 if all_branches_view else 9 }}">No consultation records available yet.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for record in records.items %}
+          <tr>
+            {% if all_branches_view %}<td>{{ record.branch.name if record.branch else 'Unassigned' }}</td>{% endif %}
+            <td>
+              {% if record.patient %}
+                <strong>{{ record.patient.full_name }}</strong>
+                <div style="color:#64748b; font-size:13px; margin-top:4px;">{{ record.patient.patient_number }}</div>
+              {% else %}
+                <span style="color:#64748b;">Uploaded census record</span>
+              {% endif %}
+            </td>
+            <td>{{ record.consultation_date }}</td>
+            <td>{{ record.patient_age if record.patient_age is not none else 'Not provided' }}</td>
+            <td>{{ record.age_group }}</td>
+            <td>{{ record.gender }}</td>
+            <td>{{ record.diagnosis }}</td>
+            <td>{{ record.physician }}</td>
+            <td>{{ record.consultation_type }}</td>
+            <td>{{ record.department }}</td>
+          </tr>
+        {% else %}
+          <tr class="table-empty-state"><td colspan="{{ 10 if all_branches_view else 9 }}"><strong>No consultation records available yet.</strong>Import records or add a patient consultation to start building the registry.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
   {{ render_pagination(records, 'records') }}
 </div>

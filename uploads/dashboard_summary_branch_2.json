@@ -1,0 +1,2845 @@
+{
+  "branch_id": 2,
+  "branch_name": "test",
+  "branch_code": "TEST1",
+  "total_consultations": 10126,
+  "staff_count": 0,
+  "facility_staff_count": 22,
+  "staff_capacity_per_month": 1,
+  "top_diagnosis": "Hypertension Monitoring",
+  "predicted_cases_next_month": 78,
+  "resource_readiness": 28,
+  "monthly_trend": [
+    {
+      "month": "Jan 2023",
+      "count": 196
+    },
+    {
+      "month": "Feb 2023",
+      "count": 184
+    },
+    {
+      "month": "Mar 2023",
+      "count": 199
+    },
+    {
+      "month": "Apr 2023",
+      "count": 182
+    },
+    {
+      "month": "May 2023",
+      "count": 199
+    },
+    {
+      "month": "Jun 2023",
+      "count": 212
+    },
+    {
+      "month": "Jul 2023",
+      "count": 205
+    },
+    {
+      "month": "Aug 2023",
+      "count": 200
+    },
+    {
+      "month": "Sep 2023",
+      "count": 196
+    },
+    {
+      "month": "Oct 2023",
+      "count": 186
+    },
+    {
+      "month": "Nov 2023",
+      "count": 179
+    },
+    {
+      "month": "Dec 2023",
+      "count": 203
+    },
+    {
+      "month": "Jan 2024",
+      "count": 235
+    },
+    {
+      "month": "Feb 2024",
+      "count": 216
+    },
+    {
+      "month": "Mar 2024",
+      "count": 233
+    },
+    {
+      "month": "Apr 2024",
+      "count": 213
+    },
+    {
+      "month": "May 2024",
+      "count": 231
+    },
+    {
+      "month": "Jun 2024",
+      "count": 228
+    },
+    {
+      "month": "Jul 2024",
+      "count": 235
+    },
+    {
+      "month": "Aug 2024",
+      "count": 234
+    },
+    {
+      "month": "Sep 2024",
+      "count": 232
+    },
+    {
+      "month": "Oct 2024",
+      "count": 224
+    },
+    {
+      "month": "Nov 2024",
+      "count": 209
+    },
+    {
+      "month": "Dec 2024",
+      "count": 229
+    },
+    {
+      "month": "Jan 2025",
+      "count": 253
+    },
+    {
+      "month": "Feb 2025",
+      "count": 247
+    },
+    {
+      "month": "Mar 2025",
+      "count": 262
+    },
+    {
+      "month": "Apr 2025",
+      "count": 234
+    },
+    {
+      "month": "May 2025",
+      "count": 258
+    },
+    {
+      "month": "Jun 2025",
+      "count": 256
+    },
+    {
+      "month": "Jul 2025",
+      "count": 271
+    },
+    {
+      "month": "Aug 2025",
+      "count": 262
+    },
+    {
+      "month": "Sep 2025",
+      "count": 258
+    },
+    {
+      "month": "Oct 2025",
+      "count": 240
+    },
+    {
+      "month": "Nov 2025",
+      "count": 230
+    },
+    {
+      "month": "Dec 2025",
+      "count": 250
+    },
+    {
+      "month": "Jan 2026",
+      "count": 299
+    },
+    {
+      "month": "Feb 2026",
+      "count": 286
+    },
+    {
+      "month": "Mar 2026",
+      "count": 293
+    },
+    {
+      "month": "Apr 2026",
+      "count": 274
+    },
+    {
+      "month": "May 2026",
+      "count": 297
+    },
+    {
+      "month": "Jun 2026",
+      "count": 298
+    },
+    {
+      "month": "Jul 2026",
+      "count": 298
+    }
+  ],
+  "consultation_distribution": [
+    [
+      "Hypertension Monitoring",
+      780
+    ],
+    [
+      "Upper Respiratory Infection",
+      759
+    ],
+    [
+      "Diabetes Mellitus Monitoring",
+      582
+    ],
+    [
+      "Asthma Monitoring",
+      428
+    ],
+    [
+      "Gastritis",
+      408
+    ],
+    [
+      "Dermatitis and Allergy",
+      331
+    ],
+    [
+      "Fever",
+      310
+    ],
+    [
+      "Routine Medical Consultation",
+      288
+    ],
+    [
+      "Headache",
+      232
+    ],
+    [
+      "Preventive Health Check-up",
+      225
+    ]
+  ],
+  "gender_distribution": [
+    [
+      "Female",
+      5158
+    ],
+    [
+      "Male",
+      4968
+    ]
+  ],
+  "age_group_distribution": [
+    [
+      "Adult",
+      6880
+    ],
+    [
+      "Senior",
+      1677
+    ],
+    [
+      "Child",
+      1569
+    ]
+  ],
+  "top_cases": [
+    [
+      "Hypertension Monitoring",
+      780
+    ],
+    [
+      "Upper Respiratory Infection",
+      759
+    ],
+    [
+      "Diabetes Mellitus Monitoring",
+      582
+    ],
+    [
+      "Asthma Monitoring",
+      428
+    ],
+    [
+      "Gastritis",
+      408
+    ]
+  ],
+  "predictions": [
+    {
+      "diagnosis": "Other Services/Cases",
+      "current_month": 0,
+      "predicted_next_month": 40,
+      "predicted_month": "Sep 2026",
+      "trend": "Increasing"
+    },
+    {
+      "diagnosis": "Upper Respiratory Infection",
+      "current_month": 29,
+      "predicted_next_month": 4,
+      "predicted_month": "Sep 2026",
+      "trend": "Decreasing"
+    },
+    {
+      "diagnosis": "Hypertension Monitoring",
+      "current_month": 16,
+      "predicted_next_month": 4,
+      "predicted_month": "Sep 2026",
+      "trend": "Decreasing"
+    },
+    {
+      "diagnosis": "Routine Medical Consultation",
+      "current_month": 10,
+      "predicted_next_month": 3,
+      "predicted_month": "Sep 2026",
+      "trend": "Decreasing"
+    },
+    {
+      "diagnosis": "Diabetes Mellitus Monitoring",
+      "current_month": 11,
+      "predicted_next_month": 3,
+      "predicted_month": "Sep 2026",
+      "trend": "Decreasing"
+    }
+  ],
+  "demographic_forecast": {
+    "age_group": [
+      {
+        "age_group": "Adult",
+        "forecasted_cases": 51
+      },
+      {
+        "age_group": "Child",
+        "forecasted_cases": 14
+      },
+      {
+        "age_group": "Senior",
+        "forecasted_cases": 13
+      }
+    ],
+    "gender": [
+      {
+        "gender": "Female",
+        "forecasted_cases": 39
+      },
+      {
+        "gender": "Male",
+        "forecasted_cases": 39
+      }
+    ],
+    "segments": [
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 10
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 9
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Child",
+        "gender": "Male",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Child",
+        "gender": "Female",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Abdominal Pain",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Abdominal Pain",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Amylase",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Amylase",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Dermatitis and Allergy",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 1
+      }
+    ]
+  },
+  "resource_recommendation": "Random Forest consultation forecast translated into staff-role guidance through configured clinic role mappings.",
+  "reference_month": "Sep 2025",
+  "predicted_month_label": "Sep 2026",
+  "predicted_month_full_label": "September 2026",
+  "services": [
+    "General Physician Consultation",
+    "Clinical Laboratory Services",
+    "Clinical Microscopy",
+    "Hematology",
+    "Clinical Chemistry",
+    "Immunology and Serology",
+    "Drug Testing",
+    "Electrocardiography (ECG)",
+    "X-ray",
+    "Ultrasound",
+    "Vascular Studies",
+    "Home Service",
+    "Annual Physical Examination (APE)"
+  ],
+  "equipment": [
+    "Automated Hematology Analyzer",
+    "Automated Clinical Chemistry Analyzer",
+    "Automated Immunoassay Analyzer",
+    "Automated Electrolyte Analyzer",
+    "Ultrasound Machine",
+    "X-ray System/Machine",
+    "Electrocardiograph (ECG) Machine"
+  ],
+  "facility_staff_complement": [
+    {
+      "role": "Pathologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Registered Medical Technologists",
+      "count": 6,
+      "notes": "Includes 2 Drug Test Analysts and 1 HIV Counselor"
+    },
+    {
+      "role": "Registered Radiologic Technologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Laboratory Technicians",
+      "count": 3,
+      "notes": ""
+    },
+    {
+      "role": "Internal Medicine Physicians",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "General Physicians",
+      "count": 4,
+      "notes": ""
+    },
+    {
+      "role": "Radiologists",
+      "count": 3,
+      "notes": ""
+    }
+  ],
+  "actual_staff_by_role": {},
+  "staff_demand_forecast": {
+    "top_role": "General Physicians",
+    "top_role_demand": 54,
+    "monthly_rows": [
+      {
+        "staff_role": "General Physicians",
+        "forecast_demand": 54,
+        "appointment_demand": 0,
+        "planning_demand": 54,
+        "available_staff": 0,
+        "role_capacity": 0,
+        "estimated_required": 54,
+        "gap": 54,
+        "status": "Needs Staff",
+        "status_class": "high"
+      },
+      {
+        "staff_role": "Internal Medicine Physicians",
+        "forecast_demand": 10,
+        "appointment_demand": 0,
+        "planning_demand": 10,
+        "available_staff": 0,
+        "role_capacity": 0,
+        "estimated_required": 10,
+        "gap": 10,
+        "status": "Needs Staff",
+        "status_class": "high"
+      }
+    ],
+    "monthly_chart": {
+      "labels": [
+        "General Physicians",
+        "Internal Medicine Physicians"
+      ],
+      "planning_demand": [
+        54,
+        10
+      ],
+      "capacity": [
+        0,
+        0
+      ]
+    },
+    "daily_rows": [],
+    "daily_chart": {
+      "labels": [],
+      "datasets": []
+    },
+    "daily_prediction": {
+      "method": "Random Forest daily role-demand forecast",
+      "daily_capacity_per_staff": 1,
+      "current_period": "Aug 14, 2026 - Aug 20, 2026",
+      "next_period": "Aug 21, 2026 - Aug 27, 2026",
+      "rows": [
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 0,
+          "required_staff": 2,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 0,
+          "required_staff": 2,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        }
+      ],
+      "current_week_rows": [
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        }
+      ],
+      "next_week_rows": [
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 0,
+          "required_staff": 2,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 0,
+          "required_staff": 2,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        }
+      ],
+      "current_week_summary": [
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "predicted_patients": 14,
+          "scheduled_appointments": 0,
+          "required_staff_total": 14,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 9 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 9 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 9/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "predicted_patients": 14,
+          "scheduled_appointments": 0,
+          "required_staff_total": 14,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 9 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 9 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 9/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        }
+      ],
+      "next_week_summary": [
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "predicted_patients": 14,
+          "scheduled_appointments": 0,
+          "required_staff_total": 14,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 9 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 9 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 9/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "predicted_patients": 14,
+          "scheduled_appointments": 0,
+          "required_staff_total": 14,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 9 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 9 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 9/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "predicted_patients": 13,
+          "scheduled_appointments": 0,
+          "required_staff_total": 13,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 3 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 3 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 3/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "predicted_patients": 12,
+          "scheduled_appointments": 0,
+          "required_staff_total": 12,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 2 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 2 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 2/0, Laboratory Technicians: 1/0, +1 more"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "predicted_patients": 12,
+          "scheduled_appointments": 0,
+          "required_staff_total": 12,
+          "available_staff_total": 0,
+          "role_summary": [
+            "General Physicians: 8 needed, 0 available",
+            "Internal Medicine Physicians: 2 needed, 0 available",
+            "Laboratory Technicians: 1 needed, 0 available",
+            "Registered Medical Technologists: 1 needed, 0 available"
+          ],
+          "status": "Needs Staff",
+          "status_class": "high",
+          "role_summary_text": "General Physicians: 8 needed, 0 available; Internal Medicine Physicians: 2 needed, 0 available; Laboratory Technicians: 1 needed, 0 available; Registered Medical Technologists: 1 needed, 0 available",
+          "short_role_summary": "General Physicians: 8/0, Internal Medicine Physicians: 2/0, Laboratory Technicians: 1/0, +1 more"
+        }
+      ],
+      "alert_rows": [
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-14",
+          "day_name": "Fri",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-15",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-16",
+          "day_name": "Sun",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-17",
+          "day_name": "Mon",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-18",
+          "day_name": "Tue",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-19",
+          "day_name": "Wed",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-20",
+          "day_name": "Thu",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-21",
+          "day_name": "Fri",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-22",
+          "day_name": "Sat",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "General Physicians",
+          "predicted_patients": 9,
+          "scheduled_appointments": 0,
+          "required_staff": 9,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-23",
+          "day_name": "Sun",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-24",
+          "day_name": "Mon",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff": 3,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-25",
+          "day_name": "Tue",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 0,
+          "required_staff": 2,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-26",
+          "day_name": "Wed",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "General Physicians",
+          "predicted_patients": 8,
+          "scheduled_appointments": 0,
+          "required_staff": 8,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 2,
+          "scheduled_appointments": 0,
+          "required_staff": 2,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        },
+        {
+          "date": "2026-08-27",
+          "day_name": "Thu",
+          "staff_role": "Registered Medical Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 0,
+          "status": "Needs Staff",
+          "status_class": "high"
+        }
+      ],
+      "chart": {
+        "labels": [
+          "Aug 14",
+          "Aug 15",
+          "Aug 16",
+          "Aug 17",
+          "Aug 18",
+          "Aug 19",
+          "Aug 20",
+          "Aug 21",
+          "Aug 22",
+          "Aug 23",
+          "Aug 24",
+          "Aug 25",
+          "Aug 26",
+          "Aug 27"
+        ],
+        "datasets": [
+          {
+            "label": "General Physicians",
+            "data": [
+              8,
+              9,
+              9,
+              8,
+              8,
+              8,
+              8,
+              8,
+              9,
+              9,
+              8,
+              8,
+              8,
+              8
+            ]
+          },
+          {
+            "label": "Internal Medicine Physicians",
+            "data": [
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              3,
+              2,
+              2
+            ]
+          },
+          {
+            "label": "Laboratory Technicians",
+            "data": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "label": "Registered Medical Technologists",
+            "data": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "mapping_historical_count": 0,
+    "mapping_fallback_count": 5,
+    "mapping_min_support": 5,
+    "mapping_min_share_pct": 50
+  },
+  "estimated_monthly_capacity": 22,
+  "forecast_pressure": 100,
+  "forecast_pressure_raw": 354,
+  "recommended_staff_count": 78,
+  "staff_gap": 56,
+  "capacity_status": "High",
+  "resource_forecast_recommendation": "Predicted demand exceeds current staffing capacity; consider hiring additional staff or expanding service hours.",
+  "rf_metrics": {
+    "total_training_rows": 3672,
+    "total_segments": 102,
+    "diagnosis_count": 17,
+    "age_group_count": 3,
+    "gender_count": 2,
+    "complete_year_rule": true,
+    "original_training_years": [
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "used_training_years": [
+      2023,
+      2024,
+      2025
+    ],
+    "excluded_training_years": [
+      2026
+    ],
+    "excluded_year_record_count": 2045,
+    "complete_year_fallback_reason": null,
+    "diagnosis_grouping_minimum_records": 50,
+    "original_diagnosis_count": 291,
+    "modeled_diagnosis_count": 17,
+    "grouped_diagnosis_count": 275,
+    "grouped_record_count": 4096,
+    "data_period_start": "2023-01",
+    "data_period_end": "2025-12",
+    "r2_score": 0.9354,
+    "mae": 1.051,
+    "mse": 2.7228,
+    "rmse": 1.6501,
+    "validation_r2": 0.9354,
+    "validation_mae": 1.051,
+    "validation_mse": 2.7228,
+    "validation_rmse": 1.6501,
+    "training_r2": 0.9307,
+    "training_mae": 0.9213,
+    "training_rmse": 1.5214,
+    "baseline_mae": 1.2386,
+    "baseline_rmse": 2.1043,
+    "baseline_r2": 0.895,
+    "improvement_vs_baseline_pct": 15.15,
+    "cv_r2_mean": 0.9126,
+    "cv_r2_std": 0.0,
+    "cv_mae_mean": 0.9597,
+    "cv_rmse_mean": 1.5997,
+    "training_months": 30,
+    "validation_months": 6,
+    "validation_period_start": "2025-07",
+    "validation_period_end": "2025-12",
+    "best_params": {
+      "n_estimators": 80,
+      "max_depth": 6,
+      "min_samples_split": 5,
+      "min_samples_leaf": 2,
+      "max_features": "sqrt"
+    },
+    "model_b_without_demographics": {
+      "training_grain": "diagnosis by month",
+      "training_rows": 612,
+      "validation_r2": 0.9698,
+      "validation_mae": 2.9538,
+      "validation_rmse": 5.0711,
+      "baseline_mae": 3.8235,
+      "improvement_vs_baseline_pct": 22.75,
+      "training_months": 30,
+      "validation_months": 6,
+      "validation_period_start": "2025-07",
+      "validation_period_end": "2025-12"
+    },
+    "model_verdict": "Acceptable"
+  },
+  "cache_version": 10
+}

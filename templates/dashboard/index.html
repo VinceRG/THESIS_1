@@ -28,7 +28,7 @@
                   data-confirm-title="Notify {{ gap.role }} staff?"
                   data-confirm="This will email every active {{ gap.role }} on this branch who has an email on file, asking them to cover extra shifts this week. Continue?">
               <input type="hidden" name="role" value="{{ gap.role }}">
-              <button type="submit" class="btn">Notify {{ gap.role }}</button>
+              <button type="submit" class="btn"><i class="bi bi-envelope" aria-hidden="true"></i> Notify {{ gap.role }}</button>
             </form>
           {% else %}
             <span class="topbar-pill">Select a branch to notify staff</span>
@@ -77,25 +77,26 @@
 
 <div class="section-heading">Comprehensive Consultation Analytics</div>
 <p class="section-subcopy">Reviewing historical volume patterns, forecasts, and current case distribution.</p>
-<div class="grid section-grid">
+<div class="chart-card">
+  <h3>Monthly Consultation Trend</h3>
+  <p class="admin-section-description">Shows consultation volume over time.</p>
+  <div class="chart-container analytics-trend-container">
+    <canvas id="monthlyTrendChart"></canvas>
+  </div>
+</div>
+<div class="grid demographic-forecast-grid" style="margin-top:20px;">
   <div class="chart-card">
-    <h3>Monthly Consultation Trend</h3>
-    <div class="chart-container analytics-trend-container">
-      <canvas id="monthlyTrendChart"></canvas>
+    <h3>Top 5 Diagnosis Cases by Volume</h3>
+    <p class="admin-section-description">Shows the highest-volume recorded diagnoses.</p>
+    <div class="chart-container analytics-side-container">
+      <canvas id="topCasesBarChart"></canvas>
     </div>
   </div>
-  <div class="analytics-side-stack">
-    <div class="chart-card">
-      <h3>Top 5 Diagnosis Cases by Volume</h3>
-      <div class="chart-container analytics-side-container analytics-top-cases-container">
-        <canvas id="topCasesBarChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-card">
-      <h3>Gender Distribution</h3>
-      <div class="chart-container analytics-side-container">
-        <canvas id="genderDistributionDonutChart"></canvas>
-      </div>
+  <div class="chart-card">
+    <h3>Sex Distribution</h3>
+    <p class="admin-section-description">Shows the current patient distribution by sex.</p>
+    <div class="chart-container analytics-side-container">
+      <canvas id="sexDistributionDonutChart"></canvas>
     </div>
   </div>
 </div>
@@ -105,7 +106,7 @@
 <div class="chart-card">
   <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
   <p class="muted-copy">
-    The prediction summary, resource recommendation, age-group forecast, gender forecast, and demographic segment forecast below all refer to {{ summary.predicted_month_full_label }}.
+    The prediction summary, resource recommendation, age-group forecast, sex forecast, and demographic segment forecast below all refer to {{ summary.predicted_month_full_label }}.
   </p>
 </div>
 
@@ -157,7 +158,7 @@
             </td>
             <td>
               <span class="trend-indicator trend-{{ item.trend|lower }}">
-                {% if item.trend == 'Increasing' %}&#8593;{% elif item.trend == 'Decreasing' %}&#8595;{% else %}&#8594;{% endif %}
+                {% if item.trend == 'Increasing' %}<i class="bi bi-arrow-up" aria-hidden="true"></i>{% elif item.trend == 'Decreasing' %}<i class="bi bi-arrow-down" aria-hidden="true"></i>{% else %}<i class="bi bi-arrow-right" aria-hidden="true"></i>{% endif %}
                 {{ item.trend }}
               </span>
             </td>
@@ -205,16 +206,18 @@
 </div>
 
 <div class="section-heading">Demographic Forecast Detail</div>
-<p class="section-subcopy">How the predicted cases split by age group and gender for {{ summary.predicted_month_label }}.</p>
+<p class="section-subcopy">How the predicted cases split by age group and sex for {{ summary.predicted_month_label }}.</p>
 <div class="grid demographic-forecast-grid">
   <div class="chart-card">
     <h3>Forecast by Age Group</h3>
+    <p class="admin-section-description">Shows forecasted patient volume across age groups.</p>
     <div class="chart-container">
       <canvas id="ageForecastChart"></canvas>
     </div>
   </div>
   <div class="chart-card">
-    <h3>Forecast by Gender</h3>
+    <h3>Forecast by Sex</h3>
+    <p class="admin-section-description">Shows forecasted patient volume by sex.</p>
     <div class="chart-container">
       <canvas id="genderForecastChart"></canvas>
     </div>
@@ -261,11 +264,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
-  Chart.register(ChartDataLabels);
+  if (window.ChartDataLabels) Chart.register(ChartDataLabels);
   Chart.defaults.set('plugins.datalabels', { display: false });
 
   const demographicBarColor = '#0f5b8a';
   const demographicLabelColor = '#11354f';
+  const SEX_COLORS = Object.freeze({ male: '#2563eb', female: '#ec4899' });
+  const sexColorFor = (label) => SEX_COLORS[String(label).toLowerCase()] || SEX_COLORS.male;
 
   function wrapLabel(text, maxLineLength) {
     const words = String(text).split(' ');
@@ -370,9 +375,9 @@
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { right: 36 } },
-        maxBarThickness: 26,
-        categoryPercentage: 0.7,
+        layout: { padding: { right: 36, top: 4, bottom: 4 } },
+        maxBarThickness: 22,
+        categoryPercentage: 0.8,
         barPercentage: 0.85,
         plugins: {
           legend: { display: false },
@@ -398,30 +403,32 @@
     });
   }
 
-  const genderDistributionDonutCtx = document.getElementById('genderDistributionDonutChart');
-  if (genderDistributionDonutCtx) {
-    const genderLabels = {{ summary.gender_distribution | map('first') | list | tojson }};
-    const genderValues = {{ summary.gender_distribution | map('last') | list | tojson }};
-    const genderTotal = genderValues.reduce((sum, value) => sum + value, 0);
-    new Chart(genderDistributionDonutCtx, {
+  const sexDistributionDonutCtx = document.getElementById('sexDistributionDonutChart');
+  if (sexDistributionDonutCtx) {
+    const sexLabels = {{ summary.gender_distribution | map('first') | list | tojson }};
+    const sexValues = {{ summary.gender_distribution | map('last') | list | tojson }};
+    const sexTotal = sexValues.reduce((sum, value) => sum + value, 0);
+    const sexColors = sexLabels.map(sexColorFor);
+    new Chart(sexDistributionDonutCtx, {
       type: 'doughnut',
       data: {
-        labels: genderLabels,
+        labels: sexLabels,
         datasets: [{
-          data: genderValues,
-          backgroundColor: ['#2563eb', '#ec4899'],
+          data: sexValues,
+          backgroundColor: sexColors,
           borderWidth: 0,
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { top: 6, bottom: 6 } },
         plugins: {
-          legend: { display: true, position: 'bottom' },
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
           tooltip: {
             callbacks: {
               label: function(context) {
-                return context.label + ': ' + context.parsed + ' cases';
+                return 'Sex - ' + context.label + ': ' + context.parsed + ' cases';
               }
             }
           },
@@ -431,7 +438,7 @@
             font: { weight: '600', size: 12 },
             formatter: (value, context) => {
               const label = context.chart.data.labels[context.dataIndex];
-              const pct = genderTotal ? Math.round((value / genderTotal) * 100) : 0;
+              const pct = sexTotal ? Math.round((value / sexTotal) * 100) : 0;
               return label + '\n' + value + ' (' + pct + '%)';
             }
           }
@@ -447,9 +454,9 @@
       responsive: true,
       maintainAspectRatio: false,
       layout: { padding: { right: 36 } },
-      barPercentage: 0.65,
+      barPercentage: 0.85,
       categoryPercentage: 0.8,
-      maxBarThickness: 24,
+      maxBarThickness: 34,
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -503,7 +510,7 @@
         datasets: [{
           label: '{{ summary.predicted_month_label }} forecast',
           data: genderData.map((item) => item.forecasted_cases),
-          backgroundColor: demographicBarColor,
+          backgroundColor: genderData.map((item) => sexColorFor(item.gender)),
           borderRadius: 4
         }]
       }

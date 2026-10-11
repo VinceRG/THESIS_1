@@ -1,0 +1,520 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Dashboard · Smart Healthcare Clinic Management{% endblock %}
+{% block page_title %}Operations Dashboard{% endblock %}
+{% block page_subtitle %}Trusted overview of patient demand, staffing, and readiness{% endblock %}
+
+{% block content %}
+{% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
+{% if not summary.rf_metrics %}
+  <div class="flash-message flash-warning" style="margin-bottom:18px;">
+    Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.
+    Visit <a href="{{ url_for('predict') }}">Predictions</a> and use <strong>Retrain Model</strong> for a fresh forecast.
+  </div>
+{% endif %}
+{% if weekly_gaps %}
+  <div class="chart-card staffing-gap-banner" style="margin-bottom:18px; border:1px solid #fecaca; background:#fef2f2;">
+    <h3 style="margin-top:0;">Staffing Gap This Week</h3>
+    <p class="muted-copy">Forecasted patient volume this week exceeds available staff for these roles. Notify them by email if they can pick up extra shifts.</p>
+    <div class="staffing-gap-list">
+      {% for gap in weekly_gaps %}
+        <div class="staffing-gap-row">
+          <div>
+            <strong>{{ gap.role }}</strong>
+            <span class="muted-copy">Need {{ gap.gap }} more (required {{ gap.required_staff }}, available {{ gap.available_staff }}) on {{ gap.day_name }} {{ gap.date }}</span>
+          </div>
+          {% if selected_branch_value != 'all' %}
+            <form method="post" action="{{ url_for('notify_staffing_gap') }}" style="display:inline-block;"
+                  data-confirm-title="Notify {{ gap.role }} staff?"
+                  data-confirm="This will email every active {{ gap.role }} on this branch who has an email on file, asking them to cover extra shifts this week. Continue?">
+              <input type="hidden" name="role" value="{{ gap.role }}">
+              <button type="submit" class="btn"><i class="bi bi-envelope" aria-hidden="true"></i> Notify {{ gap.role }}</button>
+            </form>
+          {% else %}
+            <span class="topbar-pill">Select a branch to notify staff</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+<div class="section-stack">
+<div class="section-heading">Forecast Overview</div>
+<p class="section-subcopy">Key numbers driving this month's staffing and readiness decisions.</p>
+{% set capacity_headline = 'Optimal Capacity' if summary.capacity_status == 'Healthy' else ('Approaching Capacity' if summary.capacity_status == 'Moderate' else 'Capacity Exceeded') %}
+{% set capacity_badge_class = 'badge-green' if summary.capacity_status == 'Healthy' else ('badge-amber' if summary.capacity_status == 'Moderate' else 'badge-red') %}
+<div class="grid cards forecast-overview-cards">
+  <div class="card">
+    <h3>Total Consultations</h3>
+    <div class="value">{{ summary.total_consultations }}</div>
+    <div class="card-trend-plain">Based on uploaded records</div>
+    <p class="card-caption">All consultation records on file for the selected branch.</p>
+  </div>
+  <div class="card">
+    <h3>Predicted Cases Next Month</h3>
+    <div class="value">{{ summary.predicted_cases_next_month }}</div>
+    <div class="card-trend-badge badge-amber">{{ summary.top_diagnosis }} is driving the trend</div>
+    <p class="card-caption">Random Forest forecast of total consultation volume for {{ summary.predicted_month_label }}.</p>
+  </div>
+  <div class="card">
+    <h3>Available Staff</h3>
+    <div class="value">{{ summary.staff_count }}</div>
+    <div class="card-trend-plain">Current staff roster</div>
+    <p class="card-caption">Active staff currently on the roster for this branch.</p>
+  </div>
+  <div class="card">
+    <h3>Resource Readiness</h3>
+    <div class="value">{{ summary.resource_readiness }}%</div>
+    <div class="card-trend-badge {{ capacity_badge_class }}">
+      <strong>{{ capacity_headline }}</strong>
+      <span>Based on staff capacity setting</span>
+    </div>
+    <p class="card-caption">Estimated monthly capacity as a share of predicted demand.</p>
+  </div>
+</div>
+
+{% include 'partials/branch_breakdown.html' %}
+
+<div class="section-heading">Comprehensive Consultation Analytics</div>
+<p class="section-subcopy">Reviewing historical volume patterns, forecasts, and current case distribution.</p>
+<div class="chart-card">
+  <h3>Monthly Consultation Trend</h3>
+  <p class="admin-section-description">Shows consultation volume over time.</p>
+  <div class="chart-container analytics-trend-container">
+    <canvas id="monthlyTrendChart"></canvas>
+  </div>
+</div>
+<div class="grid demographic-forecast-grid" style="margin-top:20px;">
+  <div class="chart-card">
+    <h3>Top 5 Diagnosis Cases by Volume</h3>
+    <p class="admin-section-description">Shows the highest-volume recorded diagnoses.</p>
+    <div class="chart-container analytics-side-container">
+      <canvas id="topCasesBarChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Sex Distribution</h3>
+    <p class="admin-section-description">Shows the current patient distribution by sex.</p>
+    <div class="chart-container analytics-side-container">
+      <canvas id="sexDistributionDonutChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="section-heading">Diagnosis Forecast &amp; Resource Recommendation</div>
+<p class="section-subcopy">What the model expects next month, and the staffing implications.</p>
+<div class="chart-card">
+  <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
+  <p class="muted-copy">
+    The prediction summary, resource recommendation, age-group forecast, sex forecast, and demographic segment forecast below all refer to {{ summary.predicted_month_full_label }}.
+  </p>
+</div>
+
+<div class="grid section-grid">
+  <div class="chart-card full-width">
+    <h3>Prediction Summary</h3>
+    <div class="prediction-period-banner">
+      <span><span class="period-label">Reference Month (Last Year)</span> {{ summary.reference_month }}</span>
+      <span class="period-divider"></span>
+      <span><span class="period-label">Predicted Month (Current)</span> {{ summary.predicted_month_label }}</span>
+    </div>
+    {% set filtered_predictions = summary.predictions | selectattr('diagnosis', 'ne', 'Other Services/Cases') | list %}
+    {% set ref_counts = [] %}
+    {% set pred_counts = [] %}
+    {% for item in filtered_predictions %}
+      {% set _ = ref_counts.append(item.current_month or 0) %}
+      {% set _ = pred_counts.append(item.predicted_next_month or 0) %}
+    {% endfor %}
+    {% set max_ref = (ref_counts | max) if ref_counts and (ref_counts | max) > 0 else 1 %}
+    {% set max_pred = (pred_counts | max) if pred_counts and (pred_counts | max) > 0 else 1 %}
+    <table class="table table-sticky-head">
+      <thead>
+        <tr>
+          <th>Disease</th>
+          <th>Reference Month Count</th>
+          <th>Predicted Volume</th>
+          <th>Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in filtered_predictions %}
+          <tr>
+            <td>{{ item.diagnosis }}</td>
+            <td>
+              {% if item.current_month is not none %}
+                <div class="metric-cell">
+                  <span class="metric-value">{{ item.current_month }}</span>
+                  <span class="metric-track"><span class="metric-fill" style="width: {{ (item.current_month / max_ref * 100) | round }}%;"></span></span>
+                </div>
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td>
+              <div class="metric-cell">
+                <span class="metric-value">{{ item.predicted_next_month }}{% if item.predicted_low is not none and item.predicted_high is not none and item.predicted_low != item.predicted_high %} <span class="muted-copy" style="font-size:11px;">({{ item.predicted_low }}&ndash;{{ item.predicted_high }})</span>{% endif %}</span>
+                <span class="metric-track"><span class="metric-fill" style="width: {{ (item.predicted_next_month / max_pred * 100) | round }}%;"></span></span>
+              </div>
+            </td>
+            <td>
+              <span class="trend-indicator trend-{{ item.trend|lower }}">
+                {% if item.trend == 'Increasing' %}<i class="bi bi-arrow-up" aria-hidden="true"></i>{% elif item.trend == 'Decreasing' %}<i class="bi bi-arrow-down" aria-hidden="true"></i>{% else %}<i class="bi bi-arrow-right" aria-hidden="true"></i>{% endif %}
+                {{ item.trend }}
+              </span>
+            </td>
+          </tr>
+        {% else %}
+          <tr class="table-empty-state">
+            <td colspan="4"><strong>No predictions available yet.</strong>Upload consultation data and retrain the model to generate a forecast.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="chart-card">
+    <h3>Forecast-Based Resource Recommendation</h3>
+    <p><strong>Recommendation:</strong> {{ summary.resource_recommendation }}</p>
+    <p class="muted-copy">
+      Random Forest forecasts consultation volume. Staff-role guidance is produced by mapping forecasted cases and scheduled services to clinic staff roles. This is decision support, not a directive.
+    </p>
+    <p><strong>Staff Capacity:</strong> {{ summary.estimated_monthly_capacity }} consultations/month</p>
+    <div class="resource-progress">
+      <div class="resource-progress-label">
+        <span><strong>Forecast Pressure</strong></span>
+        <strong>{{ summary.forecast_pressure_raw }}%</strong>
+      </div>
+      <div class="resource-progress-track">
+        <div class="resource-progress-bar status-{{ summary.capacity_status|lower }}" style="width:{{ summary.forecast_pressure }}%;"></div>
+      </div>
+    </div>
+    <p><strong>Top Mapped Staff Role:</strong> {{ staff_forecast.get('top_role', 'No role demand yet') }} ({{ staff_forecast.get('top_role_demand', 0) }} cases or service needs)</p>
+    <p><em>{{ summary.resource_forecast_recommendation }}</em></p>
+  </div>
+</div>
+
+<div class="chart-card pipeline-explainer">
+  <h3>How the Prediction Works</h3>
+  <div class="pipeline-steps">
+    <span class="pipeline-step">Historical Data</span><span class="pipeline-arrow">&rarr;</span>
+    <span class="pipeline-step">RF Forecast</span><span class="pipeline-arrow">&rarr;</span>
+    <span class="pipeline-step">Predicted Demand</span><span class="pipeline-arrow">&rarr;</span>
+    <span class="pipeline-step">Diagnosis Mapping</span><span class="pipeline-arrow">&rarr;</span>
+    <span class="pipeline-step">Required Staff</span><span class="pipeline-arrow">&rarr;</span>
+    <span class="pipeline-step">Compare Available</span><span class="pipeline-arrow">&rarr;</span>
+    <span class="pipeline-step">Recommendation</span>
+  </div>
+</div>
+
+<div class="section-heading">Demographic Forecast Detail</div>
+<p class="section-subcopy">How the predicted cases split by age group and sex for {{ summary.predicted_month_label }}.</p>
+<div class="grid demographic-forecast-grid">
+  <div class="chart-card">
+    <h3>Forecast by Age Group</h3>
+    <p class="admin-section-description">Shows forecasted patient volume across age groups.</p>
+    <div class="chart-container">
+      <canvas id="ageForecastChart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h3>Forecast by Sex</h3>
+    <p class="admin-section-description">Shows forecasted patient volume by sex.</p>
+    <div class="chart-container">
+      <canvas id="genderForecastChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="chart-card">
+  <h3>Top Diagnosis-Demographic Forecast Segments</h3>
+  <p class="muted-copy" style="margin-bottom:14px;">A consolidated view of the highest-impact diagnoses and their demographic breakdowns, sorted by total forecasted cases.</p>
+  <div class="table-scroll">
+    <table class="table demographic-segments-table">
+      <thead>
+        <tr>
+          <th>Diagnosis</th>
+          <th>Age Group</th>
+          <th class="gender-col">Forecasted Cases (Male)</th>
+          <th class="gender-col">Forecasted Cases (Female)</th>
+          <th>Total Cases</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in summary.demographic_forecast.segments_grouped %}
+          <tr>
+            <td><span class="diagnosis-cell">{{ row.diagnosis }}</span></td>
+            <td>{{ row.age_group }}</td>
+            <td>{{ row.male_cases }}</td>
+            <td>{{ row.female_cases }}</td>
+            <td>
+              <div class="total-cases-cell">
+                <span class="total-cases-value">{{ row.total_cases }}</span>
+                <span class="total-cases-track"><span class="total-cases-fill" style="width: {{ row.bar_percent }}%;"></span></span>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr class="table-empty-state"><td colspan="5">No demographic segment forecast available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script>
+  Chart.register(ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels', { display: false });
+
+  const demographicBarColor = '#0f5b8a';
+  const demographicLabelColor = '#11354f';
+  const SEX_COLORS = Object.freeze({ male: '#2563eb', female: '#ec4899' });
+  const sexColorFor = (label) => SEX_COLORS[String(label).toLowerCase()] || SEX_COLORS.male;
+
+  function wrapLabel(text, maxLineLength) {
+    const words = String(text).split(' ');
+    const lines = [];
+    let currentLine = '';
+    words.forEach((word) => {
+      const candidate = currentLine ? currentLine + ' ' + word : word;
+      if (candidate.length > maxLineLength && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = candidate;
+      }
+    });
+    if (currentLine) lines.push(currentLine);
+    return lines;
+  }
+
+  const trendCtx = document.getElementById('monthlyTrendChart');
+  if (trendCtx) {
+    const historicalLabels = {{ summary.monthly_trend | map(attribute='month') | list | tojson }};
+    const historicalValues = {{ summary.monthly_trend | map(attribute='count') | list | tojson }};
+    const forecastMonthLabel = {{ (summary.predicted_month_label or 'Forecast') | tojson }};
+    const forecastValue = {{ summary.predicted_cases_next_month | tojson }};
+    const hasForecastPoint = historicalValues.length > 0 && typeof forecastValue === 'number';
+    const trendLabels = hasForecastPoint ? historicalLabels.concat([forecastMonthLabel]) : historicalLabels;
+    const historicalBarData = hasForecastPoint ? historicalValues.concat([null]) : historicalValues;
+    const forecastLineData = hasForecastPoint
+      ? historicalValues.slice(0, -1).map(() => null).concat([historicalValues[historicalValues.length - 1], forecastValue])
+      : [];
+
+    const trendChartArea = trendCtx.getContext('2d');
+    const barGradient = trendChartArea.createLinearGradient(0, 0, 0, 320);
+    barGradient.addColorStop(0, 'rgba(37, 99, 235, 0.85)');
+    barGradient.addColorStop(1, 'rgba(37, 99, 235, 0.35)');
+
+    new Chart(trendCtx, {
+      type: 'bar',
+      data: {
+        labels: trendLabels,
+        datasets: [{
+          type: 'bar',
+          label: 'Historical Actual',
+          data: historicalBarData,
+          backgroundColor: barGradient,
+          borderRadius: 6,
+          borderWidth: 0,
+          maxBarThickness: 22,
+        }, {
+          type: 'line',
+          label: 'Model Forecast',
+          data: forecastLineData,
+          borderColor: '#d97706',
+          backgroundColor: '#d97706',
+          borderDash: [6, 4],
+          borderWidth: 2.5,
+          tension: 0,
+          fill: false,
+          pointRadius: 5,
+          pointBackgroundColor: '#d97706',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top' },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(17, 53, 79, 0.94)',
+            padding: 10,
+            cornerRadius: 8,
+            titleFont: { weight: '600' },
+            displayColors: true,
+            boxPadding: 4,
+          }
+        },
+        scales: {
+          x: { title: { display: true, text: 'Month' }, grid: { display: false } },
+          y: { beginAtZero: true, title: { display: true, text: 'Patient Volume' } }
+        },
+        maintainAspectRatio: false,
+      }
+    });
+  }
+
+  const topCasesBarCtx = document.getElementById('topCasesBarChart');
+  if (topCasesBarCtx) {
+    new Chart(topCasesBarCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ summary.top_cases | map('first') | list | tojson }}.map(label => wrapLabel(label, 20)),
+        datasets: [{
+          data: {{ summary.top_cases | map('last') | list | tojson }},
+          backgroundColor: demographicBarColor,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { right: 36, top: 4, bottom: 4 } },
+        maxBarThickness: 22,
+        categoryPercentage: 0.8,
+        barPercentage: 0.85,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => context.parsed.x + ' cases'
+            }
+          },
+          datalabels: {
+            display: true,
+            anchor: 'end',
+            align: 'end',
+            color: demographicLabelColor,
+            font: { weight: '600' },
+            formatter: (value) => Number(value).toLocaleString()
+          }
+        },
+        scales: {
+          x: { display: false, beginAtZero: true },
+          y: { grid: { display: false }, ticks: { font: { size: 11 }, autoSkip: false } }
+        }
+      }
+    });
+  }
+
+  const sexDistributionDonutCtx = document.getElementById('sexDistributionDonutChart');
+  if (sexDistributionDonutCtx) {
+    const sexLabels = {{ summary.gender_distribution | map('first') | list | tojson }};
+    const sexValues = {{ summary.gender_distribution | map('last') | list | tojson }};
+    const sexTotal = sexValues.reduce((sum, value) => sum + value, 0);
+    const sexColors = sexLabels.map(sexColorFor);
+    new Chart(sexDistributionDonutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: sexLabels,
+        datasets: [{
+          data: sexValues,
+          backgroundColor: sexColors,
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 6, bottom: 6 } },
+        plugins: {
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 12, padding: 10 } },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return 'Sex - ' + context.label + ': ' + context.parsed + ' cases';
+              }
+            }
+          },
+          datalabels: {
+            display: true,
+            color: '#fff',
+            font: { weight: '600', size: 12 },
+            formatter: (value, context) => {
+              const label = context.chart.data.labels[context.dataIndex];
+              const pct = sexTotal ? Math.round((value / sexTotal) * 100) : 0;
+              return label + '\n' + value + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    });
+  }
+
+  const demographicBarDefaults = {
+    type: 'bar',
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 36 } },
+      barPercentage: 0.85,
+      categoryPercentage: 0.8,
+      maxBarThickness: 34,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: context => context.parsed.x + ' forecasted cases'
+          }
+        },
+        datalabels: {
+          display: true,
+          anchor: 'end',
+          align: 'end',
+          color: demographicLabelColor,
+          font: { weight: '600' },
+          formatter: (value) => Number(value).toLocaleString()
+        }
+      },
+      scales: {
+        x: { display: false, beginAtZero: true },
+        y: { grid: { display: false } }
+      }
+    }
+  };
+
+  const ageForecastCtx = document.getElementById('ageForecastChart');
+  if (ageForecastCtx) {
+    const ageOrder = ['Child', 'Adult', 'Senior'];
+    const ageData = [...{{ summary.demographic_forecast.age_group | tojson }}].sort(
+      (a, b) => ageOrder.indexOf(a.age_group) - ageOrder.indexOf(b.age_group)
+    );
+    new Chart(ageForecastCtx, {
+      ...demographicBarDefaults,
+      data: {
+        labels: ageData.map((item) => item.age_group),
+        datasets: [{
+          label: '{{ summary.predicted_month_label }} forecast',
+          data: ageData.map((item) => item.forecasted_cases),
+          backgroundColor: demographicBarColor,
+          borderRadius: 4
+        }]
+      }
+    });
+  }
+
+  const genderForecastCtx = document.getElementById('genderForecastChart');
+  if (genderForecastCtx) {
+    const genderData = {{ summary.demographic_forecast.gender | tojson }};
+    new Chart(genderForecastCtx, {
+      ...demographicBarDefaults,
+      data: {
+        labels: genderData.map((item) => item.gender),
+        datasets: [{
+          label: '{{ summary.predicted_month_label }} forecast',
+          data: genderData.map((item) => item.forecasted_cases),
+          backgroundColor: genderData.map((item) => sexColorFor(item.gender)),
+          borderRadius: 4
+        }]
+      }
+    });
+  }
+</script>
+{% endblock %}

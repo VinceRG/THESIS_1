@@ -1,0 +1,691 @@
+source_page,package_name,included_service
+packages,Basic Chem Package,Fasting Blood Sugar (FBS)
+packages,Basic Chem Package,Creatinine
+packages,Basic Chem Package,Blood Uric Acid (BUA)
+packages,Basic Chem Package,Lipid Profile
+packages,Basic Chem Package,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Basic Chem Package,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,General Health Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,General Health Package A,Fasting Blood Sugar (FBS)
+packages,General Health Package A,Blood Urea Nitrogen (BUN)
+packages,General Health Package A,Creatinine
+packages,General Health Package A,Blood Uric Acid (BUA)
+packages,General Health Package A,Lipid Profile
+packages,General Health Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,General Health Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,General Health Package A,Alkaline Phosphatase (ALP)
+packages,General Health Package A,Complete Urinalysis
+packages,General Health Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,General Health Package B,Fasting Blood Sugar (FBS)
+packages,General Health Package B,Blood Urea Nitrogen (BUN)
+packages,General Health Package B,Creatinine
+packages,General Health Package B,Blood Uric Acid (BUA)
+packages,General Health Package B,Lipid Profile
+packages,General Health Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,General Health Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,General Health Package B,Alkaline Phosphatase (ALP)
+packages,General Health Package B,Complete Urinalysis
+packages,General Health Package B,Sodium (Na)
+packages,General Health Package B,Potassium (K)
+packages,General Health Package C,Complete Blood Count with Platelet Count (CBCPC)
+packages,General Health Package C,Erythrocyte Sedimentation Rate (ESR)
+packages,General Health Package C,Fasting Blood Sugar (FBS)
+packages,General Health Package C,Glycated Hemoglobin Test (HBA1c)
+packages,General Health Package C,Blood Urea Nitrogen (BUN)
+packages,General Health Package C,Creatinine
+packages,General Health Package C,Blood Uric Acid (BUA)
+packages,General Health Package C,Lipid Profile
+packages,General Health Package C,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,General Health Package C,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,General Health Package C,Alkaline Phosphatase (ALP)
+packages,General Health Package C,Total Protein with A/G Ratio (TPAG)
+packages,General Health Package C,Bilirubin (TB/DB/IB)
+packages,General Health Package C,Gamma-Glutamyl Transferase (GGT)
+packages,General Health Package C,Complete Urinalysis
+packages,General Health Package C,Sodium (Na)
+packages,General Health Package C,Potassium (K)
+packages,General Health Package C,Chloride (Cl)
+packages,General Health Package C,Total Calcium (tCa)
+packages,General Health Package C,Carcinoembryonic Antigen (CEA)
+packages,General Health Package C,Fecalysis
+packages,General Health Package C,Fecal Occult Blood (FIT)
+packages,Buntis Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package A,ABO Blood Typing with RH
+packages,Buntis Package A,Urinalysis
+packages,Buntis Package A,HBsAg Screening
+packages,Buntis Package A,VDRL Screening
+packages,Buntis Package A,HIV Screening
+packages,Buntis Package A,Fasting Blood Sugar (FBS)
+packages,Buntis Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package B,ABO Blood Typing with RH
+packages,Buntis Package B,Urinalysis
+packages,Buntis Package B,HBsAg Screening
+packages,Buntis Package B,VDRL Screening
+packages,Buntis Package B,HIV Screening
+packages,Buntis Package B,Fasting Blood Sugar (FBS)
+packages,Buntis Package B,Anti-HBS
+packages,Buntis Package C,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package C,ABO Blood Typing with RH
+packages,Buntis Package C,Urinalysis
+packages,Buntis Package C,HBsAg Screening
+packages,Buntis Package C,VDRL Screening
+packages,Buntis Package C,HIV Screening
+packages,Buntis Package C,Fasting Blood Sugar (FBS)
+packages,Buntis Package C,Anti-HBS
+packages,Buntis Package C,OGTT
+packages,Buntis Package D,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package D,ABO Blood Typing with RH
+packages,Buntis Package D,Urinalysis
+packages,Buntis Package D,HBsAg Screening
+packages,Buntis Package D,VDRL Screening
+packages,Buntis Package D,HIV Screening
+packages,Buntis Package D,Fasting Blood Sugar (FBS)
+packages,Buntis Package D,Anti-HBS
+packages,Buntis Package D,HBA1C
+packages,Buntis Package E,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package E,ABO Blood Typing with RH
+packages,Buntis Package E,Urinalysis
+packages,Buntis Package E,HBsAg Screening
+packages,Buntis Package E,VDRL Screening
+packages,Buntis Package E,HIV Screening
+packages,Buntis Package E,Anti-HBS
+packages,Buntis Package E,OGTT
+packages,Buntis Package E,HBA1C
+packages,Buntis Package F,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package F,ABO Blood Typing with RH
+packages,Buntis Package F,Urinalysis
+packages,Buntis Package F,HBsAg Screening
+packages,Buntis Package F,VDRL Screening
+packages,Buntis Package F,HIV Screening
+packages,Buntis Package F,Anti-HBS
+packages,Buntis Package F,Fasting Blood Sugar (FBS)
+packages,Buntis Package F,OGTT
+packages,Buntis Package F,HBA1C
+packages,Buntis Package G,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package G,ABO Blood Typing with RH
+packages,Buntis Package G,Urinalysis
+packages,Buntis Package G,HBsAg Screening
+packages,Buntis Package G,VDRL Screening
+packages,Buntis Package G,HIV Screening
+packages,Buntis Package G,Anti-HBS
+packages,Buntis Package G,OGTT
+packages,Buntis Package G,HBA1C
+packages,Buntis Package G,Urine Culture and Sensitivity
+packages,Buntis Package H,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package H,ABO Blood Typing with RH
+packages,Buntis Package H,Urinalysis
+packages,Buntis Package H,HBsAg Screening
+packages,Buntis Package H,VDRL Screening
+packages,Buntis Package H,HIV Screening
+packages,Buntis Package H,TSH
+packages,Buntis Package H,Fasting Blood Sugar (FBS)
+packages,Buntis Package H,Anti-HBS
+packages,Buntis Package H,HBA1C
+packages,Buntis Package H,Urine Culture and Sensitivity
+packages,Buntis Package I,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package I,ABO Blood Typing with RH
+packages,Buntis Package I,Urinalysis
+packages,Buntis Package I,HBsAg Screening
+packages,Buntis Package I,VDRL Screening
+packages,Buntis Package I,HIV Screening
+packages,Buntis Package I,TSH
+packages,Buntis Package I,OGTT
+packages,Buntis Package I,Anti-HBS
+packages,Buntis Package I,HBA1C
+packages,Buntis Package I,Urine Culture and Sensitivity
+packages,Buntis Package J,Complete Blood Count with Platelet Count (CBCPC)
+packages,Buntis Package J,ABO Blood Typing with RH
+packages,Buntis Package J,Urinalysis
+packages,Buntis Package J,HBsAg Screening
+packages,Buntis Package J,VDRL Screening
+packages,Buntis Package J,HIV Screening
+packages,Buntis Package J,TSH
+packages,Buntis Package J,OGTT
+packages,Buntis Package J,Anti-HBS
+packages,Buntis Package J,Rubella lgG
+packages,Buntis Package J,HBA1C
+packages,Buntis Package J,Urine Culture and Sensitivity
+packages,Diabetes Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Diabetes Package A,Glycated Hemoglobin Test (HBA1c)
+packages,Diabetes Package A,Fasting Blood Sugar (FBS)
+packages,Diabetes Package A,Blood Urea Nitrogen (BUN)
+packages,Diabetes Package A,Creatinine
+packages,Diabetes Package A,Blood Uric Acid (BUA)
+packages,Diabetes Package A,Lipid Profile
+packages,Diabetes Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Diabetes Package A,Sodium (Na)
+packages,Diabetes Package A,Potassium (K)
+packages,Diabetes Package A,Chloride (Cl)
+packages,Diabetes Package A,Complete Urinalysis
+packages,Diabetes Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Diabetes Package B,Glycated Hemoglobin Test (HBA1c)
+packages,Diabetes Package B,Fasting Blood Sugar (FBS)
+packages,Diabetes Package B,Blood Urea Nitrogen (BUN)
+packages,Diabetes Package B,Creatinine
+packages,Diabetes Package B,Blood Uric Acid (BUA)
+packages,Diabetes Package B,Lipid Profile
+packages,Diabetes Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Diabetes Package B,Sodium (Na)
+packages,Diabetes Package B,Potassium (K)
+packages,Diabetes Package B,Chloride (Cl)
+packages,Diabetes Package B,Complete Urinalysis
+packages,Diabetes Package B,Urine Micral
+packages,Diabetes Package B,FBS
+packages,Heart and Diabetic Package,Complete Blood Count with Platelet Count (CBCPC)
+packages,Heart and Diabetic Package,Erythrocyte Sedimentation Rate (ESR)
+packages,Heart and Diabetic Package,Fasting Blood Sugar (FBS)
+packages,Heart and Diabetic Package,Blood Urea Nitrogen (BUN)
+packages,Heart and Diabetic Package,Creatinine
+packages,Heart and Diabetic Package,Lipid Profile
+packages,Heart and Diabetic Package,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Heart and Diabetic Package,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Heart and Diabetic Package,Sodium (Na)
+packages,Heart and Diabetic Package,Potassium (K)
+packages,Heart and Diabetic Package,Chloride (Cl)
+packages,Heart and Diabetic Package,Lactate Dehydrogenase (LDH)
+packages,Heart and Diabetic Package,Creatine Kinase-MB (CK-MB)
+packages,Heart and Diabetic Package,C-Reactive Protein (CRP)
+packages,Heart and Diabetic Package,Glycated Hemoglobin Test (HBA1c)
+packages,Heart and Diabetic Package,Blood Uric Acid (BUA)
+packages,Heart and Diabetic Package,Complete Urinalysis
+packages,Men’s Health Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Men’s Health Package A,Fasting Blood Sugar (FBS)
+packages,Men’s Health Package A,Blood Urea Nitrogen (BUN)
+packages,Men’s Health Package A,Creatinine
+packages,Men’s Health Package A,Blood Uric Acid (BUA)
+packages,Men’s Health Package A,Lipid Profile
+packages,Men’s Health Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Men’s Health Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Men’s Health Package A,Alkaline Phosphatase (ALP)
+packages,Men’s Health Package A,Sodium (Na)
+packages,Men’s Health Package A,Potassium (K)
+packages,Men’s Health Package A,Complete Urinalysis
+packages,Men’s Health Package A,Total Prostate Specific Antigen (PSA)
+packages,Men’s Health Package A,Carcinoembryonic Antigen (CEA)
+packages,Men’s Health Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Men’s Health Package B,Fasting Blood Sugar (FBS)
+packages,Men’s Health Package B,Blood Urea Nitrogen (BUN)
+packages,Men’s Health Package B,Creatinine
+packages,Men’s Health Package B,Blood Uric Acid (BUA)
+packages,Men’s Health Package B,Lipid Profile
+packages,Men’s Health Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Men’s Health Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Men’s Health Package B,Alkaline Phosphatase (ALP)
+packages,Men’s Health Package B,Sodium (Na)
+packages,Men’s Health Package B,Potassium (K)
+packages,Men’s Health Package B,Complete Urinalysis
+packages,Men’s Health Package B,Total Prostate Specific Antigen (PSA)
+packages,Men’s Health Package B,Carcinoembryonic Antigen (CEA)
+packages,Men’s Health Package B,Testosterone
+packages,Men’s Health Package B,Sperm Analysis
+packages,Men’s Health Premium Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Men’s Health Premium Package A,Fasting Blood Sugar (FBS)
+packages,Men’s Health Premium Package A,Blood Urea Nitrogen (BUN)
+packages,Men’s Health Premium Package A,Creatinine
+packages,Men’s Health Premium Package A,Blood Uric Acid (BUA)
+packages,Men’s Health Premium Package A,Lipid Profile
+packages,Men’s Health Premium Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Men’s Health Premium Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Men’s Health Premium Package A,Alkaline Phosphatase (ALP)
+packages,Men’s Health Premium Package A,Sodium (Na)
+packages,Men’s Health Premium Package A,Potassium (K)
+packages,Men’s Health Premium Package A,Complete Urinalysis
+packages,Men’s Health Premium Package A,Total Prostate Specific Antigen (PSA)
+packages,Men’s Health Premium Package A,Carcinoembryonic Antigen (CEA)
+packages,Men’s Health Premium Package A,Chest Xray
+packages,Men’s Health Premium Package A,ECG
+packages,Men’s Health Premium Package A,Prostate Ultrasound
+packages,Men’s Health Premium Package A,Physical Examination
+packages,Men’s Health Premium Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Men’s Health Premium Package B,Fasting Blood Sugar (FBS)
+packages,Men’s Health Premium Package B,Blood Urea Nitrogen (BUN)
+packages,Men’s Health Premium Package B,Creatinine
+packages,Men’s Health Premium Package B,Blood Uric Acid (BUA)
+packages,Men’s Health Premium Package B,Lipid Profile
+packages,Men’s Health Premium Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Men’s Health Premium Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Men’s Health Premium Package B,Alkaline Phosphatase (ALP)
+packages,Men’s Health Premium Package B,Sodium (Na)
+packages,Men’s Health Premium Package B,Potassium (K)
+packages,Men’s Health Premium Package B,Complete Urinalysis
+packages,Men’s Health Premium Package B,Total Prostate Specific Antigen (PSA)
+packages,Men’s Health Premium Package B,Carcinoembryonic Antigen (CEA
+packages,Men’s Health Premium Package B,Testosterone
+packages,Men’s Health Premium Package B,Sperm Analysis
+packages,Men’s Health Premium Package B,Chest Xray
+packages,Men’s Health Premium Package B,ECG
+packages,Men’s Health Premium Package B,Prostate Ultrasound
+packages,Men’s Health Premium Package B,Physical Examination
+packages,Men’s Health Premium Package C,Complete Blood Count with Platelet Count (CBCPC)
+packages,Men’s Health Premium Package C,Fasting Blood Sugar (FBS)
+packages,Men’s Health Premium Package C,Blood Urea Nitrogen (BUN)
+packages,Men’s Health Premium Package C,Creatinine
+packages,Men’s Health Premium Package C,Blood Uric Acid (BUA)
+packages,Men’s Health Premium Package C,Lipid Profile
+packages,Men’s Health Premium Package C,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Men’s Health Premium Package C,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Men’s Health Premium Package C,Alkaline Phosphatase (ALP)
+packages,Men’s Health Premium Package C,Sodium (Na)
+packages,Men’s Health Premium Package C,Potassium (K)
+packages,Men’s Health Premium Package C,Complete Urinalysis
+packages,Men’s Health Premium Package C,Total Prostate Specific Antigen (PSA)
+packages,Men’s Health Premium Package C,Carcinoembryonic Antigen (CEA)
+packages,Men’s Health Premium Package C,Testosterone
+packages,Men’s Health Premium Package C,Sperm Analysis
+packages,Men’s Health Premium Package C,Chest Xray
+packages,Men’s Health Premium Package C,ECG
+packages,Men’s Health Premium Package C,Prostate Ultrasound
+packages,Men’s Health Premium Package C,2D Echo
+packages,Men’s Health Premium Package C,Physical Examination
+packages,Men’s Health Executive Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Men’s Health Executive Package A,Fasting Blood Sugar (FBS)
+packages,Men’s Health Executive Package A,Blood Urea Nitrogen (BUN)
+packages,Men’s Health Executive Package A,Creatinine
+packages,Men’s Health Executive Package A,Blood Uric Acid (BUA)
+packages,Men’s Health Executive Package A,Lipid Profile
+packages,Men’s Health Executive Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Men’s Health Executive Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Men’s Health Executive Package A,Alkaline Phosphatase (ALP)
+packages,Men’s Health Executive Package A,Sodium (Na)
+packages,Men’s Health Executive Package A,Potassium (K)
+packages,Men’s Health Executive Package A,Complete Urinalysis
+packages,Men’s Health Executive Package A,Total Prostate Specific Antigen (PSA)
+packages,Men’s Health Executive Package A,Carcinoembryonic Antigen (CEA)
+packages,Men’s Health Executive Package A,Chest Xray
+packages,Men’s Health Executive Package A,ECG
+packages,Men’s Health Executive Package A,Prostate Ultrasound
+packages,Men’s Health Executive Package A,Whole Abdomen
+packages,Men’s Health Executive Package A,Physical Examination
+packages,Men’s Health Executive Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Men’s Health Executive Package B,Fasting Blood Sugar (FBS)
+packages,Men’s Health Executive Package B,Blood Urea Nitrogen (BUN)
+packages,Men’s Health Executive Package B,Creatinine
+packages,Men’s Health Executive Package B,Blood Uric Acid (BUA)
+packages,Men’s Health Executive Package B,Lipid Profile
+packages,Men’s Health Executive Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Men’s Health Executive Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Men’s Health Executive Package B,Alkaline Phosphatase (ALP)
+packages,Men’s Health Executive Package B,Sodium (Na)
+packages,Men’s Health Executive Package B,Potassium (K)
+packages,Men’s Health Executive Package B,Complete Urinalysis
+packages,Men’s Health Executive Package B,Total Prostate Specific Antigen (PSA)
+packages,Men’s Health Executive Package B,Carcinoembryonic Antigen (CEA)
+packages,Men’s Health Executive Package B,Testosterone
+packages,Men’s Health Executive Package B,Sperm Analysis
+packages,Men’s Health Executive Package B,Chest Xray
+packages,Men’s Health Executive Package B,ECG
+packages,Men’s Health Executive Package B,Prostate Ultrasound
+packages,Men’s Health Executive Package B,Whole Abdomen
+packages,Men’s Health Executive Package B,2D Echo
+packages,Men’s Health Executive Package B,Physical Examination
+packages,Women’s Healthcare Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Package A,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Package A,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Package A,Creatinine
+packages,Women’s Healthcare Package A,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Package A,Lipid Profile
+packages,Women’s Healthcare Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Package A,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Package A,Sodium (Na)
+packages,Women’s Healthcare Package A,Potassium (K)
+packages,Women’s Healthcare Package A,Complete Urinalysis
+packages,Women’s Healthcare Package A,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Package A,Free Thyroxine (FT4)
+packages,Women’s Healthcare Package A,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Package A,Thyroxine (T4)
+packages,Women’s Healthcare Package A,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Package A,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Package A,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Package A,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Package A,Prolactin
+packages,Women’s Healthcare Package A,Estradiol
+packages,Women’s Healthcare Package A,Vitamin D
+packages,Women’s Healthcare Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Package B,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Package B,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Package B,Creatinine
+packages,Women’s Healthcare Package B,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Package B,Lipid Profile
+packages,Women’s Healthcare Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Package B,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Package B,Sodium (Na)
+packages,Women’s Healthcare Package B,Potassium(K)
+packages,Women’s Healthcare Package B,Complete Urinalysis
+packages,Women’s Healthcare Package B,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Package B,Free Thyroxine (FT4)
+packages,Women’s Healthcare Package B,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Package B,Thyroxine (T4)
+packages,Women’s Healthcare Package B,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Package B,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Package B,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Package B,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Package B,Prolactin
+packages,Women’s Healthcare Package B,Estradiol
+packages,Women’s Healthcare Package B,Vitamin D
+packages,Women’s Healthcare Package B,Cancer Antigen – 125 (CA – 125)
+packages,Women’s Healthcare Package B,Cancer Antigen – 153 (CA – 153)
+packages,Women’s Healthcare Package B,Carcinoembryonic Antigen (CEA)
+packages,Women’s Healthcare Premium Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Premium Package A,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Premium Package A,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Premium Package A,Creatinine
+packages,Women’s Healthcare Premium Package A,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Premium Package A,Lipid Profile
+packages,Women’s Healthcare Premium Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Premium Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Premium Package A,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Premium Package A,Sodium (Na)
+packages,Women’s Healthcare Premium Package A,Potassium (K)
+packages,Women’s Healthcare Premium Package A,Complete Urinalysis
+packages,Women’s Healthcare Premium Package A,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Premium Package A,Free Thyroxine (FT4)
+packages,Women’s Healthcare Premium Package A,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Premium Package A,Thyroxine (T4)
+packages,Women’s Healthcare Premium Package A,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Premium Package A,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Premium Package A,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Premium Package A,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Premium Package A,Prolactin
+packages,Women’s Healthcare Premium Package A,Estradiol
+packages,Women’s Healthcare Premium Package A,Vitamin D
+packages,Women’s Healthcare Premium Package A,Chest Xray
+packages,Women’s Healthcare Premium Package A,ECG
+packages,Women’s Healthcare Premium Package A,Physical Examination
+packages,Women’s Healthcare Premium Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Premium Package B,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Premium Package B,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Premium Package B,Creatinine
+packages,Women’s Healthcare Premium Package B,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Premium Package B,Lipid Profile
+packages,Women’s Healthcare Premium Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Premium Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Premium Package B,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Premium Package B,Sodium (Na)
+packages,Women’s Healthcare Premium Package B,Potassium (K)
+packages,Women’s Healthcare Premium Package B,Complete Urinalysis
+packages,Women’s Healthcare Premium Package B,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Premium Package B,Free Thyroxine (FT4)
+packages,Women’s Healthcare Premium Package B,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Premium Package B,Thyroxine (T4)
+packages,Women’s Healthcare Premium Package B,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Premium Package B,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Premium Package B,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Premium Package B,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Premium Package B,Prolactin
+packages,Women’s Healthcare Premium Package B,Estradiol
+packages,Women’s Healthcare Premium Package B,Vitamin D
+packages,Women’s Healthcare Premium Package B,Chest Xray
+packages,Women’s Healthcare Premium Package B,ECG
+packages,Women’s Healthcare Premium Package B,Breast Ultrasound
+packages,Women’s Healthcare Premium Package B,Physical Examination
+packages,Women’s Healthcare Premium Package C,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Premium Package C,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Premium Package C,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Premium Package C,Creatinine
+packages,Women’s Healthcare Premium Package C,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Premium Package C,Lipid Profile
+packages,Women’s Healthcare Premium Package C,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Premium Package C,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Premium Package C,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Premium Package C,Sodium (Na)
+packages,Women’s Healthcare Premium Package C,Potassium (K)
+packages,Women’s Healthcare Premium Package C,Complete Urinalysis
+packages,Women’s Healthcare Premium Package C,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Premium Package C,Free Thyroxine (FT4)
+packages,Women’s Healthcare Premium Package C,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Premium Package C,Thyroxine (T4)
+packages,Women’s Healthcare Premium Package C,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Premium Package C,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Premium Package C,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Premium Package C,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Premium Package C,Prolactin
+packages,Women’s Healthcare Premium Package C,Estradiol
+packages,Women’s Healthcare Premium Package C,Vitamin D
+packages,Women’s Healthcare Premium Package C,Chest Xray
+packages,Women’s Healthcare Premium Package C,ECG
+packages,Women’s Healthcare Premium Package C,Breast Ultrasound
+packages,Women’s Healthcare Premium Package C,Transvaginal Ultrasound
+packages,Women’s Healthcare Premium Package C,Physical Examination
+packages,Women’s Healthcare Premium Package D,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Premium Package D,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Premium Package D,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Premium Package D,Creatinine
+packages,Women’s Healthcare Premium Package D,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Premium Package D,Lipid Profile
+packages,Women’s Healthcare Premium Package D,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Premium Package D,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Premium Package D,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Premium Package D,Sodium (Na)
+packages,Women’s Healthcare Premium Package D,Potassium (K)
+packages,Women’s Healthcare Premium Package D,Complete Urinalysis
+packages,Women’s Healthcare Premium Package D,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Premium Package D,Free Thyroxine (FT4)
+packages,Women’s Healthcare Premium Package D,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Premium Package D,Thyroxine (T4)
+packages,Women’s Healthcare Premium Package D,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Premium Package D,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Premium Package D,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Premium Package D,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Premium Package D,Prolactin
+packages,Women’s Healthcare Premium Package D,Estradiol
+packages,Women’s Healthcare Premium Package D,Vitamin D
+packages,Women’s Healthcare Premium Package D,Cancer Antigen – 125 (CA – 125)
+packages,Women’s Healthcare Premium Package D,Cancer Antigen – 153 (CA – 153)
+packages,Women’s Healthcare Premium Package D,Carcinoembryonic Antigen (CEA)
+packages,Women’s Healthcare Premium Package D,Chest Xray
+packages,Women’s Healthcare Premium Package D,ECG
+packages,Women’s Healthcare Premium Package D,Physical Examination
+packages,Women’s Healthcare Premium Package E,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Premium Package E,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Premium Package E,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Premium Package E,Creatinine
+packages,Women’s Healthcare Premium Package E,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Premium Package E,Lipid Profile
+packages,Women’s Healthcare Premium Package E,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Premium Package E,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Premium Package E,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Premium Package E,Sodium (Na)
+packages,Women’s Healthcare Premium Package E,Potassium(K)
+packages,Women’s Healthcare Premium Package E,Complete Urinalysis
+packages,Women’s Healthcare Premium Package E,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Premium Package E,Free Thyroxine (FT4)
+packages,Women’s Healthcare Premium Package E,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Premium Package E,Thyroxine (T4)
+packages,Women’s Healthcare Premium Package E,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Premium Package E,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Premium Package E,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Premium Package E,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Premium Package E,Prolactin
+packages,Women’s Healthcare Premium Package E,Estradiol
+packages,Women’s Healthcare Premium Package E,Vitamin D
+packages,Women’s Healthcare Premium Package E,Cancer Antigen – 125 (CA – 125)
+packages,Women’s Healthcare Premium Package E,Cancer Antigen – 153 (CA – 153)
+packages,Women’s Healthcare Premium Package E,Carcinoembryonic Antigen (CEA)
+packages,Women’s Healthcare Premium Package E,Chest Xray
+packages,Women’s Healthcare Premium Package E,ECG
+packages,Women’s Healthcare Premium Package E,Breast Ultrasound
+packages,Women’s Healthcare Premium Package E,Physical Examination
+packages,Women’s Healthcare Premium Package F,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Premium Package F,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Premium Package F,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Premium Package F,Creatinine
+packages,Women’s Healthcare Premium Package F,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Premium Package F,Lipid Profile
+packages,Women’s Healthcare Premium Package F,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Premium Package F,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Premium Package F,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Premium Package F,Sodium (Na)
+packages,Women’s Healthcare Premium Package F,Potassium(K)
+packages,Women’s Healthcare Premium Package F,Complete Urinalysis
+packages,Women’s Healthcare Premium Package F,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Premium Package F,Free Thyroxine (FT4)
+packages,Women’s Healthcare Premium Package F,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Premium Package F,Thyroxine (T4)
+packages,Women’s Healthcare Premium Package F,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Premium Package F,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Premium Package F,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Premium Package F,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Premium Package F,Prolactin
+packages,Women’s Healthcare Premium Package F,Estradiol
+packages,Women’s Healthcare Premium Package F,Vitamin D
+packages,Women’s Healthcare Premium Package F,Cancer Antigen – 125 (CA – 125)
+packages,Women’s Healthcare Premium Package F,Cancer Antigen – 153 (CA – 153)
+packages,Women’s Healthcare Premium Package F,Carcinoembryonic Antigen (CEA)
+packages,Women’s Healthcare Premium Package F,Chest Xray
+packages,Women’s Healthcare Premium Package F,ECG
+packages,Women’s Healthcare Premium Package F,Breast Ultrasound
+packages,Women’s Healthcare Premium Package F,Transvaginal Ultrasound
+packages,Women’s Healthcare Premium Package F,Physical Examination
+packages,Women’s Healthcare Executive Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Executive Package A,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Executive Package A,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Executive Package A,Creatinine
+packages,Women’s Healthcare Executive Package A,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Executive Package A,Lipid Profile
+packages,Women’s Healthcare Executive Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Executive Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Executive Package A,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Executive Package A,Sodium (Na)
+packages,Women’s Healthcare Executive Package A,Potassium(K)
+packages,Women’s Healthcare Executive Package A,Complete Urinalysis
+packages,Women’s Healthcare Executive Package A,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Executive Package A,Free Thyroxine (FT4)
+packages,Women’s Healthcare Executive Package A,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Executive Package A,Thyroxine (T4)
+packages,Women’s Healthcare Executive Package A,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Executive Package A,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Executive Package A,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Executive Package A,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Executive Package A,Prolactin
+packages,Women’s Healthcare Executive Package A,Estradiol
+packages,Women’s Healthcare Executive Package A,Vitamin D
+packages,Women’s Healthcare Executive Package A,Chest Xray
+packages,Women’s Healthcare Executive Package A,ECG
+packages,Women’s Healthcare Executive Package A,Breast Ultrasound
+packages,Women’s Healthcare Executive Package A,Transvaginal Ultrasound
+packages,Women’s Healthcare Executive Package A,Whole Abdomen Ultrasound
+packages,Women’s Healthcare Executive Package A,Physical Examination
+packages,Women’s Healthcare Executive Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Women’s Healthcare Executive Package B,Fasting Blood Sugar (FBS)
+packages,Women’s Healthcare Executive Package B,Blood Urea Nitrogen (BUN)
+packages,Women’s Healthcare Executive Package B,Creatinine
+packages,Women’s Healthcare Executive Package B,Blood Uric Acid (BUA)
+packages,Women’s Healthcare Executive Package B,Lipid Profile
+packages,Women’s Healthcare Executive Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Women’s Healthcare Executive Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Women’s Healthcare Executive Package B,Alkaline Phosphatase (ALP)
+packages,Women’s Healthcare Executive Package B,Sodium (Na)
+packages,Women’s Healthcare Executive Package B,Potassium(K)
+packages,Women’s Healthcare Executive Package B,Complete Urinalysis
+packages,Women’s Healthcare Executive Package B,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Executive Package B,Free Thyroxine (FT4)
+packages,Women’s Healthcare Executive Package B,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Executive Package B,Thyroxine (T4)
+packages,Women’s Healthcare Executive Package B,Thyroid Stimulating Hormone (TSH)
+packages,Women’s Healthcare Executive Package B,Total Iron Binding Capacity with Iron
+packages,Women’s Healthcare Executive Package B,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Executive Package B,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Executive Package B,Prolactin
+packages,Women’s Healthcare Executive Package B,Estradiol
+packages,Women’s Healthcare Executive Package B,Vitamin D
+packages,Women’s Healthcare Executive Package B,Cancer Antigen – 125 (CA – 125)
+packages,Women’s Healthcare Executive Package B,Cancer Antigen – 153 (CA – 153)
+packages,Women’s Healthcare Executive Package B,Carcinoembryonic Antigen (CEA)
+packages,Women’s Healthcare Executive Package B,Chest Xray
+packages,Women’s Healthcare Executive Package B,ECG
+packages,Women’s Healthcare Executive Package B,Breast Ultrasound
+packages,Women’s Healthcare Executive Package B,Transvaginal Ultrasound
+packages,Women’s Healthcare Executive Package B,Whole Abdomen Ultrasound
+packages,Women’s Healthcare Executive Package B,Physical Examination
+packages,Women’s Healthcare Executive Package B,Luteinizing Hormone (LH)
+packages,Women’s Healthcare Executive Package B,Follicle Stimulating Hormone (FSH)
+packages,Women’s Healthcare Executive Package B,Prolactin
+packages,Women’s Healthcare Executive Package B,Estradiol
+packages,Women’s Healthcare Executive Package B,Free Tri-iodothyronine (FT3)
+packages,Women’s Healthcare Executive Package B,Free Thyroxine (FT4)
+packages,Women’s Healthcare Executive Package B,Tri-iodothyronine (T3)
+packages,Women’s Healthcare Executive Package B,Thyroxine (T4)
+packages,Women’s Fertility Profile Package,Luteinizing Hormone (LH)
+packages,Women’s Fertility Profile Package,Follicle Stimulating Hormone (FSH)
+packages,Women’s Fertility Profile Package,Prolactin
+packages,Women’s Fertility Profile Package,Estradiol
+packages,Thyroid Package B,Free Tri-iodothyronine (FT3)
+packages,Thyroid Package B,Free Thyroxine (FT4)
+packages,Thyroid Package B,Tri-iodothyronine (T3)
+packages,Thyroid Package B,Thyroxine (T4)
+packages,Thyroid Package B,Thyroid Stimulating Hormone (TSH)
+packages,Dengue Package,Complete Blood Count with Platelet Count (CBCPC)
+packages,Dengue Package,"Dengue Duo(Dengue NS1 Antigen, Dengue lgG, and lgM)"
+packages,Sepsis Package,Complete Blood Count with Platelet Count (CBCPC)
+packages,Sepsis Package,Complete Urinalysis
+packages,Sepsis Package,Blood Urea Nitrogen (BUN)
+packages,Sepsis Package,Creatinine
+packages,Sepsis Package,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Sepsis Package,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Sepsis Package,Sodium (Na)
+packages,Sepsis Package,Potassium (K)
+packages,Sepsis Package,Lactate Dehydrogenase (LDH)
+packages,Sepsis Package,C-Reactive Protein (CRP)
+packages,Sepsis Package,Ferritin
+packages,Sepsis Package,Prothrombin Test/Protime (PT)
+packages,Sepsis Package,Partial Thromboplastin Time (PTT)
+packages,Sepsis Package,D-dimer
+packages,Sepsis Package,Troponin 1
+packages,Sepsis Package,Pocalcitonin
+packages,Liver Function Package,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Liver Function Package,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Liver Function Package,Alkaline Phosphatase (ALP)
+packages,Liver Function Package,Total Protein with A/G Ratio
+packages,Liver Function Package,"Bilirubin (Total, Direct, and Indirect Bilirubin)"
+packages,Liver Function Package,Gamma-Glutamyl Transferase (GGT)
+packages,Healthy Heart Package A,Complete Blood Count with Platelet Count (CBCPC)
+packages,Healthy Heart Package A,Erythrocyte Sedimentation Rate (ESR)
+packages,Healthy Heart Package A,Fasting Blood Sugar (FBS)
+packages,Healthy Heart Package A,Blood Urea Nitrogen (BUN)
+packages,Healthy Heart Package A,Creatinine
+packages,Healthy Heart Package A,Lipid Profile
+packages,Healthy Heart Package A,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Healthy Heart Package A,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Healthy Heart Package A,Sodium (Na)
+packages,Healthy Heart Package A,Potassium (K)
+packages,Healthy Heart Package A,Chloride (Cl)
+packages,Healthy Heart Package A,Lactate Dehydrogenase (LDH)
+packages,Healthy Heart Package A,Creatine Kinase-MB (CK-MB)
+packages,Healthy Heart Package A,C-Reactive Protein (CRP)(quali)
+packages,Healthy Heart Package B,Complete Blood Count with Platelet Count (CBCPC)
+packages,Healthy Heart Package B,Erythrocyte Sedimentation Rate (ESR)
+packages,Healthy Heart Package B,Fasting Blood Sugar (FBS)
+packages,Healthy Heart Package B,Blood Urea Nitrogen (BUN)
+packages,Healthy Heart Package B,Creatinine
+packages,Healthy Heart Package B,Lipid Profile
+packages,Healthy Heart Package B,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Healthy Heart Package B,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Healthy Heart Package B,Sodium (Na)
+packages,Healthy Heart Package B,Potassium (K)
+packages,Healthy Heart Package B,Chloride (Cl)
+packages,Healthy Heart Package B,Lactate Dehydrogenase (LDH)
+packages,Healthy Heart Package B,Creatine Kinase-MB (CK-MB)
+packages,Healthy Heart Package B,C-Reactive Protein (CRP)(quali)
+packages,Healthy Heart Package B,Chest Xray
+packages,Healthy Heart Package B,ECG
+packages,Healthy Heart Package B,Physical Examination
+packages,Healthy Heart Premium Package,Complete Blood Count with Platelet Count (CBCPC)
+packages,Healthy Heart Premium Package,Erythrocyte Sedimentation Rate (ESR)
+packages,Healthy Heart Premium Package,Fasting Blood Sugar (FBS)
+packages,Healthy Heart Premium Package,Blood Urea Nitrogen (BUN)
+packages,Healthy Heart Premium Package,Creatinine
+packages,Healthy Heart Premium Package,Lipid Profile
+packages,Healthy Heart Premium Package,Serum Glutamic Oxaloacetic Transaminase (SGOT)
+packages,Healthy Heart Premium Package,Serum Glutamic Pyruvic Transaminase (SGPT)
+packages,Healthy Heart Premium Package,Sodium (Na)
+packages,Healthy Heart Premium Package,Potassium (K)
+packages,Healthy Heart Premium Package,Chloride (Cl)
+packages,Healthy Heart Premium Package,Lactate Dehydrogenase (LDH)
+packages,Healthy Heart Premium Package,Creatine Kinase-MB (CK-MB)
+packages,Healthy Heart Premium Package,C-Reactive Protein (CRP)(quali)
+packages,Healthy Heart Premium Package,Chest Xray
+packages,Healthy Heart Premium Package,ECG
+packages,Healthy Heart Premium Package,2D Echo
+packages,Healthy Heart Premium Package,Physical Examination

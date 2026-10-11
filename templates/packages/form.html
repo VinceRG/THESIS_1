@@ -6,7 +6,7 @@
 
 {% block content %}
 <div class="page-actions">
-  <a href="{{ url_for('packages') }}" class="btn secondary">Back to Packages</a>
+  <a href="{{ url_for('packages') }}" class="btn secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Packages</a>
 </div>
 
 <form method="post" class="grid demographic-comparison"
@@ -43,8 +43,8 @@
     </label>
 
     <div class="form-actions" style="margin-top:20px;">
-      <button type="submit" class="btn">{{ 'Save Package' if package else 'Add Package' }}</button>
-      <a href="{{ url_for('packages') }}" class="btn secondary">Cancel</a>
+      <button type="submit" class="btn"><i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save Package' if package else 'Add Package' }}</button>
+      <a href="{{ url_for('packages') }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
     </div>
   </div>
 </form>

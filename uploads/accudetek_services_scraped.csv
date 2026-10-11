@@ -1,0 +1,301 @@
+source_page,category,section,service_name,price_php
+services,Vaccine,Vaccine,Pneumococcal Vaccine (5 Years & lifetime),
+services,Vaccine,Vaccine,Flu Vaccine,
+services,Vaccine,Vaccine,TDaP Vaccine (Adult),
+services,Vaccine,Vaccine,DTAP Vaccine (pedia),
+services,Vaccine,Vaccine,Нера B Vaccine,
+services,Vaccine,Vaccine,PPD Skin Test,
+services,Vaccine,Vaccine,Anti-Tetanus,
+services,Laboratory,Laboratory,Hematology,
+services,Laboratory,Laboratory,Immunology/Serology,
+services,Laboratory,Laboratory,Clinical Microscopy,
+services,Laboratory,Laboratory,Clinical Chemistry,
+services,Drug Testing,Drug Test,MET (Shabu),
+services,Drug Testing,Drug Test,THC (Marijuana),
+services,Imaging/Cardiology,Imaging,X-Ray,
+services,Imaging/Cardiology,Imaging,Ultrasound,
+services,Imaging/Cardiology,Imaging,2D Echo Cardiogram,
+services,Imaging/Cardiology,Imaging,ECG,
+services,Imaging/Cardiology,Imaging,Duplex Scan,
+services,Medical Consultation,Medical Consultation,Face to Face Doctor Consultation,
+services,Medical Consultation,Medical Consultation,Online Doctor Consultation,
+services,Pre-Employment Checkup,Pre-Employment Checkup,CBC,
+services,Pre-Employment Checkup,Pre-Employment Checkup,Urinalysis & Fecalysis,
+services,Pre-Employment Checkup,Pre-Employment Checkup,X-Ray,
+services,Pre-Employment Checkup,Pre-Employment Checkup,Physical Exam,
+services,Pre-Employment Checkup,Pre-Employment Checkup,Drug Test,
+services,Annual Checkup,Annual Checkup,CBC,
+services,Annual Checkup,Annual Checkup,Urinalysis & Fecalysis,
+services,Annual Checkup,Annual Checkup,X-Ray,
+services,Annual Checkup,Annual Checkup,Physical Exam,
+services,Laboratory,Hermatology,CBC w/ Actual Platelet Count,280.00
+services,Laboratory,Hermatology,CBC,200.00
+services,Laboratory,Hermatology,Actual Platelet Count,275.00
+services,Laboratory,Hermatology,Bleeding Time,130.00
+services,Laboratory,Hermatology,Clotting Time,130.00
+services,Laboratory,Hermatology,Bloodtype and RH Typing,280.00
+services,Laboratory,Hermatology,Coombs Test,300.00
+services,Laboratory,Hermatology,ESR,140.00
+services,Laboratory,Hermatology,Reticulocyte Count,190.00
+services,Laboratory,Hermatology,Peripheral Blood Smear ( 7 Days),450.00
+services,Laboratory,Hermatology,Malarial Smear,400.00
+services,Laboratory,Hermatology,Prothrombin Time,450.00
+services,Laboratory,Hermatology,APTT,450.00
+services,Laboratory,Blood Chemistry,Bicarbonate,600.00
+services,Laboratory,Blood Chemistry,Blood Urea Nitrogen,150.00
+services,Laboratory,Blood Chemistry,Hemodialysis Kinetics (pre & post BUN),250.00
+services,Laboratory,Blood Chemistry,Blood Uric Acid,150.00
+services,Laboratory,Blood Chemistry,Creatinine,150.00
+services,Laboratory,Blood Chemistry,EGFR,300.00
+services,Laboratory,Blood Chemistry,FBS,120.00
+services,Laboratory,Blood Chemistry,RBS,120.00
+services,Laboratory,Blood Chemistry,2 Hours Post Prandial,200.00
+services,Laboratory,Blood Chemistry,HBA1C (edta),600.00
+services,Laboratory,Blood Chemistry,OGCT,380.00
+services,Laboratory,Blood Chemistry,"OGCT Pregnant (100g, 75g)",500.00
+services,Laboratory,Blood Chemistry,"OGCT Non-Pregnant (100g, 75g)",500.00
+services,Laboratory,Blood Chemistry,"OGCT Post-Pregnant (100g, 75g)​",600.00
+services,Laboratory,Blood Chemistry,Lipid Profile,650.00
+services,Laboratory,Blood Chemistry,Cholesterol,160.00
+services,Laboratory,Blood Chemistry,Triglyceride,200.00
+services,Laboratory,Blood Chemistry,HDL,300.00
+services,Laboratory,Blood Chemistry,"Bilirubin (B1, B2)",250.00
+services,Laboratory,Blood Chemistry,"TPAG (Total Protein, Albumin, AG)",400.00
+services,Laboratory,Blood Chemistry,Total Protein,300.00
+services,Laboratory,Blood Chemistry,Albumin,150.00
+services,Laboratory,Blood Chemistry,Total Iron,400.00
+services,Laboratory,Blood Chemistry,TBIC (Total Iron Binding Capacity),1000.00
+services,Laboratory,Blood Chemistry,"Iron Studies (TI, TIBC, Ferritin)",2000.00
+services,Laboratory,Electrolytes,Sodium (Na),190.00
+services,Laboratory,Electrolytes,Potassium (K),190.00
+services,Laboratory,Electrolytes,Chloride (C),190.00
+services,Laboratory,Electrolytes,Total Calcium (TCa),190.00
+services,Laboratory,Electrolytes,Ionized Calcium (Ica),500.00
+services,Laboratory,Electrolytes,Inorganic Phosphorus (IPO4),280.00
+services,Laboratory,Electrolytes,Magnesium,300.00
+services,Laboratory,Clinical Microscopy,Urinalysis,100.00
+services,Laboratory,Clinical Microscopy,Urinalysis 10P,160.00
+services,Laboratory,Clinical Microscopy,Pregnancy Test (Urine),200.00
+services,Laboratory,Clinical Microscopy,Pregnancy Test (Serum),270.00
+services,Laboratory,Clinical Microscopy,RBC Morphology (Urine),180.00
+services,Laboratory,Clinical Microscopy,Sperm Analysis WHO,800.00
+services,Laboratory,Clinical Microscopy,Micro Albumin (Micral Test),400.00
+services,Laboratory,Clinical Microscopy,Albumin (Protein) Creatinine Ratio,380.00
+services,Laboratory,Clinical Microscopy,Fecalysis,100.00
+services,Laboratory,Clinical Microscopy,Fecal Occult Blood,1000.00
+services,Laboratory,Clinical Microscopy,Fit Stool Test,1500.00
+services,Laboratory,Enzymes,Alkaline Phosphates,150.00
+services,Laboratory,Enzymes,Acid Phosphatase,500.00
+services,Laboratory,Enzymes,Amylase,350.00
+services,Laboratory,Enzymes,GGTP,600.00
+services,Laboratory,Enzymes,Lipase,350.00
+services,Laboratory,Enzymes,Serum LDH,250.00
+services,Laboratory,Enzymes,SGOT (AST),160.00
+services,Laboratory,Enzymes,SGPT (ALT),160.00
+services,Laboratory,Enzymes,CPK-MB,900.00
+services,Laboratory,Enzymes,CPK-MM,900.00
+services,Laboratory,Enzymes,CPK Total,900.00
+services,Laboratory,Enzymes,Troponin I Qualitive,1100.00
+services,Laboratory,Enzymes,Troponin I Quantitative,2200.00
+services,Laboratory,Enzymes,Troponin T Qualitive,1100.00
+services,Laboratory,Enzymes,D-DIMER Test,2500.00
+services,Laboratory,Enzymes,PRO-BNP/NT Pro-BNP(each),7500.00
+services,Laboratory,Bacteriology,Gram Stain,450.00
+services,Laboratory,Bacteriology,AFB Stain,450.00
+services,Laboratory,Bacteriology,KOH,350.00
+services,Laboratory,Bacteriology,Blood Cs (1 site),1500.00
+services,Laboratory,Bacteriology,Blood Cs (2 site),2600.00
+services,Laboratory,Bacteriology,Blood Cs with ARD (1 site),4500.00
+services,Laboratory,Bacteriology,Blood Cs with ARD (2 site),9000.00
+services,Laboratory,Bacteriology,Urine C/S,1440.00
+services,Laboratory,Hormones,Cortisol,1000.00
+services,Laboratory,Hormones,Estradiol/Estrogen,1250.00
+services,Laboratory,Hormones,Estrogen,4000.00
+services,Laboratory,Hormones,Ferritin,1200.00
+services,Laboratory,Hormones,FSH,850.00
+services,Laboratory,Hormones,LH,850.00
+services,Laboratory,Hormones,Progesterone,1400.00
+services,Laboratory,Hormones,Prolactin,800.00
+services,Laboratory,Hormones,Testosterone,1300.00
+services,Laboratory,Hormones,Estrogen (RIA),1500.00
+services,Laboratory,Serology,ANA Screening,1100.00
+services,Laboratory,Serology,ANA Titer,1500.00
+services,Laboratory,Serology,ASO Screening,550.00
+services,Laboratory,Serology,ASO Titer,1300.00
+services,Laboratory,Serology,RA/RF Latex (Rheumatoid Factor),400.00
+services,Laboratory,Serology,C3,700.00
+services,Laboratory,Serology,C4,1300.00
+services,Laboratory,Serology,CRP,500.00
+services,Laboratory,Serology,CRP Qualitative,650.00
+services,Laboratory,Serology,HSCRP,700.00
+services,Laboratory,Serology,Dengue Combo,2450.00
+services,Laboratory,Serology,Dengue Duo IgM/IgG,1100.00
+services,Laboratory,Serology,Dengue NS1,1500.00
+services,Laboratory,Serology,Typhil Dot,850.00
+services,Laboratory,Serology,H. Pylori (Quali)-serum,1800.00
+services,Laboratory,Serology,H. Pylori Igm (Quali)-serum,8000.00
+services,Laboratory,Serology,H. Pylori Stool,2500.00
+services,Laboratory,Serology,VDRL/Syphilis Screening,300.00
+services,Laboratory,Serology,VFRL RPR Titer,800.00
+services,Laboratory,Serology,TPPA Qualitative,1200.00
+services,Laboratory,Serology,TPPA Quantitative,2000.00
+services,Laboratory,Serology,FTA-ABS,6500.00
+services,Laboratory,Serology,TPHA Screening,600.00
+services,Laboratory,Serology,TPHA Titer,1200.00
+services,Laboratory,Serology,HIV (Screening),500.00
+services,Laboratory,Serology,Rubella Igm,2700.00
+services,Laboratory,Serology,Rubella IgG,1500.00
+services,Laboratory,Serology,EBV Igg,5320.00
+services,Laboratory,Serology,EBV Igm,6250.00
+services,Laboratory,Thyroid Function Test,T3,350.00
+services,Laboratory,Thyroid Function Test,T4,350.00
+services,Laboratory,Thyroid Function Test,FT3,500.00
+services,Laboratory,Thyroid Function Test,FT4,500.00
+services,Laboratory,Thyroid Function Test,FT3 RIA,3900.00
+services,Laboratory,Thyroid Function Test,FT4 RIA,3900.00
+services,Laboratory,Thyroid Function Test,TT4 (Toal Thyroxine),600.00
+services,Laboratory,Thyroid Function Test,Intact-PTH,2000.00
+services,Laboratory,Thyroid Function Test,TSH,600.00
+services,Laboratory,Thyroid Function Test,Intact-PTH,3500.00
+services,Laboratory,Random Urine Test,Glucose,470.00
+services,Laboratory,Random Urine Test,Sodium (Na),450.00
+services,Laboratory,Random Urine Test,Potassium (K),450.00
+services,Laboratory,Random Urine Test,Chloride (CI),450.00
+services,Laboratory,Random Urine Test,Calcium (C),550.00
+services,Laboratory,Random Urine Test,Protein,450.00
+services,Laboratory,Random Urine Test,Amylase,450.00
+services,Laboratory,Random Urine Test,Magnesium,1100.00
+services,Laboratory,24 Hours Urine Test,Glucose,470.00
+services,Laboratory,24 Hours Urine Test,Sodium (Na),450.00
+services,Laboratory,24 Hours Urine Test,Potassium (K),450.00
+services,Laboratory,24 Hours Urine Test,Chloride (CI),450.00
+services,Laboratory,24 Hours Urine Test,Calcium (C),450.00
+services,Laboratory,24 Hours Urine Test,Protein,450.00
+services,Laboratory,24 Hours Urine Test,Amylase,600.00
+services,Laboratory,24 Hours Urine Test,Magnesium,1000.00
+services,Laboratory,Hepatitis,Anti-HAV Screening,450.00
+services,Laboratory,Hepatitis,HBsAg Screening,200.00
+services,Laboratory,Hepatitis,HCV Screening,660.00
+services,Laboratory,Hepatitis,HBsAg Titer,250.00
+services,Laboratory,Hepatitis,Anti-HBs,300.00
+services,Laboratory,Hepatitis,HBeAg,390.00
+services,Laboratory,Hepatitis,Anti-HBe,390.00
+services,Laboratory,Hepatitis,Anti-HBc Total,780.00
+services,Laboratory,Hepatitis,Anti-HBc IgM,400.00
+services,Laboratory,Hepatitis,Anti-HBc IgG,400.00
+services,Laboratory,Hepatitis,Anti-HAV IgM,500.00
+services,Laboratory,Hepatitis,Anti-HCV Titer,800.00
+services,Laboratory,Hepatitis,Hepa A profile,1500.00
+services,Laboratory,Hepatitis,Hepa B profile,2500.00
+services,Laboratory,Hepatitis,Hepa C profile,1500.00
+services,Laboratory,Hepatitis,Hepa A&B profile,4000.00
+services,Laboratory,Hepatitis,"Hepa A,B,C",4500.00
+services,Laboratory,Hepatitis,HCV-RNA,10000.00
+services,Laboratory,Hepatitis,HCV-Genotyping,20000.00
+services,Laboratory,Hepatitis,HBC-DNA,8500.00
+services,Laboratory,Histopathologyu,Paps Smear (7 days),1200.00
+services,Laboratory,Fluid Analysis,Body Fluid Analysis (Package),1000.00
+services,Laboratory,Fluid Analysis,Pleural/CSF Fluid Analysis,800.00
+services,Laboratory,Fluid Analysis,Body Fluid LDH,700.00
+services,Laboratory,Others,Drug Test (Urine),250.02
+services,Laboratory,Others,Antigen Swab Test,660.00
+services,Laboratory,Others,RT-PCR 12HRS,3100.00
+services,Laboratory,Others,RT-PCR 4-6HRS,3500.00
+services,Imaging/Cardiology,XRAY,Ankle AP/LAT,500.00
+services,Imaging/Cardiology,XRAY,ApicoLordotic View,255.00
+services,Imaging/Cardiology,XRAY,Arm AP/L,900.00
+services,Imaging/Cardiology,XRAY,Cervical AP/ LAT,650.00
+services,Imaging/Cardiology,XRAY,Cervical APOL,1100.00
+services,Imaging/Cardiology,XRAY,Chest AP-L (Pedia),450.00
+services,Imaging/Cardiology,XRAY,Chest PA,250.00
+services,Imaging/Cardiology,XRAY,Chest PA/LAT,450.00
+services,Imaging/Cardiology,XRAY,Chest PA for Pregnant,250.00
+services,Imaging/Cardiology,XRAY,Clavicle AP,500.00
+services,Imaging/Cardiology,XRAY,Elbow AP/LAT,950.00
+services,Imaging/Cardiology,XRAY,Femur AP/LAT,850.00
+services,Imaging/Cardiology,XRAY,Foot AP/OBLIQUE,1050.00
+services,Imaging/Cardiology,XRAY,Foot AP/OBLIQUE/Lateral,1050.00
+services,Imaging/Cardiology,XRAY,Foot AP/L,1050.00
+services,Imaging/Cardiology,XRAY,Forearm AP/LAT,500.00
+services,Imaging/Cardiology,XRAY,Hand AP/OBLIQUE/Lateral,650.00
+services,Imaging/Cardiology,XRAY,Hand AP/OBLIQUE or AP/L (each),500.00
+services,Imaging/Cardiology,XRAY,Humerus AP/LAT,650.00
+services,Imaging/Cardiology,XRAY,Knee Joint AP/LAT,900.00
+services,Imaging/Cardiology,XRAY,Leg AP/LAT (unilateral/bilateral),500.00
+services,Imaging/Cardiology,XRAY,Lumbosacral Spine AP/LAT,950.00
+services,Imaging/Cardiology,XRAY,Nasal Bone AP/LAT,800.00
+services,Imaging/Cardiology,XRAY,Paranasal Sinus,850.00
+services,Imaging/Cardiology,XRAY,Pelvis Hip,500.00
+services,Imaging/Cardiology,XRAY,Plain Abdomen AP/LAT (Pedia),700.00
+services,Imaging/Cardiology,XRAY,Plain Abdomen Upright/Spine,950.00
+services,Imaging/Cardiology,XRAY,Rib Cage,550.00
+services,Imaging/Cardiology,XRAY,Scapular Y View,500.00
+services,Imaging/Cardiology,XRAY,Scoliosis Series,1520.00
+services,Imaging/Cardiology,XRAY,Shoulder AP/LAT,550.00
+services,Imaging/Cardiology,XRAY,Skull AP/LAT,650.00
+services,Imaging/Cardiology,XRAY,Thoracic AP/LAT/OBLIQUE,1200.00
+services,Imaging/Cardiology,XRAY,Thoracic Spine AP/LAT,950.00
+services,Imaging/Cardiology,XRAY,Thoraco Lumbar,1350.00
+services,Imaging/Cardiology,XRAY,Wrist AP/L,500.00
+services,Imaging/Cardiology,Ultrasound,Abdominal Aorta,2200.00
+services,Imaging/Cardiology,Ultrasound,Breast,1650.00
+services,Imaging/Cardiology,Ultrasound,Chest (Need CXR PA),1050.00
+services,Imaging/Cardiology,Ultrasound,Gallbladder,600.00
+services,Imaging/Cardiology,Ultrasound,Gallbladder & Pancreas,1100.00
+services,Imaging/Cardiology,Ultrasound,HBT,1210.00
+services,Imaging/Cardiology,Ultrasound,Inguinal,1500.00
+services,Imaging/Cardiology,Ultrasound,Inguino-Scrotal,2800.00
+services,Imaging/Cardiology,Ultrasound,Kidney,650.00
+services,Imaging/Cardiology,Ultrasound,KUB,1210.00
+services,Imaging/Cardiology,Ultrasound,KUB & Prostatae,2000.00
+services,Imaging/Cardiology,Ultrasound,Liver,650.00
+services,Imaging/Cardiology,Ultrasound,Liver & Gallbladder,1100.00
+services,Imaging/Cardiology,Ultrasound,Liver & Pancreas,1100.00
+services,Imaging/Cardiology,Ultrasound,Liver & Spleen,1100.00
+services,Imaging/Cardiology,Ultrasound,Lower Abdomen,1100.00
+services,Imaging/Cardiology,Ultrasound,Neck,1650.00
+services,Imaging/Cardiology,Ultrasound,OB-Congenital Scan,2800.00
+services,Imaging/Cardiology,Ultrasound,Pancreas,600.00
+services,Imaging/Cardiology,Ultrasound,Pancreas & Spleen,1100.00
+services,Imaging/Cardiology,Ultrasound,Pelvic,1200.00
+services,Imaging/Cardiology,Ultrasound,Prostate,1050.00
+services,Imaging/Cardiology,Ultrasound,Soft Tissue,2500.00
+services,Imaging/Cardiology,Ultrasound,Spleen,600.00
+services,Imaging/Cardiology,Ultrasound,Thyroid,1650.00
+services,Imaging/Cardiology,Ultrasound,Tranvaginal,1500.00
+services,Imaging/Cardiology,Ultrasound,Transrectal Prostate,1500.00
+services,Imaging/Cardiology,Ultrasound,Upper Abdomen,1430.00
+services,Imaging/Cardiology,Ultrasound,Upper Abdomen & Kidney,1850.00
+services,Imaging/Cardiology,Ultrasound,Urinary Bladder,600.00
+services,Imaging/Cardiology,Ultrasound,Whole Abdomen,2010.00
+services,Imaging/Cardiology,Vascular Studies,Ankle Brachial Index (ABI),3300.00
+services,Imaging/Cardiology,Vascular Studies,Arterial Duplex Scan (Bilateral),5000.00
+services,Imaging/Cardiology,Vascular Studies,Arterial Duplex Scan (Unilateral),5000.00
+services,Imaging/Cardiology,Vascular Studies,Carotid Duplex Scan,4500.00
+services,Imaging/Cardiology,Vascular Studies,Venous Duplex Scan (Bilateral),5000.00
+services,Imaging/Cardiology,Vascular Studies,Venous Duplex Scan (Unilateral),5000.00
+services,Imaging/Cardiology,2D Echo Pedia,15L-ECG (Electrocardiogram) 15L,550.00
+services,Imaging/Cardiology,2D Echo Pedia,2D Echo Pedia,4500.00
+services,Imaging/Cardiology,2D Echo Adult,12L-ECG,400.00
+services,Imaging/Cardiology,2D Echo Adult,15L-ECG,550.00
+services,Imaging/Cardiology,2D Echo Adult,2D Echo w/ Doppler,3000.00
+services,Imaging/Cardiology,2D Echo Adult,2D Echo (Plain),3300.00
+imaging,Imaging/Cardiology,X-Ray,General chest X-Ray,
+imaging,Imaging/Cardiology,X-Ray,Upper and lower extremities,
+imaging,Imaging/Cardiology,Ultrasound,General Ultrasound (Abdomen),
+imaging,Imaging/Cardiology,Ultrasound,"Special Ultrasound (Abdominal, Aorta, Adrenal, Breast, Chest, Inguinal, Musculoskeletal, Neck, Parotid, Scrotal, Soft tissue mass, & Thyroid)",
+imaging,Imaging/Cardiology,Ultrasound,Pelvic Ultrasound,
+imaging,Imaging/Cardiology,Ultrasound,Transrectal Ultrasound (Male),
+imaging,Imaging/Cardiology,2D Echocardiogram,2D Echo: Plain with Doppler (Adult),
+imaging,Imaging/Cardiology,2D Echocardiogram,2D Echo: Pedia (by appointment),
+imaging,Imaging/Cardiology,ECG,ECG (12 Lead) Adult,
+imaging,Imaging/Cardiology,ECG,ECG (15 Lead) Pedia (0-17 years old),
+imaging,Imaging/Cardiology,Duplex Scan,Arterial & Venous Duplex Scan,
+imaging,Imaging/Cardiology,Duplex Scan,Upper Extremities (By appointment),
+imaging,Imaging/Cardiology,Duplex Scan,Arterial & Venous Duplex Lower Extremities Scan (by appointment),
+imaging,Imaging/Cardiology,Duplex Scan,Carotid Duplex Scan (by appointment),
+imaging,Imaging/Cardiology,Duplex Scan,Ankle – Brachial Index (by appointment),
+home_service,Home Service,Get your medical needs at the comfort of your home!,Laboratory Testing,
+home_service,Home Service,Get your medical needs at the comfort of your home!,X-Ray,
+home_service,Home Service,Get your medical needs at the comfort of your home!,ECG,
+home_service,Home Service,Get your medical needs at the comfort of your home!,Drug Testing,

@@ -6,8 +6,8 @@
 
 {% block content %}
 <div class="page-actions">
-  <a href="{{ url_for('appointments') }}" class="btn secondary">Back to Appointments</a>
-  <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary">View Patient Profile</a>
+  <a href="{{ url_for('appointments') }}" class="btn secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Appointments</a>
+  <a href="{{ url_for('patient_detail', patient_id=patient.id) }}" class="btn secondary"><i class="bi bi-person-vcard" aria-hidden="true"></i> View Patient Profile</a>
 </div>
 
 <div class="chart-card patient-profile">
@@ -137,8 +137,8 @@
     </div>
 
     <div class="form-actions" style="margin-top:20px;">
-      <button type="submit" class="btn" {% if not staff_members %}disabled{% endif %}>Complete and Save Records</button>
-      <a href="{{ url_for('appointments') }}" class="btn secondary">Cancel</a>
+      <button type="submit" class="btn" {% if not staff_members %}disabled{% endif %}><i class="bi bi-check-lg" aria-hidden="true"></i> Complete and Save Records</button>
+      <a href="{{ url_for('appointments') }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
     </div>
   </div>
 </form>
