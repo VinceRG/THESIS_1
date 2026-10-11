@@ -5,27 +5,59 @@
 {% block page_subtitle %}Generated {{ report.generated_at }}{% endblock %}
 
 {% block content %}
-<div class="section-stack">
+<div class="section-stack report-view-page">
 <div class="page-actions">
-  <a class="btn secondary" href="{{ url_for('reports') }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Reports</a>
-  <a class="btn secondary" href="{{ url_for('report_print', report_key=report.key) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
-  <a class="btn" href="{{ url_for('report_pdf', report_key=report.key) }}"><i class="bi bi-download" aria-hidden="true"></i> Download PDF</a>
+  <a class="btn secondary" href="{{ url_for('reports', scope=report.scope, date_from=report.date_from, date_to=report.date_to) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Reports</a>
+  <div class="report-export-actions" role="group" aria-label="Export {{ report.title }}">
+    <a class="btn secondary" href="{{ url_for('report_print', report_key=report.key, scope=report.scope, date_from=report.date_from, date_to=report.date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+    <a class="btn" href="{{ url_for('report_pdf', report_key=report.key, scope=report.scope, date_from=report.date_from, date_to=report.date_to) }}"><i class="bi bi-download" aria-hidden="true"></i> Save as PDF</a>
+  </div>
 </div>
 
+{% set report_period = namespace(value='') %}
+{% set report_coverage = namespace(value='') %}
+{% set highlighted_quarter = namespace(value='') %}
+{% set validation_period = namespace(value='') %}
+{% for section in report.sections %}
+  {% if section.metric == 'Data Period Covered' %}{% set report_coverage.value = section.value %}{% endif %}
+  {% if section.metric == 'Predicted Month' %}{% set report_period.value = section.value %}{% endif %}
+  {% if section.metric == 'Latest Quarter Total' %}{% set highlighted_quarter.value = section.value.split(':')[0] %}{% endif %}
+  {% if section.metric == 'Validation Period' %}{% set validation_period.value = section.value %}{% endif %}
+{% endfor %}
+<header class="report-cover chart-card">
+  <div class="report-cover-brand">
+    <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="">
+    <span>Accudetek Health Diagnostics</span>
+  </div>
+  <h2>{{ report.title }}</h2>
+  <p>{{ report.description }}</p>
+  <dl class="report-cover-meta">
+    {% if report_period.value %}<div><dt>Forecast period</dt><dd>{{ report_period.value }}</dd></div>{% endif %}
+    {% if validation_period.value %}<div><dt>Validation period</dt><dd>{{ validation_period.value }}</dd></div>{% endif %}
+    {% if highlighted_quarter.value %}<div><dt>Latest quarter represented</dt><dd>{{ highlighted_quarter.value }}</dd></div>{% endif %}
+    {% if report_coverage.value %}<div><dt>Historical data covered</dt><dd>{{ report_coverage.value }}</dd></div>{% endif %}
+    {% if report.key in ['prediction', 'resource-recommendation', 'attribution-gaps'] %}<div><dt>Historical data available</dt><dd>{{ report.historical_period_label }}</dd></div>{% endif %}
+    <div><dt>Applied scope</dt><dd>{{ report.scope_label }}{% if report.date_range_label %}: {{ report.date_range_label }}{% endif %}</dd></div>
+    {% if report.branch_name %}<div><dt>Branch</dt><dd>{{ report.branch_name }}{% if report.branch_code %} ({{ report.branch_code }}){% endif %}</dd></div>{% endif %}
+    {% if report.generated_at %}<div><dt>Generated</dt><dd>{{ report.generated_at }}</dd></div>{% endif %}
+    {% if current_user_name %}<div class="report-prepared-by"><dt>Prepared by</dt><dd>{{ current_user_name }}<span class="report-signature-line" aria-hidden="true"></span><small>Signature</small></dd></div>{% endif %}
+  </dl>
+  {% if report.filter_note %}<p class="muted-copy report-filter-note">{{ report.filter_note }}</p>{% endif %}
+</header>
+
 <div class="chart-card">
-  <h3>{{ report.description }}</h3>
-  <p class="muted-copy" style="margin-bottom:14px;">Branch: {{ report.branch_name }}{% if report.branch_code %} ({{ report.branch_code }}){% endif %}</p>
-  <table class="table">
+  <h3>Report Summary</h3>
+  <table class="table report-summary-table">
     <thead>
       <tr>
-        <th>Metric</th>
-        <th>Value</th>
+        <th scope="col">Metric</th>
+        <th scope="col">Value</th>
       </tr>
     </thead>
     <tbody>
       {% for section in report.sections %}
       <tr>
-        <th>{{ section.metric }}</th>
+        <th scope="row">{{ section.metric }}</th>
         <td>
           {% if section.metric == 'Capacity Status' %}
             <span class="status-pill status-{{ section.value|lower }}">{{ section.value }}</span>
@@ -44,20 +76,63 @@
 
 <div class="chart-card">
   <h3>{{ report.details_title }}</h3>
-  <p class="muted-copy" style="margin-bottom:14px;">{{ report.details_note }}</p>
-  {% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows %}
-    <div class="chart-container report-chart-container">
-      <canvas id="reportLineChart"></canvas>
-    </div>
+  {% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows.datasets %}
+    <figure class="report-figure">
+      <div class="chart-container report-chart-container">
+        <canvas id="reportLineChart" role="img" aria-label="Consultation counts across the reporting periods displayed" aria-describedby="reportLineChartExplanation"></canvas>
+      </div>
+      <div class="report-chart-explanation" id="reportLineChartExplanation">
+        <p>Each line shows consultation counts across {{ report.chart_rows.x_title|default('the displayed periods')|lower }}. Compare line heights to compare volumes and follow the line to see how counts change between periods.</p>
+        <ul>
+          {% for dataset in report.chart_rows.datasets %}
+            {% set peak = namespace(value=none, label='') %}
+            {% for value in dataset.data %}
+              {% if peak.value is none or value > peak.value %}
+                {% set peak.value = value %}
+                {% set peak.label = report.chart_rows.labels[loop.index0] %}
+              {% endif %}
+            {% endfor %}
+            {% if peak.value is not none %}
+              <li><strong>{{ dataset.label|default(dataset.year) }}:</strong> highest displayed count is {{ peak.value }} in {{ peak.label }}.</li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="report-chart-fallback" data-report-chart-fallback hidden>
+        <p class="muted-copy">The chart library is unavailable. The table below contains the same reported consultation counts.</p>
+        <div class="table-scroll">
+          <table class="table table-sticky-head report-detail-table">
+            <thead>
+              <tr>
+                <th scope="col">{{ report.chart_rows.x_title|default('Period') }}</th>
+                {% for dataset in report.chart_rows.datasets %}<th scope="col">{{ dataset.label|default(dataset.year) }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for label in report.chart_rows.labels %}
+              {% set label_index = loop.index0 %}
+              <tr>
+                <th scope="row">{{ label }}</th>
+                {% for dataset in report.chart_rows.datasets %}<td>{{ dataset.data[label_index] }}</td>{% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <figcaption>{{ report.details_note }}</figcaption>
+      </div>
+    </figure>
   {% elif report.key in ['monthly-consultation', 'quarterly'] %}
+    <p class="muted-copy">{{ report.details_note }}</p>
     <p class="muted-copy">No graph data is available yet. Upload consultation records to generate this chart.</p>
   {% elif report.rows %}
+    <p class="muted-copy report-section-note">{{ report.details_note }}</p>
     <div class="table-scroll">
-      <table class="table table-sticky-head">
+      <table class="table table-sticky-head report-detail-table">
         <thead>
           <tr>
             {% for key in report.rows[0].keys() %}
-            <th>{{ key|replace('_', ' ')|title }}</th>
+            <th scope="col">{{ key|replace('_', ' ')|title }}</th>
             {% endfor %}
           </tr>
         </thead>
@@ -73,6 +148,7 @@
       </table>
     </div>
   {% else %}
+    <p class="muted-copy report-section-note">{{ report.details_note }}</p>
     <p class="muted-copy">No detail rows are available for this report yet.</p>
   {% endif %}
 </div>
@@ -80,22 +156,48 @@
 {% for chart in report.extra_charts %}
 <div class="chart-card">
   <h3>{{ chart.title }}</h3>
-  <div class="chart-container report-chart-container">
-    <canvas id="extraReportChart{{ loop.index }}"></canvas>
-  </div>
+  <figure class="report-figure">
+    <div class="chart-container report-chart-container">
+      <canvas id="extraReportChart{{ loop.index }}" role="img" aria-label="{{ chart.title }}. Values for the displayed categories." aria-describedby="extraReportChartExplanation{{ loop.index }}"></canvas>
+    </div>
+    {% set peak = namespace(value=none, label='') %}
+    {% for value in chart.data %}
+      {% if peak.value is none or value > peak.value %}
+        {% set peak.value = value %}
+        {% set peak.label = chart.labels[loop.index0] %}
+      {% endif %}
+    {% endfor %}
+    <div class="report-chart-explanation" id="extraReportChartExplanation{{ loop.index }}">
+      <p>Bars compare {{ chart.y_title|default('the displayed measure')|lower }} across categories; taller bars represent higher values.</p>
+      {% if peak.value is not none %}
+        <p>The highest displayed value is {{ peak.value }} for {{ peak.label }}.</p>
+      {% endif %}
+    </div>
+    <div class="report-chart-fallback" data-report-chart-fallback hidden>
+      <p class="muted-copy">The chart library is unavailable. The table below contains the same reported values.</p>
+      <div class="table-scroll">
+        <table class="table report-detail-table">
+          <thead><tr><th scope="col">Category</th><th scope="col">{{ chart.y_title|default('Value') }}</th></tr></thead>
+          <tbody>{% for label in chart.labels %}<tr><th scope="row">{{ label }}</th><td>{{ chart.data[loop.index0] }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+    <figcaption>Values are shown for each category listed in the chart.</figcaption>
+  </figure>
 </div>
 {% endfor %}
 
 {% for table in report.extra_tables %}
 <div class="chart-card">
   <h3>{{ table.title }}</h3>
+  <p class="muted-copy report-section-note">Forecast values are grouped using the fields shown in the table.</p>
   {% if table.rows %}
     <div class="table-scroll">
-      <table class="table table-sticky-head">
+      <table class="table table-sticky-head report-detail-table">
         <thead>
           <tr>
             {% for key in table.rows[0].keys() %}
-            <th>{{ key|replace('_', ' ')|title }}</th>
+            <th scope="col">{{ key|replace('_', ' ')|title }}</th>
             {% endfor %}
           </tr>
         </thead>
@@ -118,23 +220,47 @@
 </div>
 {% if print_mode %}
 <script>
-  window.addEventListener('load', () => window.print());
+  window.addEventListener('load', () => {
+    Promise.resolve(window.reportChartsReady).catch(() => {}).then(() => {
+      requestAnimationFrame(() => window.print());
+    });
+  });
 </script>
 {% endif %}
 
-{% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows %}
+{% if report.key in ['monthly-consultation', 'quarterly'] and report.chart_rows.datasets %}
 <script>
   async function renderReportLineChart() {
     if (typeof loadChartJs === 'function') {
       await loadChartJs();
     }
-    if (!window.Chart) return;
     const reportLineCtx = document.getElementById('reportLineChart');
     if (!reportLineCtx) return;
+    const fallback = reportLineCtx.closest('.report-figure')?.querySelector('[data-report-chart-fallback]');
+    if (!window.Chart) {
+      reportLineCtx.closest('.chart-container')?.setAttribute('hidden', '');
+      fallback?.removeAttribute('hidden');
+      return;
+    }
     const reportKey = {{ report.key|tojson }};
     const chartPayload = {{ report.chart_rows | tojson }};
     if (!chartPayload.datasets || !chartPayload.datasets.length) return;
-    const isQuarterly = reportKey === 'quarterly';
+    const isQuarterly = reportKey === 'quarterly' || chartPayload.scope === 'quarterly';
+    const wrapChartLabel = (value, maxLength = 18) => {
+      const lines = [];
+      let line = '';
+      String(value).split(/\s+/).forEach(word => {
+        const candidate = line ? line + ' ' + word : word;
+        if (candidate.length > maxLength && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = candidate;
+        }
+      });
+      if (line) lines.push(line);
+      return lines;
+    };
     const allValues = chartPayload.datasets.flatMap(item => item.data);
     const minValue = Math.min(...allValues);
     const maxValue = Math.max(...allValues);
@@ -142,17 +268,22 @@
     const valueLabelPlugin = {
       id: 'valueLabelPlugin',
       afterDatasetsDraw(chart) {
-        if (!isQuarterly) return;
+        if (!isQuarterly || chart.data.datasets.length > 4) return;
         const { ctx } = chart;
         ctx.save();
-        ctx.font = '600 11px Inter, sans-serif';
+        ctx.font = '600 10px "IBM Plex Sans", sans-serif';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
+        ctx.textBaseline = 'middle';
         chart.data.datasets.forEach((dataset, datasetIndex) => {
           const meta = chart.getDatasetMeta(datasetIndex);
-          ctx.fillStyle = dataset.borderColor;
+          const yOffset = datasetIndex % 2 === 0 ? -9 : 9;
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#ffffff';
+          ctx.fillStyle = '#111827';
           meta.data.forEach((point, index) => {
-            ctx.fillText(dataset.data[index], point.x, point.y - 9);
+            const labelY = point.y + yOffset;
+            ctx.strokeText(dataset.data[index], point.x, labelY);
+            ctx.fillText(dataset.data[index], point.x, labelY);
           });
         });
         ctx.restore();
@@ -161,12 +292,12 @@
     new Chart(reportLineCtx, {
       type: 'line',
       data: {
-        labels: chartPayload.labels,
+        labels: chartPayload.labels.map(label => wrapChartLabel(label)),
         datasets: chartPayload.datasets.map((item, index) => {
           const colors = ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706', '#7c3aed', '#dc2626'];
           const color = colors[index % colors.length];
           return {
-            label: String(item.year),
+            label: String(item.label || item.year),
             data: item.data,
             borderColor: color,
             backgroundColor: color + '22',
@@ -187,7 +318,11 @@
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: true, position: 'top' },
+          legend: {
+            display: chartPayload.datasets.length > 1,
+            position: 'bottom',
+            labels: { usePointStyle: true, boxWidth: 8, padding: 10 }
+          },
           tooltip: {
             callbacks: {
               label: function(context) {
@@ -200,7 +335,8 @@
           x: {
             title: { display: true, text: {{ report.chart_rows.x_title|default('Month of Year')|tojson }} },
             offset: isQuarterly,
-            grid: { display: false }
+            grid: { display: false },
+            ticks: { autoSkip: true, maxRotation: 0, maxTicksLimit: 12, padding: 6 }
           },
           y: {
             beginAtZero: !isQuarterly,
@@ -213,7 +349,7 @@
       }
     });
   }
-  renderReportLineChart();
+  window.reportChartsReady = renderReportLineChart();
 </script>
 {% endif %}
 {% if report.extra_charts %}
@@ -222,50 +358,78 @@
     if (typeof loadChartJs === 'function') {
       await loadChartJs();
     }
-    if (!window.Chart) return;
     const charts = {{ report.extra_charts | tojson }};
     charts.forEach((chart, index) => {
       const ctx = document.getElementById('extraReportChart' + (index + 1));
       if (!ctx) return;
+      const fallback = ctx.closest('.report-figure')?.querySelector('[data-report-chart-fallback]');
+      if (!window.Chart) {
+        ctx.closest('.chart-container')?.setAttribute('hidden', '');
+        fallback?.removeAttribute('hidden');
+        return;
+      }
+      const wrapChartLabel = (value, maxLength = 22) => {
+        const lines = [];
+        let line = '';
+        String(value).split(/\s+/).forEach(word => {
+          const candidate = line ? line + ' ' + word : word;
+          if (candidate.length > maxLength && line) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = candidate;
+          }
+        });
+        if (line) lines.push(line);
+        return lines;
+      };
+      const chartLabels = (chart.labels || []).map(label => wrapChartLabel(label));
+      const chartContainer = ctx.closest('.chart-container');
+      chartContainer.style.height = Math.max(260, Math.min(520, chartLabels.length * 44)) + 'px';
       new Chart(ctx, {
         type: chart.type || 'bar',
         data: {
-          labels: chart.labels || [],
+          labels: chartLabels,
           datasets: [{
             label: chart.y_title || 'Consultations',
             data: chart.data || [],
-            backgroundColor: ['#0f5b8a', '#2ba7c5', '#2f9e44', '#d97706', '#7c3aed', '#dc2626'],
-            borderRadius: 8,
-            borderWidth: 0
+            backgroundColor: '#2b7a78',
+            borderRadius: 4,
+            borderWidth: 1,
+            borderColor: '#1c5d59'
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          indexAxis: 'y',
           plugins: {
             legend: { display: false },
             tooltip: {
               callbacks: {
                 label: context => {
                   const suffix = chart.tooltip_suffix || chart.y_title || 'consultations';
-                  return context.parsed.y + ' ' + suffix;
+                  return context.parsed.x + ' ' + suffix;
                 }
               }
             }
           },
           scales: {
-            x: { grid: { display: false } },
-            y: {
+            x: {
               beginAtZero: true,
               title: { display: true, text: chart.y_title || 'Consultations' },
               ticks: { precision: 0 }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { autoSkip: false, padding: 5 }
             }
           }
         }
       });
     });
   }
-  renderExtraReportCharts();
+  window.reportChartsReady = Promise.all([window.reportChartsReady, renderExtraReportCharts()]);
 </script>
 {% endif %}
 {% endblock %}

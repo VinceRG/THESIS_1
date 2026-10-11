@@ -2,25 +2,89 @@
 
 {% block title %}Reports - Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Reports{% endblock %}
-{% block page_subtitle %}Downloadable reports for operations, forecasting, and resource planning{% endblock %}
+{% block page_subtitle %}View, print, and save reports for operations, forecasting, and resource planning{% endblock %}
 
 {% block content %}
-<div class="grid grid-auto-fit">
+<section class="chart-card report-global-scope" aria-labelledby="reportScopeHeading">
+  <h2 id="reportScopeHeading">Global Report Scope</h2>
+  <form method="get" action="{{ url_for('reports') }}" class="report-scope-form" data-report-scope-form>
+    <label>
+      Report scope
+      <select name="scope" data-report-scope>
+        <option value="monthly" {% if scope == 'monthly' %}selected{% endif %}>Monthly</option>
+        <option value="annually" {% if scope == 'annually' %}selected{% endif %}>Annually</option>
+        <option value="quarterly" {% if scope == 'quarterly' %}selected{% endif %}>Quarterly</option>
+        <option value="date-range" {% if scope == 'date-range' %}selected{% endif %}>Data range</option>
+      </select>
+    </label>
+    <label>
+      From date
+      <input type="date" name="date_from" value="{{ date_from }}" data-report-date-from {% if scope == 'date-range' %}required{% else %}disabled{% endif %}>
+    </label>
+    <label>
+      To date
+      <input type="date" name="date_to" value="{{ date_to }}" data-report-date-to {% if scope == 'date-range' %}required{% else %}disabled{% endif %}>
+    </label>
+    <button type="submit" class="btn"><i class="bi bi-funnel" aria-hidden="true"></i> Apply Scope</button>
+  </form>
+  <p class="report-applied-scope" role="status">
+    <strong>Applied scope:</strong> {{ scope_label }}{% if date_range_label %} ({{ date_range_label }}){% endif %}
+  </p>
+</section>
+
+<div class="grid grid-auto-fit report-dashboard-grid">
   {% for key, report in reports.items() %}
-  <div class="chart-card">
+  <article class="chart-card report-dashboard-card">
     <h3>{{ report.title }}</h3>
     <p class="muted-copy" style="margin-bottom:14px;">{{ report.description }}</p>
-    <div class="report-card-actions">
-      <a class="btn" href="{{ url_for('report_view', report_key=key) }}" data-loading-link="report-view"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
-      <a class="btn secondary" href="{{ url_for('report_print', report_key=key) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
-      <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key) }}"><i class="bi bi-download" aria-hidden="true"></i> Download PDF</a>
+    <div class="report-card-actions" role="group" aria-label="Actions for {{ report.title }}">
+      <a class="btn" href="{{ url_for('report_view', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}" data-loading-link="report-view"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
+      <div class="report-export-actions" role="group" aria-label="Export {{ report.title }}">
+        <a class="btn secondary" href="{{ url_for('report_print', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+        <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-download" aria-hidden="true"></i> Save as PDF</a>
+      </div>
     </div>
-  </div>
+  </article>
   {% else %}
-  <div class="chart-card">
+  <article class="chart-card report-dashboard-card">
     <h3>No reports are available yet</h3>
     <p class="muted-copy">Reports appear here once consultation and forecasting data has been recorded.</p>
-  </div>
+  </article>
   {% endfor %}
 </div>
+<script>
+  const reportScopeForm = document.querySelector('[data-report-scope-form]');
+  const reportScopeSelect = document.querySelector('[data-report-scope]');
+  const reportDateFrom = document.querySelector('[data-report-date-from]');
+  const reportDateTo = document.querySelector('[data-report-date-to]');
+  const updateReportDateFields = () => {
+    const isDateRange = reportScopeSelect?.value === 'date-range';
+    [reportDateFrom, reportDateTo].forEach(field => {
+      if (!field) return;
+      field.disabled = !isDateRange;
+      field.required = isDateRange;
+    });
+  };
+  const validateReportDateRange = () => {
+    reportDateTo?.setCustomValidity(
+      reportScopeSelect?.value === 'date-range' && reportDateFrom?.value && reportDateTo?.value
+        && reportDateFrom.value > reportDateTo.value
+        ? 'The end date must be on or after the start date.'
+        : ''
+    );
+  };
+  reportScopeSelect?.addEventListener('change', updateReportDateFields);
+  reportScopeSelect?.addEventListener('change', validateReportDateRange);
+  reportDateFrom?.addEventListener('input', validateReportDateRange);
+  reportDateTo?.addEventListener('input', validateReportDateRange);
+  reportScopeForm?.addEventListener('submit', event => {
+    validateReportDateRange();
+    if (!reportScopeForm.checkValidity()) {
+      event.preventDefault();
+      reportScopeForm.reportValidity();
+    }
+  });
+  updateReportDateFields();
+  validateReportDateRange();
+</script>
 {% endblock %}
