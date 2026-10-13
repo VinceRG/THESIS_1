@@ -40,11 +40,27 @@
     </label>
     <label>
       Branch Manager
-      <input type="text" name="manager_name" value="{{ branch.manager_name if branch and branch.manager_name else '' }}" placeholder="e.g. Maria Santos">
+      <select name="manager_id">
+        <option value="">-- Select Staff Member from Database --</option>
+        {% for staff in staff_options %}
+          <option value="{{ staff.id }}" {% if (branch and branch.manager_id == staff.id) or (branch and not branch.manager_id and branch.manager_name and staff.name in branch.manager_name) %}selected{% endif %}>
+            {{ staff.name }} ({{ staff.role }})
+          </option>
+        {% endfor %}
+      </select>
+      <span class="muted-copy">Selected from registered staff in your database.</span>
     </label>
     <label>
       Head Doctor / Assigned Physician
-      <input type="text" name="head_doctor_name" value="{{ branch.head_doctor_name if branch and branch.head_doctor_name else '' }}" placeholder="e.g. Dr. Juan Reyes">
+      <select name="head_doctor_id">
+        <option value="">-- Select Doctor / Physician from Database --</option>
+        {% for doc in doctor_options %}
+          <option value="{{ doc.id }}" {% if (branch and branch.head_doctor_id == doc.id) or (branch and not branch.head_doctor_id and branch.head_doctor_name and doc.name in branch.head_doctor_name) %}selected{% endif %}>
+            {{ doc.name }} ({{ doc.role }})
+          </option>
+        {% endfor %}
+      </select>
+      <span class="muted-copy">Selected from registered physicians in your database.</span>
     </label>
     <div class="form-actions">
       <button type="submit" class="btn"><i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save Branch' if branch else 'Create Branch' }}</button>

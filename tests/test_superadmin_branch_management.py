@@ -7,7 +7,7 @@ _TEST_DB_PATH = os.path.join(tempfile.gettempdir(), 'superadmin_test.db')
 os.environ['DATABASE_URL'] = 'sqlite:///' + _TEST_DB_PATH.replace('\\', '/')
 
 from werkzeug.security import generate_password_hash, check_password_hash
-from app import app, db, User, Branch
+from app import app, db, User, Branch, StaffMember
 
 class SuperadminBranchManagementTestCase(unittest.TestCase):
     def setUp(self):
@@ -175,6 +175,50 @@ class SuperadminBranchManagementTestCase(unittest.TestCase):
             '_csrf_token': token
         }, follow_redirects=True)
         self.assertIn(b'account has been deactivated', res.data.lower())
+
+    def test_edit_branch_with_staff_dropdown(self):
+        self._login()
+
+        # Create sample doctor and manager staff
+        doc = StaffMember(
+            name='Dr. Test Physician',
+            role='General Physicians',
+            branch_id=self.branch.id,
+            is_active=True
+        )
+        mgr = StaffMember(
+            name='Test Manager Staff',
+            role='Registered Medical Technologists',
+            branch_id=self.branch.id,
+            is_active=True
+        )
+        db.session.add_all([doc, mgr])
+        db.session.commit()
+
+        # Render edit form to verify dropdowns exist
+        edit_page = self.client.get(f'/branches/{self.branch.id}/edit')
+        self.assertEqual(edit_page.status_code, 200)
+        self.assertIn(b'name="manager_id"', edit_page.data)
+        self.assertIn(b'name="head_doctor_id"', edit_page.data)
+        self.assertIn(b'Dr. Test Physician', edit_page.data)
+        self.assertIn(b'Test Manager Staff', edit_page.data)
+
+        # Submit form with staff selections
+        res = self.client.post(f'/branches/{self.branch.id}/edit', data={
+            'name': 'Updated Branch Name',
+            'code': self.branch.code,
+            'operating_status': 'Open',
+            'manager_id': str(mgr.id),
+            'head_doctor_id': str(doc.id),
+        }, follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+
+        # Verify DB updated with foreign keys and names
+        branch = db.session.get(Branch, self.branch.id)
+        self.assertEqual(branch.manager_id, mgr.id)
+        self.assertEqual(branch.manager_name, 'Test Manager Staff')
+        self.assertEqual(branch.head_doctor_id, doc.id)
+        self.assertEqual(branch.head_doctor_name, 'Dr. Test Physician')
 
 if __name__ == '__main__':
     unittest.main()

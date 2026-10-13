@@ -216,8 +216,12 @@ class Branch(db.Model):
     is_main = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     operating_status = db.Column(db.String(40), default='Open', nullable=False)
+    manager_id = db.Column(db.Integer, db.ForeignKey('staff_member.id'), nullable=True)
+    head_doctor_id = db.Column(db.Integer, db.ForeignKey('staff_member.id'), nullable=True)
     manager_name = db.Column(db.String(120), nullable=True)
     head_doctor_name = db.Column(db.String(120), nullable=True)
+    manager = db.relationship('StaffMember', foreign_keys=[manager_id])
+    head_doctor = db.relationship('StaffMember', foreign_keys=[head_doctor_id])
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -309,7 +313,7 @@ class StaffMember(db.Model):
     availability = db.Column(db.String(20), default='Available')
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
-    branch = db.relationship('Branch', backref='staff_members')
+    branch = db.relationship('Branch', foreign_keys=[branch_id], backref='staff_members')
 
     @property
     def working_days_list(self):
@@ -5173,6 +5177,11 @@ def create_app():
         if redirect_response:
             return redirect_response
 
+        all_staff = StaffMember.query.filter_by(is_active=True).order_by(StaffMember.name.asc()).all()
+        doctor_options = [s for s in all_staff if any(k in (s.role or '').lower() for k in ['doctor', 'physician', 'specialist', 'pathologist', 'radiologist'])]
+        if not doctor_options:
+            doctor_options = all_staff
+
         if request.method == 'POST':
             name = request.form.get('name', '').strip()
             code = request.form.get('code', '').strip().upper()
@@ -5180,8 +5189,15 @@ def create_app():
             email = request.form.get('email', '').strip()
             contact_number = request.form.get('contact_number', '').strip()
             operating_status = request.form.get('operating_status', 'Open').strip()
-            manager_name = request.form.get('manager_name', '').strip()
-            head_doctor_name = request.form.get('head_doctor_name', '').strip()
+
+            manager_id_val = request.form.get('manager_id', '').strip()
+            head_doctor_id_val = request.form.get('head_doctor_id', '').strip()
+            manager_staff = db.session.get(StaffMember, int(manager_id_val)) if manager_id_val.isdigit() else None
+            head_doctor_staff = db.session.get(StaffMember, int(head_doctor_id_val)) if head_doctor_id_val.isdigit() else None
+
+            manager_name = manager_staff.name if manager_staff else (request.form.get('manager_name', '').strip() or None)
+            head_doctor_name = head_doctor_staff.name if head_doctor_staff else (request.form.get('head_doctor_name', '').strip() or None)
+
             if not name or not code:
                 flash('Branch name and code are required.', 'error')
                 return redirect(url_for('create_branch'))
@@ -5195,7 +5211,9 @@ def create_app():
                 email=email,
                 contact_number=contact_number,
                 operating_status=operating_status,
+                manager_id=manager_staff.id if manager_staff else None,
                 manager_name=manager_name,
+                head_doctor_id=head_doctor_staff.id if head_doctor_staff else None,
                 head_doctor_name=head_doctor_name,
                 is_main=False,
                 is_active=True,
@@ -5211,6 +5229,8 @@ def create_app():
         return render_template(
             'branches/form.html',
             branch=None,
+            staff_options=all_staff,
+            doctor_options=doctor_options,
             current_date=datetime.now().strftime('%Y-%m-%d'),
             current_time=datetime.now().strftime('%H:%M'),
         )
@@ -5222,6 +5242,11 @@ def create_app():
             return redirect_response
 
         branch = Branch.query.get_or_404(branch_id)
+        all_staff = StaffMember.query.filter_by(is_active=True).order_by(StaffMember.name.asc()).all()
+        doctor_options = [s for s in all_staff if any(k in (s.role or '').lower() for k in ['doctor', 'physician', 'specialist', 'pathologist', 'radiologist'])]
+        if not doctor_options:
+            doctor_options = all_staff
+
         if request.method == 'POST':
             name = request.form.get('name', '').strip()
             code = branch.code if branch.is_main else request.form.get('code', '').strip().upper()
@@ -5229,8 +5254,15 @@ def create_app():
             email = request.form.get('email', '').strip()
             contact_number = request.form.get('contact_number', '').strip()
             operating_status = request.form.get('operating_status', branch.operating_status or 'Open').strip()
-            manager_name = request.form.get('manager_name', '').strip()
-            head_doctor_name = request.form.get('head_doctor_name', '').strip()
+
+            manager_id_val = request.form.get('manager_id', '').strip()
+            head_doctor_id_val = request.form.get('head_doctor_id', '').strip()
+            manager_staff = db.session.get(StaffMember, int(manager_id_val)) if manager_id_val.isdigit() else None
+            head_doctor_staff = db.session.get(StaffMember, int(head_doctor_id_val)) if head_doctor_id_val.isdigit() else None
+
+            manager_name = manager_staff.name if manager_staff else (request.form.get('manager_name', '').strip() or None)
+            head_doctor_name = head_doctor_staff.name if head_doctor_staff else (request.form.get('head_doctor_name', '').strip() or None)
+
             if not name or not code:
                 flash('Branch name and code are required.', 'error')
                 return redirect(url_for('edit_branch', branch_id=branch.id))
@@ -5244,7 +5276,9 @@ def create_app():
             branch.email = email
             branch.contact_number = contact_number
             branch.operating_status = operating_status
+            branch.manager_id = manager_staff.id if manager_staff else None
             branch.manager_name = manager_name
+            branch.head_doctor_id = head_doctor_staff.id if head_doctor_staff else None
             branch.head_doctor_name = head_doctor_name
             log_audit('edit_branch', 'Branch', branch.id, {'name': branch.name, 'code': branch.code}, branch_id=branch.id)
             db.session.commit()
@@ -5256,6 +5290,8 @@ def create_app():
         return render_template(
             'branches/form.html',
             branch=branch,
+            staff_options=all_staff,
+            doctor_options=doctor_options,
             current_date=datetime.now().strftime('%Y-%m-%d'),
             current_time=datetime.now().strftime('%H:%M'),
         )
@@ -9136,6 +9172,10 @@ def migrate_branch_schema(app):
                 conn.execute(text("ALTER TABLE branch ADD COLUMN manager_name VARCHAR(120)"))
             if 'head_doctor_name' not in branch_columns:
                 conn.execute(text("ALTER TABLE branch ADD COLUMN head_doctor_name VARCHAR(120)"))
+            if 'manager_id' not in branch_columns:
+                conn.execute(text("ALTER TABLE branch ADD COLUMN manager_id INTEGER"))
+            if 'head_doctor_id' not in branch_columns:
+                conn.execute(text("ALTER TABLE branch ADD COLUMN head_doctor_id INTEGER"))
 
             user_result = conn.execute(text("PRAGMA table_info(user)"))
             user_columns = {row[1] for row in user_result.fetchall()}
@@ -9168,6 +9208,25 @@ def migrate_branch_schema(app):
                 branch.operating_status = 'Open'
                 updated = True
             if updated:
+                db.session.commit()
+
+        for b in Branch.query.all():
+            changed = False
+            if not b.manager_id and b.manager_name:
+                clean_name = b.manager_name.replace('Dr.', '').replace('Dr', '').strip()
+                m_staff = StaffMember.query.filter(StaffMember.name.ilike(f"%{clean_name}%")).first()
+                if m_staff:
+                    b.manager_id = m_staff.id
+                    b.manager_name = m_staff.name
+                    changed = True
+            if not b.head_doctor_id and b.head_doctor_name:
+                clean_name = b.head_doctor_name.replace('Dr.', '').replace('Dr', '').strip()
+                d_staff = StaffMember.query.filter(StaffMember.name.ilike(f"%{clean_name}%")).first()
+                if d_staff:
+                    b.head_doctor_id = d_staff.id
+                    b.head_doctor_name = d_staff.name
+                    changed = True
+            if changed:
                 db.session.commit()
 
         with db.engine.begin() as conn:
