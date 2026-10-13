@@ -3,13 +3,7 @@
 
 {% block title %}Packages - Smart Healthcare Clinic Management{% endblock %}
 {% block page_title %}Packages{% endblock %}
-{% block page_subtitle %}
-  {% if mode == 'global' %}
-    Global Accudetek package catalog
-  {% else %}
-    Manage branch package availability and pricing.
-  {% endif %}
-{% endblock %}
+{% block page_subtitle %}{% if mode == 'global' %}Global Accudetek package catalog{% else %}Manage branch package availability and pricing.{% endif %}{% endblock %}
 
 {% block content %}
 <div class="section-stack">
