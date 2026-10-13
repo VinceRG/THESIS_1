@@ -96,11 +96,12 @@
               <td>
                 {% if alloc.status == 'Approved' %}
                   <span class="status-pill status-healthy"><i class="bi bi-check-circle" aria-hidden="true"></i> Approved</span>
-                  {% if alloc.notified_at %}
-                    <div class="muted-copy" style="font-size:11px; margin-top:2px;">Notified via Email</div>
-                  {% endif %}
+                  <div class="muted-copy" style="font-size:11px; margin-top:2px;">Confirmed Schedule</div>
                 {% elif alloc.status == 'Pending' %}
                   <span class="status-pill status-high"><i class="bi bi-clock-history" aria-hidden="true"></i> Pending</span>
+                  {% if alloc.notified_at %}
+                    <div class="muted-copy" style="font-size:11px; margin-top:2px;">Tentative Notice Sent</div>
+                  {% endif %}
                 {% elif alloc.status == 'Cancelled' %}
                   <span class="status-pill status-neutral">Cancelled</span>
                 {% else %}
@@ -119,10 +120,10 @@
                 <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
                   {% if alloc.status == 'Pending' and can_manage %}
                     <form method="post" action="{{ url_for('approve_staff_allocation', id=alloc.id) }}"
-                          data-confirm-title="Approve and notify staff?"
-                          data-confirm="This will approve this shift allocation and automatically email {{ alloc.staff_member.name }} with their schedule. Continue?">
+                          data-confirm-title="Approve and confirm schedule?"
+                          data-confirm="This will grant official approval for this shift and email {{ alloc.staff_member.name }} their confirmed reporting schedule. Continue?">
                       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="btn btn-sm" style="background:#27ae60; border-color:#27ae60;">
+                      <button type="submit" class="btn btn-sm" style="background:#27ae60; border-color:#27ae60;" title="Approve shift and send official schedule confirmation email">
                         <i class="bi bi-check-lg" aria-hidden="true"></i> Approve &amp; Notify
                       </button>
                     </form>

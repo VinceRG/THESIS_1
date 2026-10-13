@@ -18,18 +18,22 @@
   <div class="card">
     <h3>Total Staff</h3>
     <div class="value">{{ total_active }}</div>
+    <div class="trend">Active clinic personnel</div>
   </div>
   <div class="card">
-    <h3>Available</h3>
+    <h3>On Duty Today</h3>
+    <div class="value" style="color:var(--success-color, #27ae60);">{{ on_duty_count }}</div>
+    <div class="trend">{{ today_day_name }} clinic coverage</div>
+  </div>
+  <div class="card">
+    <h3>Off Duty / Rest Day</h3>
+    <div class="value" style="color:var(--muted-color, #64748b);">{{ off_duty_count }}</div>
+    <div class="trend">Scheduled rest or leave</div>
+  </div>
+  <div class="card">
+    <h3>Available Pool</h3>
     <div class="value">{{ available_count }}</div>
-  </div>
-  <div class="card">
-    <h3>Unavailable</h3>
-    <div class="value">{{ unavailable_count }}</div>
-  </div>
-  <div class="card">
-    <h3>Selected</h3>
-    <div class="value" id="selectedCountCard">0</div>
+    <div class="trend">Ready for shifts</div>
   </div>
 </div>
 
@@ -72,6 +76,69 @@
       {% endif %}
     </div>
 
+  <style>
+    .staff-filter {
+      display: grid !important;
+      grid-template-columns: minmax(180px, 2fr) minmax(190px, 1.3fr) minmax(160px, 1fr) auto !important;
+      gap: 16px !important;
+      align-items: flex-end !important;
+      margin-top: 14px;
+      margin-bottom: 20px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--admin-line, #e2e8f0);
+    }
+    .staff-filter label {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 6px !important;
+      min-width: 0 !important;
+      width: 100% !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      color: var(--text, #1e293b) !important;
+      margin: 0 !important;
+    }
+    .staff-filter input,
+    .staff-filter select {
+      width: 100% !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+      min-height: 42px !important;
+      padding: 8px 12px !important;
+      border: 1px solid var(--admin-line, #d1d5db) !important;
+      border-radius: 8px !important;
+      background: #ffffff !important;
+      color: var(--text, #1e293b) !important;
+      font-size: 14px !important;
+    }
+    .staff-filter select {
+      cursor: pointer;
+    }
+    .staff-filter .filter-actions {
+      display: flex !important;
+      gap: 8px !important;
+      align-items: center !important;
+      white-space: nowrap !important;
+    }
+    @media (max-width: 992px) {
+      .staff-filter {
+        grid-template-columns: 1fr 1fr !important;
+      }
+      .staff-filter label:first-child {
+        grid-column: 1 / -1 !important;
+      }
+      .staff-filter .filter-actions {
+        grid-column: 1 / -1 !important;
+        margin-top: 4px;
+      }
+    }
+    @media (max-width: 576px) {
+      .staff-filter {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  </style>
+
   <form method="get" class="filter-form staff-filter">
     <label>
       Search
@@ -106,7 +173,13 @@
       <thead>
         <tr>
           {% if not all_branches_view %}<th><input type="checkbox" id="selectAllStaff" title="Select all"></th>{% endif %}
-          {% if all_branches_view %}<th>Branch</th>{% endif %}<th>Staff Member</th><th>Email</th><th>Position</th><th>Status</th><th>Actions</th>
+          {% if all_branches_view %}<th>Branch</th>{% endif %}
+          <th>Staff Member</th>
+          <th>Contact</th>
+          <th>Position</th>
+          <th>Weekly Schedule</th>
+          <th>Today's Status</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -116,19 +189,78 @@
               <td><input type="checkbox" class="staff-select-checkbox" form="notifySelectedForm" name="staff_ids" value="{{ person.id }}"></td>
             {% endif %}
             {% if all_branches_view %}<td>{{ person.branch.name if person.branch else 'Unassigned' }}</td>{% endif %}
-            <td>{{ person.name }}</td>
-            <td>{{ person.email or '—' }}</td>
+            <td>
+              <strong>{{ person.name }}</strong>
+            </td>
+            <td>
+              <div>{{ person.email or '—' }}</div>
+              {% if person.phone_number %}
+                <small class="muted-copy" style="display:inline-flex; align-items:center; gap:4px; margin-top:2px;">
+                  <i class="bi bi-telephone" aria-hidden="true"></i> {{ person.phone_number }}
+                </small>
+              {% endif %}
+            </td>
             <td>{{ person.role }}</td>
             <td>
-              <span class="staff-status status-{{ person.availability|lower|replace(' ', '-') }}">
-                {{ person.availability }}
-              </span>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:12px; font-weight:600; color:var(--text-color, #1e293b);">
+                  {{ person.working_days_display }}
+                </span>
+                <div class="schedule-days-pill-group" style="display:inline-flex; gap:3px;">
+                  {% for code, day_name in [('M', 'Monday'), ('T', 'Tuesday'), ('W', 'Wednesday'), ('Th', 'Thursday'), ('F', 'Friday'), ('Sa', 'Saturday'), ('Su', 'Sunday')] %}
+                    {% set works = person.is_working_on(day_name) %}
+                    {% set is_today = (day_name == today_day_name) %}
+                    <span style="display:inline-block; width:22px; height:22px; line-height:20px; text-align:center; font-size:10px; font-weight:700; border-radius:4px;
+                                 {% if works and is_today %}
+                                   background:#0284c7; color:#ffffff; border:1px solid #0369a1; box-shadow:0 0 0 2px rgba(2,132,199,0.25);
+                                 {% elif works %}
+                                   background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;
+                                 {% else %}
+                                   background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; opacity:0.6;
+                                 {% endif %}"
+                          title="{{ day_name }}: {{ 'Working (Today!)' if (works and is_today) else ('Working' if works else 'Rest Day') }}">
+                      {{ code }}
+                    </span>
+                  {% endfor %}
+                </div>
+              </div>
+            </td>
+            <td>
+              {% set duty = person.current_duty_status %}
+              {% if duty == 'On Duty' %}
+                <span class="staff-status status-available" title="Scheduled to work today ({{ today_day_name }})">
+                  <i class="bi bi-check-circle-fill" style="margin-right:4px;"></i> On Duty
+                </span>
+              {% elif 'Off Duty' in duty %}
+                <span class="staff-status" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1;" title="Scheduled rest day for {{ today_day_name }}">
+                  <i class="bi bi-moon-stars" style="margin-right:4px;"></i> Rest Day
+                </span>
+              {% elif duty == 'On Leave' %}
+                <span class="staff-status status-unavailable" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;">
+                  <i class="bi bi-pause-circle" style="margin-right:4px;"></i> On Leave
+                </span>
+              {% else %}
+                <span class="staff-status status-{{ person.availability|lower|replace(' ', '-') }}">
+                  {{ person.availability }}
+                </span>
+              {% endif %}
             </td>
             <td class="admin-actions-cell staff-actions-cell">
               <div class="admin-action-group">
               {% if not all_branches_view %}
                 <a class="btn secondary admin-action-edit" href="{{ url_for('create_staff_allocation', staff_id=person.id, role=person.role) }}" title="Prepare Shift Allocation"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Allocate</a>
-                <a class="btn secondary admin-action-edit" href="{{ url_for('edit_staff', staff_id=person.id) }}"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
+                <a class="btn secondary admin-action-edit" href="{{ url_for('edit_staff', staff_id=person.id) }}" title="Edit Details"><i class="bi bi-pencil" aria-hidden="true"></i> Edit</a>
+                <form method="post" action="{{ url_for('toggle_staff_status', staff_id=person.id) }}" style="display:inline;">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn secondary admin-action-edit" style="padding:4px 8px; font-size:12px;"
+                          title="Quick toggle status (Available ↔ On Leave)">
+                    {% if person.availability == 'Available' %}
+                      <i class="bi bi-pause-circle" aria-hidden="true"></i> Leave
+                    {% else %}
+                      <i class="bi bi-play-circle" aria-hidden="true"></i> Active
+                    {% endif %}
+                  </button>
+                </form>
                 <form method="post" action="{{ url_for('delete_staff', staff_id=person.id) }}"
                       data-confirm-title="Remove staff member?"
                       data-confirm="This will move {{ person.name }} to Former Staff. Continue?">
@@ -141,7 +273,7 @@
             </td>
           </tr>
         {% else %}
-          <tr class="table-empty-state"><td colspan="6"><strong>No active staff yet.</strong>Add a staff member to start tracking roles and availability.</td></tr>
+          <tr class="table-empty-state"><td colspan="{{ 8 if all_branches_view else 7 }}"><strong>No active staff yet.</strong>Add a staff member to start tracking roles and availability.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -1584,6 +1584,68 @@ class StaffingGapNotificationTests(unittest.TestCase):
             audit = AuditLog.query.filter_by(action='approve_staff_allocation').first()
             self.assertIsNotNone(audit)
 
+    def test_staff_allocation_multiple_staff_members_auto_roles(self):
+        with self.app.app_context():
+            branch = Branch.query.first()
+            staff1 = StaffMember(branch_id=branch.id, name='Nurse Alex Rivera', role='Registered Nurses', email='alex@example.com', is_active=True)
+            staff2 = StaffMember(branch_id=branch.id, name='Tech Maria Santos', role='Registered Medical Technologists', email='maria@example.com', is_active=True)
+            db.session.add_all([staff1, staff2])
+            db.session.commit()
+            branch_id = branch.id
+            s1_id = staff1.id
+            s2_id = staff2.id
+
+        self._login()
+        with self.client.session_transaction() as sess:
+            sess['selected_branch_id'] = str(branch_id)
+
+        # Access new allocation page
+        res = self.client.get('/staff-allocations/new')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b'Staff Members to Allocate', res.data)
+        self.assertNotIn(b'Role / Position *', res.data)
+        token = self._extract_csrf_token(res.data)
+
+        # Allocate both staff members simultaneously for 2026-10-14 without submitting manual role
+        with patch.object(self.app, 'send_appointment_email', return_value=True) as mock_send:
+            res_create = self.client.post(
+                '/staff-allocations/new',
+                data={
+                    '_csrf_token': token,
+                    'staff_ids': [str(s1_id), str(s2_id)],
+                    'schedule_date': '2026-10-14',
+                    'shift_start': '6:00 AM',
+                    'shift_end': '5:00 PM',
+                    'reason': 'Forecasting patient surge',
+                },
+                follow_redirects=True,
+            )
+        self.assertEqual(res_create.status_code, 200)
+        self.assertIn(b'saved as Pending', res_create.data)
+        # Verify tentative email was sent to both staff members
+        self.assertEqual(mock_send.call_count, 2)
+        sent_recipients = [call[0][0] for call in mock_send.call_args_list]
+        self.assertIn('alex@example.com', sent_recipients)
+        self.assertIn('maria@example.com', sent_recipients)
+        sent_subjects = [call[0][1] for call in mock_send.call_args_list]
+        self.assertTrue(all('Tentative Shift Coverage Notice' in s for s in sent_subjects))
+        sent_bodies = [call[0][2] for call in mock_send.call_args_list]
+        self.assertTrue(all('NOT AVAILABLE or have a scheduling conflict' in b for b in sent_bodies))
+
+        with self.app.app_context():
+            alloc1 = StaffAllocation.query.filter_by(staff_member_id=s1_id, schedule_date='2026-10-14').first()
+            alloc2 = StaffAllocation.query.filter_by(staff_member_id=s2_id, schedule_date='2026-10-14').first()
+            self.assertIsNotNone(alloc1)
+            self.assertIsNotNone(alloc2)
+            # Roles were automatically populated from staff profile
+            self.assertEqual(alloc1.role, 'Registered Nurses')
+            self.assertEqual(alloc2.role, 'Registered Medical Technologists')
+            self.assertEqual(alloc1.status, 'Pending')
+            self.assertEqual(alloc2.status, 'Pending')
+            self.assertIsNotNone(alloc1.notified_at)
+            self.assertIsNotNone(alloc2.notified_at)
+
 
 if __name__ == '__main__':
     unittest.main()
+

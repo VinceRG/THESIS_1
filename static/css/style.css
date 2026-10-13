@@ -1523,7 +1523,9 @@ label.has-error > .patient-time-trigger { border-color:#f2a5a5; background:#fff7
 .staffing-gap-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; background:#ffffff; border:1px solid #fecaca; border-radius:10px; flex-wrap:wrap; }
 .staffing-gap-row strong { display:block; color:#991b1b; }
 .staffing-gap-row .muted-copy { display:block; margin-top:2px; }
-.staff-filter { grid-template-columns:2fr repeat(2, minmax(190px, 1fr)) auto; gap:100px; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid #e2e8f0; }
+.staff-filter { display:grid; grid-template-columns:minmax(180px, 2fr) minmax(180px, 1.2fr) minmax(140px, 1fr) auto; gap:16px; align-items:end; margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid #e2e8f0; }
+.staff-filter label { min-width:0; width:100%; }
+.staff-filter select, .staff-filter input { width:100%; min-width:0; box-sizing:border-box; }
 .staff-filter select { padding-right:28px; }
 .staffing-recommendation-banner { border:1px solid #b7e6f1; background:#eef6f9; }
 .staffing-recommendation-banner strong { color:var(--primary); }

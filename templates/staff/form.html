@@ -11,7 +11,7 @@
         data-confirm-title="{% if staff_member %}Save staff changes?{% else %}Add staff member?{% endif %}"
         data-confirm="{% if staff_member %}This will update the staff member details. Continue?{% else %}This will add the new staff member to the active roster. Continue?{% endif %}">
     <label>
-      Name
+      Name *
       <input type="text" name="name" value="{{ staff_member.name if staff_member else '' }}" required>
     </label>
     <label>
@@ -19,7 +19,11 @@
       <input type="email" name="email" value="{{ staff_member.email if staff_member else '' }}" placeholder="Used for staffing-gap notifications">
     </label>
     <label>
-      Role
+      Phone Number
+      <input type="tel" name="phone_number" value="{{ staff_member.phone_number if staff_member and staff_member.phone_number else '' }}" placeholder="e.g. 0917-123-4567">
+    </label>
+    <label>
+      Role *
       {% set selected_role = staff_member.role if staff_member else '' %}
       <select name="role" required>
         <option value="" disabled {% if not selected_role %}selected{% endif %}>Select role</option>
@@ -32,7 +36,7 @@
       </select>
     </label>
     <label>
-      Availability
+      Availability Status *
       {% set selected_availability = staff_member.availability if staff_member else 'Available' %}
       <select name="availability" required>
         {% for option in availability_options %}
@@ -43,7 +47,83 @@
         {% endif %}
       </select>
     </label>
-    <div class="form-actions">
+
+    <div class="form-wide" style="margin-top:10px;">
+      <label style="font-weight:600; display:block; margin-bottom:6px;">
+        <i class="bi bi-calendar-week" aria-hidden="true"></i> Weekly Working Schedule *
+        <span class="muted-copy" style="font-weight:normal; font-size:12px; margin-left:8px;">
+          (Standard clinic complement: Mon–Sat, Sunday rest day)
+        </span>
+      </label>
+      {% set current_days = staff_member.working_days_list if staff_member else ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] %}
+      <div style="display:flex; flex-wrap:wrap; gap:12px; padding:12px; background:var(--background-soft, #f8fafc); border:1px solid var(--border-color, #e2e8f0); border-radius:8px;">
+        {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+          <label style="display:inline-flex; align-items:center; gap:8px; font-size:14px; cursor:pointer; margin:0; user-select:none; font-weight:500;">
+            <input type="checkbox" name="working_days" value="{{ day }}" class="working-day-checkbox"
+                   {% if day in current_days %}checked{% endif %}
+                   style="cursor:pointer; width:16px; height:16px;">
+            <span>
+              <strong>{{ day[:3] }}</strong>
+              <small class="muted-copy" style="font-size:11px;">({{ day }})</small>
+              {% if day == 'Sunday' %}
+                <span class="status-pill status-neutral" style="font-size:10px; padding:1px 6px; margin-left:2px;">Clinic Half-Day</span>
+              {% endif %}
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+      <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">
+        <button type="button" class="btn secondary" style="padding:4px 10px; font-size:12px;" id="btnPresetMonSat">
+          <i class="bi bi-check2-all" aria-hidden="true"></i> Mon–Sat (Standard Clinic Days)
+        </button>
+        <button type="button" class="btn secondary" style="padding:4px 10px; font-size:12px;" id="btnPresetMonFri">
+          Mon–Fri Only
+        </button>
+        <button type="button" class="btn secondary" style="padding:4px 10px; font-size:12px;" id="btnPresetAll">
+          All 7 Days (Mon–Sun)
+        </button>
+        <button type="button" class="btn secondary" style="padding:4px 10px; font-size:12px;" id="btnPresetClear">
+          Clear All
+        </button>
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        var dayCheckboxes = document.querySelectorAll('.working-day-checkbox');
+        function setDays(allowedDays) {
+          dayCheckboxes.forEach(function(cb) {
+            cb.checked = allowedDays.indexOf(cb.value) !== -1;
+          });
+        }
+        var btnMonSat = document.getElementById('btnPresetMonSat');
+        if (btnMonSat) {
+          btnMonSat.addEventListener('click', function() {
+            setDays(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
+          });
+        }
+        var btnMonFri = document.getElementById('btnPresetMonFri');
+        if (btnMonFri) {
+          btnMonFri.addEventListener('click', function() {
+            setDays(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+          });
+        }
+        var btnAll = document.getElementById('btnPresetAll');
+        if (btnAll) {
+          btnAll.addEventListener('click', function() {
+            setDays(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']);
+          });
+        }
+        var btnClear = document.getElementById('btnPresetClear');
+        if (btnClear) {
+          btnClear.addEventListener('click', function() {
+            setDays([]);
+          });
+        }
+      })();
+    </script>
+
+    <div class="form-actions" style="margin-top:16px;">
       <button type="submit" class="btn"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
       <a href="{{ url_for('staff') }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
     </div>

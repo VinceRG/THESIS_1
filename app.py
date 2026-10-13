@@ -291,16 +291,57 @@ class ConsultationRecord(db.Model):
     branch = db.relationship('Branch', backref='consultation_records')
     patient = db.relationship('Patient', backref='consultation_records')
 
+STAFF_DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+DEFAULT_STAFF_WORKING_DAYS = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'
+
 class StaffMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('branch.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(60), nullable=False)
     email = db.Column(db.String(140), nullable=True)
+    phone_number = db.Column(db.String(40), nullable=True)
+    working_days = db.Column(db.String(140), default=DEFAULT_STAFF_WORKING_DAYS)
     availability = db.Column(db.String(20), default='Available')
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True)
     branch = db.relationship('Branch', backref='staff_members')
+
+    @property
+    def working_days_list(self):
+        if not self.working_days:
+            return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        return [d.strip() for d in self.working_days.split(',') if d.strip()]
+
+    def is_working_on(self, day_name):
+        return day_name in self.working_days_list
+
+    @property
+    def working_days_display(self):
+        days = self.working_days_list
+        all_mon_sat = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        all_week = all_mon_sat + ['Sunday']
+        if set(days) == set(all_week):
+            return 'Everyday (Mon-Sun)'
+        if set(days) == set(all_mon_sat):
+            return 'Mon-Sat (No Sun)'
+        if set(days) == {'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'}:
+            return 'Mon-Fri'
+        day_map = {
+            'Monday': 'Mon', 'Tuesday': 'Tue', 'Wednesday': 'Wed',
+            'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat', 'Sunday': 'Sun'
+        }
+        return ', '.join(day_map.get(d, d) for d in all_week if d in days)
+
+    @property
+    def current_duty_status(self):
+        """Returns dynamic status based on weekly working schedule and manual availability."""
+        if self.availability in ('Unavailable', 'On Leave', 'Busy'):
+            return self.availability
+        today_day = datetime.now().strftime('%A')
+        if self.is_working_on(today_day):
+            return 'On Duty'
+        return 'Rest Day'
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -361,7 +402,18 @@ class Appointment(db.Model):
     patient = db.relationship('Patient', backref='appointments')
 
     def _items(self, value):
-        return [item.strip() for item in (value or '').split('||') if item.strip()]
+        if not value:
+            return []
+        v_str = str(value).strip()
+        if v_str.startswith('[') and v_str.endswith(']'):
+            try:
+                import json
+                parsed = json.loads(v_str)
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed if str(item).strip()]
+            except Exception:
+                pass
+        return [item.strip() for item in v_str.split('||') if item.strip()]
 
     def service_items(self):
         return self._items(self.selected_services)
@@ -523,6 +575,8 @@ def build_facility_staff_roster():
             'name': person['name'],
             'role': person['role'],
             'availability': 'Available',
+            'phone_number': None,
+            'working_days': DEFAULT_STAFF_WORKING_DAYS,
         }
         for person in FACILITY_STAFF_ROSTER
     ]
@@ -6135,6 +6189,8 @@ def create_app():
         availability_filter = request.args.get('availability', '').strip()
         filter_args = {'q': search_query, 'role': role_filter, 'availability': availability_filter}
 
+        today_day_name = datetime.now().strftime('%A')
+
         base_active_query = scoped_query(StaffMember.query.filter_by(is_active=True), StaffMember)
         filtered_query = base_active_query
         if search_query:
@@ -6142,7 +6198,22 @@ def create_app():
         if role_filter:
             filtered_query = filtered_query.filter(StaffMember.role == role_filter)
         if availability_filter:
-            filtered_query = filtered_query.filter(StaffMember.availability == availability_filter)
+            if availability_filter == 'On Duty':
+                filtered_query = filtered_query.filter(
+                    StaffMember.availability == 'Available',
+                    StaffMember.working_days.ilike(f'%{today_day_name}%')
+                )
+            elif availability_filter == 'Rest Day':
+                filtered_query = filtered_query.filter(
+                    StaffMember.availability == 'Available',
+                    ~StaffMember.working_days.ilike(f'%{today_day_name}%')
+                )
+            elif availability_filter == 'On Leave':
+                filtered_query = filtered_query.filter(StaffMember.availability == 'On Leave')
+            elif availability_filter == 'Available':
+                filtered_query = filtered_query.filter(StaffMember.availability == 'Available')
+            else:
+                filtered_query = filtered_query.filter(StaffMember.availability == availability_filter)
 
         page = request.args.get('page', 1, type=int)
         active_staff = (
@@ -6157,8 +6228,12 @@ def create_app():
             .paginate(page=former_page_num, per_page=DEFAULT_PAGE_SIZE, error_out=False)
         )
 
-        total_active = base_active_query.count()
-        available_count = base_active_query.filter(StaffMember.availability == 'Available').count()
+        all_active_members = base_active_query.all()
+        total_active = len(all_active_members)
+        available_count = sum(1 for m in all_active_members if m.availability == 'Available')
+
+        on_duty_count = sum(1 for m in all_active_members if m.availability == 'Available' and m.is_working_on(today_day_name))
+        off_duty_count = total_active - on_duty_count
 
         recommendation = None
         if selected_branch_scope() is not None:
@@ -6181,15 +6256,20 @@ def create_app():
             availability_filter=availability_filter,
             filter_args=filter_args,
             role_options=staff_role_options,
-            availability_options=staff_availability_options,
+            availability_options=staff_filter_status_options,
             total_active=total_active,
             available_count=available_count,
             unavailable_count=total_active - available_count,
+            today_day_name=today_day_name,
+            on_duty_count=on_duty_count,
+            off_duty_count=off_duty_count,
+            days_of_week=STAFF_DAYS_OF_WEEK,
             recommendation=recommendation,
         )
 
     staff_role_options = [item['role'] for item in FACILITY_STAFF_COMPLEMENT]
-    staff_availability_options = ['Available', 'Busy', 'On Leave', 'Unavailable']
+    staff_filter_status_options = ['On Duty', 'Rest Day', 'On Leave']
+    staff_availability_options = ['Available', 'On Leave']
 
     @app.route('/staff/load-facility-complement', methods=['POST'])
     def load_facility_complement():
@@ -6203,13 +6283,15 @@ def create_app():
                 name=person['name'],
                 role=person['role'],
                 availability=person['availability'],
+                working_days=person.get('working_days', DEFAULT_STAFF_WORKING_DAYS),
+                phone_number=person.get('phone_number'),
                 is_active=True,
                 deleted_at=None,
             ))
         log_audit('load_facility_staff_complement', 'StaffMember', None, {'staff_count': len(FACILITY_STAFF_ROSTER)})
         db.session.commit()
         remove_cached_dashboard_summary(current_branch_id())
-        flash('Loaded the official 22-person clinic staff complement.', 'success')
+        flash('Loaded the official 22-person clinic staff complement (Mon–Sat schedule).', 'success')
         return redirect(url_for('staff'))
 
     @app.route('/staff/new', methods=['GET', 'POST'])
@@ -6223,20 +6305,34 @@ def create_app():
             if not name or not role:
                 flash('Name and role are required.', 'error')
                 return redirect(url_for('create_staff'))
+
+            selected_days = request.form.getlist('working_days')
+            if not selected_days:
+                # Default to Mon-Sat (all days except Sunday)
+                selected_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            working_days_str = ','.join([d for d in STAFF_DAYS_OF_WEEK if d in selected_days])
+
             new_staff = StaffMember(
                 branch_id=current_branch_id(),
                 name=name,
                 role=role,
                 email=request.form.get('email', '').strip() or None,
+                phone_number=request.form.get('phone_number', '').strip() or None,
+                working_days=working_days_str,
                 availability=request.form.get('availability', 'Available').strip(),
                 is_active=True,
                 deleted_at=None,
             )
             db.session.add(new_staff)
             db.session.flush()
-            log_audit('create_staff', 'StaffMember', new_staff.id, {'name': new_staff.name, 'role': new_staff.role, 'availability': new_staff.availability})
+            log_audit('create_staff', 'StaffMember', new_staff.id, {
+                'name': new_staff.name,
+                'role': new_staff.role,
+                'working_days': new_staff.working_days,
+                'availability': new_staff.availability
+            })
             db.session.commit()
-            get_dashboard_summary(force_refresh=True)
+            remove_cached_dashboard_summary(current_branch_id())
             flash('Staff member added successfully.', 'success')
             return redirect(url_for('staff'))
         return render_template(
@@ -6244,6 +6340,7 @@ def create_app():
             staff_member=None,
             role_options=staff_role_options,
             availability_options=staff_availability_options,
+            days_of_week=STAFF_DAYS_OF_WEEK,
         )
 
     @app.route('/staff/<int:staff_id>/edit', methods=['GET', 'POST'])
@@ -6258,13 +6355,26 @@ def create_app():
             if not name or not role:
                 flash('Name and role are required.', 'error')
                 return redirect(url_for('edit_staff', staff_id=staff_id))
+
+            selected_days = request.form.getlist('working_days')
+            if not selected_days:
+                # Default to Mon-Sat (all days except Sunday)
+                selected_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            staff_member.working_days = ','.join([d for d in STAFF_DAYS_OF_WEEK if d in selected_days])
+
             staff_member.name = name
             staff_member.role = role
             staff_member.email = request.form.get('email', '').strip() or None
+            staff_member.phone_number = request.form.get('phone_number', '').strip() or None
             staff_member.availability = request.form.get('availability', staff_member.availability).strip()
-            log_audit('edit_staff', 'StaffMember', staff_member.id, {'name': staff_member.name, 'role': staff_member.role, 'availability': staff_member.availability})
+            log_audit('edit_staff', 'StaffMember', staff_member.id, {
+                'name': staff_member.name,
+                'role': staff_member.role,
+                'working_days': staff_member.working_days,
+                'availability': staff_member.availability
+            })
             db.session.commit()
-            get_dashboard_summary(force_refresh=True)
+            remove_cached_dashboard_summary(current_branch_id())
             flash('Staff member updated successfully.', 'success')
             return redirect(url_for('staff'))
         return render_template(
@@ -6272,7 +6382,25 @@ def create_app():
             staff_member=staff_member,
             role_options=staff_role_options,
             availability_options=staff_availability_options,
+            days_of_week=STAFF_DAYS_OF_WEEK,
         )
+
+    @app.route('/staff/<int:staff_id>/toggle-status', methods=['POST'])
+    def toggle_staff_status(staff_id):
+        redirect_response = require_management_access() or require_specific_branch('staff')
+        if redirect_response:
+            return redirect_response
+        staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
+        new_status = 'On Leave' if staff_member.availability == 'Available' else 'Available'
+        staff_member.availability = new_status
+        log_audit('toggle_staff_status', 'StaffMember', staff_member.id, {
+            'name': staff_member.name,
+            'availability': new_status
+        })
+        db.session.commit()
+        remove_cached_dashboard_summary(current_branch_id())
+        flash(f"{staff_member.name} availability toggled to '{new_status}'.", 'success')
+        return redirect(url_for('staff'))
 
     @app.route('/staff/notify-gap', methods=['POST'])
     def notify_staffing_gap():
@@ -6756,17 +6884,32 @@ def create_app():
 
         branch = current_branch()
         if request.method == 'POST':
-            staff_id = request.form.get('staff_member_id', type=int)
-            staff = StaffMember.query.filter_by(id=staff_id, branch_id=branch.id, is_active=True).first() if staff_id else None
-            if not staff:
+            # Support multiple staff selection (staff_ids / staff_member_ids) or single fallback (staff_member_id)
+            raw_staff_ids = request.form.getlist('staff_ids') or request.form.getlist('staff_member_ids')
+            if not raw_staff_ids and request.form.get('staff_member_id'):
+                raw_staff_ids = [request.form.get('staff_member_id')]
+
+            staff_ids = []
+            for sid in raw_staff_ids:
+                try:
+                    s_int = int(sid)
+                    if s_int not in staff_ids:
+                        staff_ids.append(s_int)
+                except (ValueError, TypeError):
+                    continue
+
+            if not staff_ids:
                 raw_name = request.form.get('staff_search_input', '').strip()
                 if raw_name:
                     clean_name = raw_name.split('—')[0].split('-')[0].strip()
-                    staff = StaffMember.query.filter_by(branch_id=branch.id, is_active=True).filter(
+                    fallback_staff = StaffMember.query.filter_by(branch_id=branch.id, is_active=True).filter(
                         StaffMember.name.ilike(f"%{clean_name}%")
                     ).first()
-            if not staff:
-                flash('Please select an active staff member for this branch.', 'error')
+                    if fallback_staff:
+                        staff_ids.append(fallback_staff.id)
+
+            if not staff_ids:
+                flash('Please select at least one active staff member for this branch.', 'error')
                 return redirect(url_for('create_staff_allocation'))
 
             schedule_date = request.form.get('schedule_date', '').strip()
@@ -6774,31 +6917,96 @@ def create_app():
                 flash('Please specify a schedule date.', 'error')
                 return redirect(url_for('create_staff_allocation'))
 
-            role = request.form.get('role', '').strip() or staff.role
             shift_start = request.form.get('shift_start', '').strip() or '6:00 AM'
             shift_end = request.form.get('shift_end', '').strip() or '5:00 PM'
             reason = request.form.get('reason', '').strip() or 'Staffing coverage recommendation'
 
-            allocation = StaffAllocation(
-                branch_id=branch.id,
-                staff_member_id=staff.id,
-                role=role,
-                schedule_date=schedule_date,
-                shift_start=shift_start,
-                shift_end=shift_end,
-                reason=reason,
-                status='Pending',
-            )
-            db.session.add(allocation)
+            # Fetch all valid active staff members for this branch
+            active_staff_members = StaffMember.query.filter(
+                StaffMember.id.in_(staff_ids),
+                StaffMember.branch_id == branch.id,
+                StaffMember.is_active == True
+            ).all()
+
+            if not active_staff_members:
+                flash('Please select an active staff member for this branch.', 'error')
+                return redirect(url_for('create_staff_allocation'))
+
+            # Sort staff members to preserve orderly assignment
+            active_staff_members.sort(key=lambda s: s.name)
+
+            created_allocations = []
+            for staff in active_staff_members:
+                # Every staff member already has a specific role in their profile
+                allocation = StaffAllocation(
+                    branch_id=branch.id,
+                    staff_member_id=staff.id,
+                    role=staff.role,
+                    schedule_date=schedule_date,
+                    shift_start=shift_start,
+                    shift_end=shift_end,
+                    reason=reason,
+                    status='Pending',
+                )
+                db.session.add(allocation)
+                created_allocations.append((allocation, staff))
+
+            # Option B: Send tentative heads-up email to staff so they can confirm availability or report conflicts
+            notified_staff = []
+            for alloc, staff in created_allocations:
+                if staff.email:
+                    subject = f"Tentative Shift Coverage Notice: {schedule_date} ({branch.name})"
+                    body = (
+                        f"Dear {staff.name},\n\n"
+                        f"You have been placed on a tentative schedule for potential shift coverage on {schedule_date}, "
+                        f"{shift_start} to {shift_end}.\n\n"
+                        f"Role/Duty: {staff.role}\n"
+                        f"Clinic Branch: {branch.name}\n"
+                        f"Status: Pending Administrator Review\n"
+                        f"Reason/Note: {reason}\n\n"
+                        f"IMPORTANT NOTICE:\n"
+                        f"This schedule is currently TENTATIVE and awaiting final administrator approval. "
+                        f"If you are NOT AVAILABLE or have a scheduling conflict for this date and time, "
+                        f"please notify clinic administration immediately so the schedule can be adjusted.\n\n"
+                        f"Once officially reviewed and approved by clinic administration, you will receive a final confirmation email with your reporting instructions.\n\n"
+                        f"Clinic Operating Hours:\n"
+                        f"Monday - Saturday: 6:00 AM - 5:00 PM\n"
+                        f"Sunday: 6:00 AM - 12:00 NN\n\n"
+                        f"Thank you,\n"
+                        f"Smart Healthcare Clinic Management"
+                    )
+                    try:
+                        sent = app.send_appointment_email(staff.email, subject, body)
+                        if sent:
+                            alloc.notified_at = datetime.now()
+                            notified_staff.append(staff.name)
+                    except Exception as e:
+                        app.logger.warning(f"Could not send tentative allocation notice to {staff.email}: {e}")
+
             db.session.commit()
 
-            log_audit('create_staff_allocation', 'StaffAllocation', allocation.id, {
-                'branch_id': branch.id,
-                'staff_name': staff.name,
-                'role': role,
-                'schedule_date': schedule_date,
-            })
-            flash(f'Allocation for {staff.name} on {schedule_date} saved as Pending. Awaiting admin review and approval.', 'success')
+            for alloc, staff in created_allocations:
+                log_audit('create_staff_allocation', 'StaffAllocation', alloc.id, {
+                    'branch_id': branch.id,
+                    'staff_name': staff.name,
+                    'role': staff.role,
+                    'schedule_date': schedule_date,
+                    'tentative_email_sent': staff.name in notified_staff,
+                })
+
+            if len(created_allocations) == 1:
+                staff_name = created_allocations[0][1].name
+                if notified_staff:
+                    flash(f'Allocation for {staff_name} on {schedule_date} saved as Pending. A tentative notification email was sent so they can confirm availability before official approval.', 'success')
+                else:
+                    flash(f'Allocation for {staff_name} on {schedule_date} saved as Pending. Awaiting admin review and approval.', 'success')
+            else:
+                staff_names = [s.name for _, s in created_allocations]
+                names_summary = ', '.join(staff_names[:3]) + (f' and {len(staff_names) - 3} others' if len(staff_names) > 3 else '')
+                if notified_staff:
+                    flash(f'Allocations for {len(created_allocations)} staff ({names_summary}) on {schedule_date} saved as Pending. Tentative notification emails were sent so they can confirm availability.', 'success')
+                else:
+                    flash(f'Allocations for {len(created_allocations)} staff ({names_summary}) on {schedule_date} saved as Pending. Awaiting admin review and approval.', 'success')
             return redirect(url_for('staff_allocations'))
 
         # GET request
@@ -6853,19 +7061,18 @@ def create_app():
 
         email_sent = False
         if staff and staff.email:
-            subject = f"Approved Work Schedule - {allocation.branch.name}"
+            subject = f"Official Approved Work Schedule - {allocation.branch.name}"
             body = (
                 f"Dear {staff.name},\n\n"
-                f"You have been scheduled for additional coverage on {allocation.schedule_date}, "
+                f"Your work schedule has been officially reviewed and APPROVED by clinic administration for {allocation.schedule_date}, "
                 f"{allocation.shift_start or '6:00 AM'} to {allocation.shift_end or '5:00 PM'}.\n\n"
                 f"Role/Duty: {allocation.role}\n"
                 f"Clinic Branch: {allocation.branch.name}\n"
-                f"Reason: {allocation.reason or 'Forecasted patient coverage'}\n"
                 f"Approved by: {approver_name}\n\n"
                 f"Clinic Operating Hours:\n"
                 f"Monday - Saturday: 6:00 AM - 5:00 PM\n"
                 f"Sunday: 6:00 AM - 12:00 NN\n\n"
-                f"Please report on time. Thank you!\n\n"
+                f"Please report on time according to your approved shift. Thank you!\n\n"
                 f"Smart Healthcare Clinic Management"
             )
             try:
@@ -8747,6 +8954,14 @@ def migrate_staff_member_schema(app):
                 conn.execute(text("ALTER TABLE staff_member ADD COLUMN deleted_at DATETIME"))
             if 'email' not in columns:
                 conn.execute(text("ALTER TABLE staff_member ADD COLUMN email VARCHAR(140)"))
+            if 'phone_number' not in columns:
+                conn.execute(text("ALTER TABLE staff_member ADD COLUMN phone_number VARCHAR(40)"))
+            if 'working_days' not in columns:
+                conn.execute(text("ALTER TABLE staff_member ADD COLUMN working_days VARCHAR(140)"))
+            conn.execute(text(
+                "UPDATE staff_member SET working_days = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday' "
+                "WHERE working_days IS NULL OR working_days = ''"
+            ))
             if 'department' in columns:
                 conn.execute(text("DROP TABLE IF EXISTS staff_member_new"))
                 conn.execute(text("""
@@ -8756,12 +8971,16 @@ def migrate_staff_member_schema(app):
                         role VARCHAR(60) NOT NULL,
                         availability VARCHAR(20),
                         is_active BOOLEAN NOT NULL DEFAULT 1,
-                        deleted_at DATETIME
+                        deleted_at DATETIME,
+                        branch_id INTEGER,
+                        email VARCHAR(140),
+                        phone_number VARCHAR(40),
+                        working_days VARCHAR(140)
                     )
                 """))
                 conn.execute(text("""
-                    INSERT INTO staff_member_new (id, name, role, availability, is_active, deleted_at)
-                    SELECT id, name, role, availability, is_active, deleted_at
+                    INSERT INTO staff_member_new (id, name, role, availability, is_active, deleted_at, branch_id, email, phone_number, working_days)
+                    SELECT id, name, role, availability, is_active, deleted_at, branch_id, email, phone_number, working_days
                     FROM staff_member
                 """))
                 conn.execute(text("DROP TABLE staff_member"))
@@ -8892,6 +9111,8 @@ def init_db(app=None):
                     name=person['name'],
                     role=person['role'],
                     availability=person['availability'],
+                    working_days=person.get('working_days', DEFAULT_STAFF_WORKING_DAYS),
+                    phone_number=person.get('phone_number'),
                     is_active=True,
                     deleted_at=None,
                 ))

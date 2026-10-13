@@ -27,7 +27,7 @@
   <div class="page-heading-row" style="margin-bottom:18px;">
     <div>
       <h3 style="margin:0;"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Shift Allocation Form</h3>
-      <p class="muted-copy" style="margin:4px 0 0 0;">Allocations are saved with <strong>Pending</strong> status until reviewed and approved by an administrator.</p>
+      <p class="muted-copy" style="margin:4px 0 0 0;">Allocations are saved with <strong>Pending</strong> status and a tentative advisory email is sent so staff can verify their availability before final admin approval.</p>
     </div>
     <span class="status-pill status-high" id="previewStatusBadge">
       <i class="bi bi-clock-history" aria-hidden="true"></i> Pending Approval
@@ -36,69 +36,12 @@
 
   <form method="post" action="{{ url_for('create_staff_allocation') }}" class="form-grid patient-form"
         data-confirm-title="Save allocation?"
-        data-confirm="This will save the shift allocation as Pending for administrator review. Continue?">
+        data-confirm="This will save the shift allocation as Pending and send a tentative notice to the staff member(s). Continue?">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
     <label>
       Clinic Branch
       <input type="text" value="{{ branch.name }}" readonly class="readonly-field">
-    </label>
-
-    <label class="form-wide" style="position:relative;">
-      Staff Member *
-      <div class="combobox-container" id="staffCombobox" style="position:relative; width:100%;">
-        <input type="hidden" name="staff_member_id" id="staff_member_id" value="{{ prefill_staff_id or '' }}" required>
-        
-        <div class="combobox-input-wrapper" style="position:relative; display:flex; align-items:center;">
-          <input type="text"
-                 name="staff_search_input"
-                 id="staff_search_input"
-                 autocomplete="off"
-                 placeholder="Type to search staff by name or role, or click arrow to browse..."
-                 value="{% for m in staff_members if m.id == prefill_staff_id %}{{ m.name }} &mdash; {{ m.role }} ({{ m.availability }}){% endfor %}"
-                 style="width:100%; padding-right:42px; cursor:text;"
-                 required>
-          <button type="button"
-                  id="comboboxToggleBtn"
-                  title="Toggle all staff options"
-                  aria-label="Toggle staff options"
-                  style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--admin-line, #64748b); padding:6px; font-size:15px; display:flex; align-items:center; justify-content:center;">
-            <i class="bi bi-chevron-down" id="comboboxChevron"></i>
-          </button>
-        </div>
-
-        <!-- Custom Dropdown Menu with Live Type-Ahead Filtering -->
-        <div class="combobox-dropdown" id="comboboxDropdown"
-             style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:1050; background:#ffffff; border:1px solid var(--admin-line, #cbd5e1); border-radius:6px; box-shadow:0 10px 28px rgba(0,0,0,0.12); max-height:260px; overflow-y:auto;">
-          {% for member in staff_members %}
-            <div class="combobox-option"
-                 data-id="{{ member.id }}"
-                 data-name="{{ member.name }}"
-                 data-role="{{ member.role }}"
-                 data-availability="{{ member.availability }}"
-                 data-search="{{ member.name|lower }} {{ member.role|lower }} {{ member.availability|lower }}"
-                 style="padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; transition:background 0.15s ease;">
-              <div>
-                <strong style="color:var(--text, #1e293b);">{{ member.name }}</strong>
-                <span class="muted-copy" style="font-size:12px; margin-left:6px;">{{ member.role }}</span>
-              </div>
-              <span class="status-pill status-{{ member.availability|lower|replace(' ', '-') }}" style="font-size:11px;">
-                {{ member.availability }}
-              </span>
-            </div>
-          {% endfor %}
-          <div id="noMatchOption" style="display:none; padding:16px; text-align:center; color:#64748b; font-size:13px;">
-            <i class="bi bi-search" style="margin-right:4px;"></i> No matching staff members found
-          </div>
-        </div>
-      </div>
-    </label>
-
-    <label>
-      Role / Position *
-      <input type="text" name="role" id="role" required
-             value="{{ prefill_role or (staff_members[0].role if staff_members else 'General Physicians') }}"
-             placeholder="e.g. General Physicians, Pediatrics">
     </label>
 
     <label>
@@ -122,6 +65,81 @@
              value="{{ default_end }}" placeholder="5:00 PM" oninput="updatePreview()">
     </label>
 
+    <!-- Staff Selection & Multi-Staff Allocation Section -->
+    <div class="form-wide" style="margin-top:6px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+        <label style="font-weight:700; color:var(--text, #1e293b); font-size:14px; margin:0;">
+          Staff Members to Allocate *
+        </label>
+        <span class="muted-copy" style="font-size:12px;">
+          Roles are automatically assigned from each staff member's profile
+        </span>
+      </div>
+
+      <!-- Staff Search & Selection Combobox -->
+      <div class="combobox-container" id="staffCombobox" style="position:relative; width:100%; margin-bottom:12px;">
+        <div class="combobox-input-wrapper" style="position:relative; display:flex; align-items:center;">
+          <input type="text"
+                 id="staff_search_input"
+                 autocomplete="off"
+                 placeholder="Search staff by name or role to add to this shift..."
+                 style="width:100%; padding-right:42px; cursor:text;">
+          <button type="button"
+                  id="comboboxToggleBtn"
+                  title="Toggle all staff options"
+                  aria-label="Toggle staff options"
+                  style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--admin-line, #64748b); padding:6px; font-size:15px; display:flex; align-items:center; justify-content:center;">
+            <i class="bi bi-chevron-down" id="comboboxChevron"></i>
+          </button>
+        </div>
+
+        <!-- Custom Dropdown Menu with Live Type-Ahead Filtering -->
+        <div class="combobox-dropdown" id="comboboxDropdown"
+             style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:1050; background:#ffffff; border:1px solid var(--admin-line, #cbd5e1); border-radius:6px; box-shadow:0 10px 28px rgba(0,0,0,0.12); max-height:260px; overflow-y:auto;">
+          {% for member in staff_members %}
+            <div class="combobox-option"
+                 data-id="{{ member.id }}"
+                 data-name="{{ member.name }}"
+                 data-role="{{ member.role }}"
+                 data-search="{{ member.name|lower }} {{ member.role|lower }}"
+                 style="padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; transition:background 0.15s ease;">
+              <div>
+                <strong style="color:var(--text, #1e293b);">{{ member.name }}</strong>
+                <span class="muted-copy" style="font-size:12px; margin-left:8px; color:var(--primary, #057b85); font-weight:500;">{{ member.role }}</span>
+              </div>
+            </div>
+          {% endfor %}
+          <div id="noMatchOption" style="display:none; padding:16px; text-align:center; color:#64748b; font-size:13px;">
+            <i class="bi bi-search" style="margin-right:4px;"></i> No matching staff members found
+          </div>
+        </div>
+      </div>
+
+      <!-- Allocated Staff Members Roster Box -->
+      <div id="allocatedStaffCard" style="border:1px solid var(--admin-line, #cbd5e1); border-radius:8px; background:#f8fafc; overflow:hidden;">
+        <div style="padding:10px 16px; background:#edf2f7; border-bottom:1px solid #cbd5e1; display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:13px; color:#334155;">
+            <i class="bi bi-people-fill" style="margin-right:6px; color:var(--primary, #057b85);"></i>
+            Allocated Staff for this Shift (<span id="selectedStaffCount">0</span>)
+          </strong>
+          <span class="muted-copy" style="font-size:12px;">Select from dropdown above to add</span>
+        </div>
+
+        <div id="selectedStaffList" style="padding:8px 12px; display:flex; flex-direction:column; gap:8px;">
+          <!-- Dynamically populated rows -->
+        </div>
+
+        <div id="emptyStaffMessage" style="padding:24px 16px; text-align:center; color:#64748b; font-size:13px;">
+          <i class="bi bi-person-badge" style="font-size:26px; display:block; margin-bottom:6px; color:#94a3b8;"></i>
+          No staff members added yet. Search or select a staff member from the dropdown above to include them for this day.
+        </div>
+      </div>
+
+      <!-- Hidden inputs container for submitting staff IDs -->
+      <div id="hiddenInputsContainer"></div>
+    </div>
+
+    <!-- Live Preview Banner -->
     <div class="form-wide" style="margin:4px 0;">
       <div class="staffing-recommendation-banner" style="padding:14px 18px; margin:0; border-radius:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -130,12 +148,7 @@
               <i class="bi bi-info-circle-fill" aria-hidden="true" style="color:var(--primary, #057b85);"></i> Live Allocation Preview
             </strong>
             <span class="muted-copy" id="schedulePreviewText" style="font-size:13px;">
-              Assigning <strong id="previewStaffName">Selected Staff</strong> (<span id="previewStaffRole">Role</span>) on <strong id="previewDate">{{ prefill_date }}</strong> from <span id="previewHours">{{ default_start }} to {{ default_end }}</span>.
-            </span>
-          </div>
-          <div id="availabilityWarning" style="display:none;">
-            <span class="status-pill status-high">
-              <i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Marked Unavailable
+              Assigning <strong id="previewStaffName">No staff selected</strong> on <strong id="previewDate">{{ prefill_date }}</strong> from <span id="previewHours">{{ default_start }} to {{ default_end }}</span>.
             </span>
           </div>
         </div>
@@ -161,15 +174,19 @@
 
 <script>
   (function() {
-    const hiddenIdInput = document.getElementById('staff_member_id');
     const searchInput = document.getElementById('staff_search_input');
     const toggleBtn = document.getElementById('comboboxToggleBtn');
     const dropdown = document.getElementById('comboboxDropdown');
     const chevron = document.getElementById('comboboxChevron');
     const options = Array.from(document.querySelectorAll('.combobox-option'));
     const noMatchOption = document.getElementById('noMatchOption');
-    const roleInput = document.getElementById('role');
-    const warningEl = document.getElementById('availabilityWarning');
+    const selectedStaffList = document.getElementById('selectedStaffList');
+    const emptyStaffMessage = document.getElementById('emptyStaffMessage');
+    const selectedStaffCount = document.getElementById('selectedStaffCount');
+    const hiddenInputsContainer = document.getElementById('hiddenInputsContainer');
+    const form = document.querySelector('form.patient-form');
+
+    let selectedStaff = [];
 
     function openDropdown() {
       dropdown.style.display = 'block';
@@ -210,32 +227,111 @@
       }
     }
 
-    function selectStaff(opt) {
-      if (!opt) return;
-      const id = opt.getAttribute('data-id');
-      const name = opt.getAttribute('data-name');
-      const role = opt.getAttribute('data-role');
-      const availability = opt.getAttribute('data-availability');
+    function addStaffMember(id, name, role) {
+      if (!id) return;
+      id = String(id);
 
-      hiddenIdInput.value = id;
-      searchInput.value = name + ' — ' + role + ' (' + availability + ')';
-
-      if (role && roleInput) {
-        roleInput.value = role;
-      }
-
-      options.forEach(o => o.classList.remove('is-selected'));
-      opt.classList.add('is-selected');
-
-      if (warningEl) {
-        if (availability && (availability.toLowerCase().includes('leave') || availability.toLowerCase().includes('unavail'))) {
-          warningEl.style.display = 'block';
-        } else {
-          warningEl.style.display = 'none';
+      // Check if already in list
+      if (selectedStaff.some(s => String(s.id) === id)) {
+        const existingRow = selectedStaffList.querySelector(`[data-id="${id}"]`);
+        if (existingRow) {
+          existingRow.style.boxShadow = '0 0 0 2px var(--primary, #057b85)';
+          setTimeout(() => { existingRow.style.boxShadow = ''; }, 900);
         }
+        searchInput.value = '';
+        closeDropdown();
+        return;
       }
 
+      selectedStaff.push({ id, name, role });
+      searchInput.value = '';
       closeDropdown();
+      renderSelectedStaff();
+    }
+
+    function removeStaffMember(id) {
+      id = String(id);
+      selectedStaff = selectedStaff.filter(s => String(s.id) !== id);
+      renderSelectedStaff();
+    }
+
+    function renderSelectedStaff() {
+      selectedStaffList.innerHTML = '';
+      hiddenInputsContainer.innerHTML = '';
+
+      if (selectedStaff.length === 0) {
+        emptyStaffMessage.style.display = 'block';
+        selectedStaffCount.textContent = '0';
+      } else {
+        emptyStaffMessage.style.display = 'none';
+        selectedStaffCount.textContent = String(selectedStaff.length);
+
+        selectedStaff.forEach(function(staff) {
+          // Multi-selection hidden input
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'staff_ids';
+          input.value = staff.id;
+          hiddenInputsContainer.appendChild(input);
+
+          // Card row
+          const row = document.createElement('div');
+          row.className = 'selected-staff-row';
+          row.setAttribute('data-id', staff.id);
+          row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#ffffff; padding:10px 14px; border:1px solid #e2e8f0; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,0.04);';
+
+          const leftDiv = document.createElement('div');
+          leftDiv.style.cssText = 'display:flex; align-items:center; gap:12px;';
+
+          const initials = (staff.name || 'S').split(' ').filter(p => p).map(p => p[0]).slice(0, 2).join('').toUpperCase();
+          const avatar = document.createElement('div');
+          avatar.style.cssText = 'width:34px; height:34px; border-radius:50%; background:#e0f2fe; color:#0369a1; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0;';
+          avatar.textContent = initials;
+
+          const infoDiv = document.createElement('div');
+          const nameDiv = document.createElement('div');
+          nameDiv.style.cssText = 'font-weight:600; color:#1e293b; font-size:14px;';
+          nameDiv.textContent = staff.name;
+
+          const metaDiv = document.createElement('div');
+          metaDiv.style.cssText = 'display:flex; align-items:center; gap:6px; margin-top:2px;';
+
+          const roleBadge = document.createElement('span');
+          roleBadge.className = 'status-pill status-neutral';
+          roleBadge.style.cssText = 'font-size:11px; padding:2px 8px; font-weight:500;';
+          roleBadge.textContent = staff.role;
+
+          metaDiv.appendChild(roleBadge);
+
+          infoDiv.appendChild(nameDiv);
+          infoDiv.appendChild(metaDiv);
+
+          leftDiv.appendChild(avatar);
+          leftDiv.appendChild(infoDiv);
+
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'btn-remove-staff';
+          removeBtn.style.cssText = 'background:#fee2e2; border:1px solid #fecaca; color:#dc2626; border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s ease;';
+          removeBtn.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i> Remove';
+          removeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            removeStaffMember(staff.id);
+          });
+
+          row.appendChild(leftDiv);
+          row.appendChild(removeBtn);
+          selectedStaffList.appendChild(row);
+        });
+
+        // Single fallback input for compatibility
+        const fallbackInput = document.createElement('input');
+        fallbackInput.type = 'hidden';
+        fallbackInput.name = 'staff_member_id';
+        fallbackInput.value = selectedStaff[0].id;
+        hiddenInputsContainer.appendChild(fallbackInput);
+      }
+
       updatePreview();
     }
 
@@ -257,17 +353,13 @@
     // Input focus & typing
     if (searchInput) {
       searchInput.addEventListener('focus', function() {
-        filterOptions(searchInput.value.split('—')[0].trim());
+        filterOptions(searchInput.value.trim());
         openDropdown();
       });
 
       searchInput.addEventListener('input', function() {
-        const val = searchInput.value.trim();
-        // If user is editing/typing, clear the hidden ID until an option matches or is picked
-        hiddenIdInput.value = '';
-        filterOptions(val);
+        filterOptions(searchInput.value.trim());
         openDropdown();
-        updatePreview();
       });
 
       searchInput.addEventListener('keydown', function(e) {
@@ -283,38 +375,47 @@
         } else if (e.key === 'Escape') {
           closeDropdown();
         } else if (e.key === 'Enter') {
+          e.preventDefault();
           if (isDropdownOpen()) {
             const visible = options.filter(o => o.style.display !== 'none');
             if (visible.length > 0) {
-              e.preventDefault();
-              selectStaff(visible[0]);
+              const opt = visible[0];
+              addStaffMember(
+                opt.getAttribute('data-id'),
+                opt.getAttribute('data-name'),
+                opt.getAttribute('data-role')
+              );
+            }
+          } else {
+            const query = (searchInput.value || '').trim().toLowerCase();
+            if (query) {
+              const matched = options.find(o => {
+                const name = (o.getAttribute('data-name') || '').toLowerCase();
+                const role = (o.getAttribute('data-role') || '').toLowerCase();
+                return name.includes(query) || role.includes(query);
+              });
+              if (matched) {
+                addStaffMember(
+                  matched.getAttribute('data-id'),
+                  matched.getAttribute('data-name'),
+                  matched.getAttribute('data-role')
+                );
+              }
             }
           }
         }
       });
-
-      // Auto-match on blur if user typed an exact or close name
-      searchInput.addEventListener('blur', function() {
-        setTimeout(function() {
-          if (!hiddenIdInput.value && searchInput.value.trim()) {
-            const query = searchInput.value.toLowerCase().split('—')[0].trim();
-            const matched = options.find(o => {
-              const name = (o.getAttribute('data-name') || '').toLowerCase();
-              return name.includes(query) || query.includes(name);
-            });
-            if (matched) {
-              selectStaff(matched);
-            }
-          }
-        }, 200);
-      });
     }
 
-    // Option item click
+    // Option item click: immediately adds staff to shift
     options.forEach(function(opt) {
       opt.addEventListener('click', function(e) {
         e.stopPropagation();
-        selectStaff(opt);
+        addStaffMember(
+          opt.getAttribute('data-id'),
+          opt.getAttribute('data-name'),
+          opt.getAttribute('data-role')
+        );
       });
     });
 
@@ -326,23 +427,54 @@
       }
     });
 
-    // Initial prefill selection check
-    const currentId = hiddenIdInput.value;
-    if (currentId) {
-      const matched = options.find(o => o.getAttribute('data-id') === currentId);
+    // Form submit validation: Ensure at least one staff member is added
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        if (selectedStaff.length === 0) {
+          const query = (searchInput.value || '').trim().toLowerCase();
+          if (query) {
+            const matched = options.find(o => {
+              const name = (o.getAttribute('data-name') || '').toLowerCase();
+              return name.includes(query);
+            });
+            if (matched) {
+              addStaffMember(
+                matched.getAttribute('data-id'),
+                matched.getAttribute('data-name'),
+                matched.getAttribute('data-role')
+              );
+              return; // proceeds with submission
+            }
+          }
+
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          alert('Please select at least one staff member from the dropdown.');
+          if (searchInput) searchInput.focus();
+          return false;
+        }
+      });
+    }
+
+    // Prefill initialization:
+    const prefillStaffId = "{{ prefill_staff_id or '' }}";
+    if (prefillStaffId) {
+      const matched = options.find(o => o.getAttribute('data-id') === prefillStaffId);
       if (matched) {
-        selectStaff(matched);
+        addStaffMember(
+          matched.getAttribute('data-id'),
+          matched.getAttribute('data-name'),
+          matched.getAttribute('data-role')
+        );
       }
     } else {
-      // If role prefill was given, try matching first staff with that role
       const prefillRole = "{{ prefill_role or '' }}";
       if (prefillRole) {
-        const matched = options.find(o => (o.getAttribute('data-role') || '').toLowerCase() === prefillRole.toLowerCase());
-        if (matched) {
-          selectStaff(matched);
-        }
+        filterOptions(prefillRole);
       }
     }
+
+    window.__getSelectedStaff = () => selectedStaff;
   })();
 
   function handleDateChange(inputEl) {
@@ -374,32 +506,34 @@
   }
 
   function updatePreview() {
-    const searchInput = document.getElementById('staff_search_input');
     const staffNameEl = document.getElementById('previewStaffName');
-    const staffRoleEl = document.getElementById('previewStaffRole');
     const dateEl = document.getElementById('previewDate');
     const hoursEl = document.getElementById('previewHours');
 
-    if (searchInput && searchInput.value) {
-      const namePart = searchInput.value.split('—')[0].trim();
-      staffNameEl.textContent = namePart || 'Selected Staff';
-    } else {
-      staffNameEl.textContent = 'Selected Staff';
-    }
+    const selected = (typeof window.__getSelectedStaff === 'function') ? window.__getSelectedStaff() : [];
 
-    const roleInput = document.getElementById('role');
-    if (roleInput && roleInput.value) {
-      staffRoleEl.textContent = roleInput.value;
+    if (staffNameEl) {
+      if (!selected || selected.length === 0) {
+        staffNameEl.textContent = 'No staff selected';
+      } else if (selected.length === 1) {
+        staffNameEl.textContent = `${selected[0].name} (${selected[0].role})`;
+      } else {
+        const namesSummary = selected.slice(0, 2).map(s => `${s.name} [${s.role}]`).join(', ');
+        const remaining = selected.length - 2;
+        staffNameEl.textContent = remaining > 0 ? `${selected.length} staff members (${namesSummary}, +${remaining} more)` : `${selected.length} staff members (${namesSummary})`;
+      }
     }
 
     const dateInput = document.getElementById('schedule_date');
-    if (dateInput && dateInput.value) {
+    if (dateInput && dateInput.value && dateEl) {
       dateEl.textContent = dateInput.value;
     }
 
-    const start = document.getElementById('shift_start').value || '6:00 AM';
-    const end = document.getElementById('shift_end').value || '5:00 PM';
-    hoursEl.textContent = start + ' to ' + end;
+    const start = (document.getElementById('shift_start') ? document.getElementById('shift_start').value : '') || '6:00 AM';
+    const end = (document.getElementById('shift_end') ? document.getElementById('shift_end').value : '') || '5:00 PM';
+    if (hoursEl) {
+      hoursEl.textContent = start + ' to ' + end;
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
