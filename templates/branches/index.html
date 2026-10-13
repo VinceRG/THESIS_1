@@ -179,10 +179,9 @@
       <thead>
         <tr>
           <th>Administrator Account</th>
-          <th>Role</th>
+          <th style="min-width: 150px;">Role</th>
           <th>Branch Assignment</th>
           <th>Status</th>
-          <th>Password Security</th>
           <th>Security & Recovery Actions</th>
         </tr>
       </thead>
@@ -198,7 +197,7 @@
                 ID #{{ user.id }}
               </div>
             </td>
-            <td><span class="tag-pill{{ ' tag-primary' if user.role in ('superadmin', 'main_admin') else '' }}">{{ user.role|replace('_', ' ')|title }}</span></td>
+            <td style="min-width: 150px;"><span class="tag-pill{{ ' tag-primary' if user.role in ('superadmin', 'main_admin') else '' }}">{{ user.role|replace('_', ' ')|title }}</span></td>
             <td class="admin-status-cell">
               <form method="post" action="{{ url_for('assign_user_branch', user_id=user.id) }}" class="inline-status-form admin-status-control"
                     data-confirm-title="Update user access?"
@@ -222,14 +221,8 @@
               {% else %}
                 <span class="status-pill status-high"><i class="bi bi-dash-circle" aria-hidden="true"></i> Deactivated</span>
               {% endif %}
-            </td>
-            <td>
-              <div style="display:flex; align-items:center; gap:6px;">
-                <code style="letter-spacing:2px; font-weight:bold; color:#64748b;">••••••••••••</code>
-                <span class="topbar-pill" style="font-size:10px; padding:2px 6px; background:#f1f5f9; color:#64748b;" title="Passwords are securely hashed with PBKDF2/scrypt and cannot be retrieved">Hidden</span>
-              </div>
               {% if user.must_change_password %}
-                <div style="font-size:11px; color:#d97706; margin-top:3px;"><i class="bi bi-exclamation-circle"></i> Password change pending</div>
+                <div style="font-size:11px; color:#d97706; margin-top:4px;"><i class="bi bi-exclamation-circle"></i> Password change pending</div>
               {% endif %}
             </td>
             <td>
@@ -271,9 +264,9 @@
             </td>
           </tr>
         {% else %}
-          <tr class="table-empty-state"><td colspan="6"><strong>No users yet.</strong>Add a user to grant staff access to this system.</td></tr>
+          <tr class="table-empty-state"><td colspan="5"><strong>No users yet.</strong>Add a user to grant staff access to this system.</td></tr>
         {% endfor %}
-        <tr id="userFilterEmptyRow" class="table-empty-state" style="display:none;"><td colspan="6"><strong>No matching users found.</strong>Try adjusting your search or filters.</td></tr>
+        <tr id="userFilterEmptyRow" class="table-empty-state" style="display:none;"><td colspan="5"><strong>No matching users found.</strong>Try adjusting your search or filters.</td></tr>
       </tbody>
     </table>
   </div>
