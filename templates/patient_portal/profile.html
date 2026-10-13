@@ -143,6 +143,9 @@
               <div class="pp-history-what">
                 <p>{{ pp_services(appointment) }}</p>
                 <p class="pp-muted">{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</p>
+                {% if appointment.completion_notes %}
+                  <p><strong>Appointment notes:</strong> {{ appointment.completion_notes }}</p>
+                {% endif %}
               </div>
               <span class="pp-status" data-status="{{ appointment.status|lower|replace(' ', '-') }}">{{ appointment.status }}</span>
             </li>
@@ -420,4 +423,4 @@
 {% include 'partials/csrf_inject.html' %}
 {% include 'partials/patient_chatbot.html' %}
 </body>
-</html>\n
+</html>

@@ -110,6 +110,19 @@
             {% if appointment.service_items() %}
               Services: {{ appointment.service_items()|join(', ') }}
             {% endif %}
+            {% if appointment.completion_notes or appointment.service_results|selectattr('service_notes')|list %}
+              <details style="margin-top:8px;">
+                <summary>Completion notes</summary>
+                {% if appointment.completion_notes %}
+                  <p><strong>Appointment:</strong> {{ appointment.completion_notes }}</p>
+                {% endif %}
+                {% for result in appointment.service_results %}
+                  {% if result.service_notes %}
+                    <p><strong>{{ result.service_name }}:</strong> {{ result.service_notes }}</p>
+                  {% endif %}
+                {% endfor %}
+              </details>
+            {% endif %}
           </td>
           <td>{{ appointment.role_items()|join(', ') }}</td>
           <td>

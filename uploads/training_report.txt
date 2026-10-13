@@ -21,15 +21,15 @@ Only calendar years with all 12 months are used for model training so monthly an
 Original Years Found: 2023, 2024, 2025, 2026
 Years Used for Training: 2023, 2024, 2025
 Years Excluded from Training: 2026
-Records Excluded by Incomplete-Year Rule: 2054
+Records Excluded by Incomplete-Year Rule: 2049
 
 Rare Diagnosis Handling
 
-Original Diagnosis Labels: 292
+Original Diagnosis Labels: 291
 Modeled Diagnosis Labels: 17
 Minimum Records per Separate Diagnosis: 50
-Rare Diagnosis Labels Grouped as Other Services/Cases: 276
-Consultation Records in Rare Diagnosis Group: 4122
+Rare Diagnosis Labels Grouped as Other Services/Cases: 275
+Consultation Records in Rare Diagnosis Group: 4096
 
 Age Groups Covered: 3
 
@@ -90,10 +90,10 @@ Seasonal Indicators
 
 Validation Results
 
-Validation R2: 0.9375
-Validation MAE: 1.0304
-Validation RMSE: 1.6308
-Improvement over Baseline: 17.24%
+Validation R2: 0.9384
+Validation MAE: 1.0234
+Validation RMSE: 1.6117
+Improvement over Baseline: 17.37%
 
 Model B - Comparison Model
 
@@ -109,14 +109,14 @@ Seasonal Indicators
 
 Validation Results
 
-Validation R2: 0.9701
-Validation MAE: 2.9754
-Validation RMSE: 5.0656
-Improvement over Baseline: 22.18%
+Validation R2: 0.9706
+Validation MAE: 2.99
+Validation RMSE: 5.0019
+Improvement over Baseline: 21.8%
 
 Interpretation
 
-Model A generated lower prediction error than Model B by 1.945 MAE points while producing detailed forecasts by diagnosis, age group, and gender.
+Model A generated lower prediction error than Model B by 1.9666 MAE points while producing detailed forecasts by diagnosis, age group, and gender.
 
 Since the two models operate at different levels of granularity, their R2 values should not be interpreted as a direct measure of superiority.
 
@@ -127,15 +127,15 @@ Model A was selected because it provides demographic-specific predictions that b
 Model Verdict: Acceptable
 
 Metric	Result
-Validation R2	0.9375
-Validation MAE	1.0304
-Validation RMSE	1.6308
-Baseline MAE	1.2451
-Baseline RMSE	2.1252
-Improvement over Baseline	17.24%
-Cross-Validation R2 Mean	0.9231 +/- 0.0034
-Cross-Validation MAE Mean	0.9627
-Training R2 (Reference Only)	0.9447
+Validation R2	0.9384
+Validation MAE	1.0234
+Validation RMSE	1.6117
+Baseline MAE	1.2386
+Baseline RMSE	2.1043
+Improvement over Baseline	17.37%
+Cross-Validation R2 Mean	0.9217 +/- 0.0045
+Cross-Validation MAE Mean	0.9642
+Training R2 (Reference Only)	0.9444
 
 6. Performance Metric Interpretation
 Validation R2
@@ -148,7 +148,7 @@ Mean Absolute Error (MAE)
 
 Measures the average prediction error in consultation cases.
 
-An MAE of 1.0304 means that, on average, the predicted consultation volume differs from the actual value by approximately 1 consultation cases per diagnosis-age group-gender segment.
+An MAE of 1.0234 means that, on average, the predicted consultation volume differs from the actual value by approximately 1 consultation cases per diagnosis-age group-gender segment.
 
 Root Mean Squared Error (RMSE)
 
@@ -160,17 +160,17 @@ Baseline Improvement
 
 This measures how much the Random Forest model reduced prediction error compared with simply using the previous month's consultation count as the forecast.
 
-A 17.24% improvement demonstrates that the model learned meaningful consultation patterns rather than merely repeating historical observations.
+A 17.37% improvement demonstrates that the model learned meaningful consultation patterns rather than merely repeating historical observations.
 
 7. Final Interpretation
 
 Based on the validation results, the Random Forest regression model demonstrated acceptable performance for short-term consultation forecasting.
 
-The model achieved a validation R2 of 0.9375, indicating that it explained approximately 94% of the variation in unseen consultation demand.
+The model achieved a validation R2 of 0.9384, indicating that it explained approximately 94% of the variation in unseen consultation demand.
 
-Its Mean Absolute Error of 1.0304 indicates that the average forecasting error was approximately 1 consultation cases per diagnosis-age group-gender month segment.
+Its Mean Absolute Error of 1.0234 indicates that the average forecasting error was approximately 1 consultation cases per diagnosis-age group-gender month segment.
 
-Compared with the naive last-month forecasting baseline, the proposed model reduced prediction error by 17.24%, demonstrating that it successfully learned recurring consultation patterns rather than simply repeating previous observations.
+Compared with the naive last-month forecasting baseline, the proposed model reduced prediction error by 17.37%, demonstrating that it successfully learned recurring consultation patterns rather than simply repeating previous observations.
 
 These findings support the feasibility of the proposed Smart Healthcare Clinic Management System as a decision-support tool for forecasting consultation trends, supporting staff planning, improving service preparedness, and assisting operational decision-making at Accudetek Health Diagnostics.
 

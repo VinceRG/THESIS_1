@@ -2,12 +2,12 @@
   "branch_id": 1,
   "branch_name": "Accudetek Main Branch",
   "branch_code": "MAIN",
-  "total_consultations": 10128,
+  "total_consultations": 10130,
   "staff_count": 22,
   "facility_staff_count": 22,
   "staff_capacity_per_month": 20,
   "top_diagnosis": "Hypertension Monitoring",
-  "predicted_cases_next_month": 302,
+  "predicted_cases_next_month": 231,
   "resource_readiness": 100,
   "monthly_trend": [
     {
@@ -181,6 +181,14 @@
     {
       "month": "Jul 2026",
       "count": 300
+    },
+    {
+      "month": "Sep 2026",
+      "count": 1
+    },
+    {
+      "month": "Oct 2026",
+      "count": 1
     }
   ],
   "consultation_distribution": [
@@ -228,7 +236,7 @@
   "gender_distribution": [
     [
       "Female",
-      5158
+      5160
     ],
     [
       "Male",
@@ -246,7 +254,7 @@
     ],
     [
       "Child",
-      1571
+      1573
     ]
   ],
   "top_cases": [
@@ -275,78 +283,364 @@
     {
       "diagnosis": "Hypertension Monitoring",
       "current_month": 19,
-      "predicted_next_month": 785,
-      "predicted_low": null,
-      "predicted_high": null,
+      "predicted_next_month": 19,
+      "predicted_low": 11,
+      "predicted_high": 30,
       "predicted_month": "Nov 2026",
-      "trend": "Increasing"
+      "trend": "Stable"
     },
     {
       "diagnosis": "Upper Respiratory Infection",
       "current_month": 19,
-      "predicted_next_month": 764,
-      "predicted_low": null,
-      "predicted_high": null,
+      "predicted_next_month": 17,
+      "predicted_low": 10,
+      "predicted_high": 25,
       "predicted_month": "Nov 2026",
-      "trend": "Increasing"
+      "trend": "Decreasing"
     },
     {
       "diagnosis": "Diabetes Mellitus Monitoring",
       "current_month": 14,
-      "predicted_next_month": 586,
-      "predicted_low": null,
-      "predicted_high": null,
+      "predicted_next_month": 12,
+      "predicted_low": 8,
+      "predicted_high": 23,
       "predicted_month": "Nov 2026",
-      "trend": "Increasing"
+      "trend": "Decreasing"
     },
     {
       "diagnosis": "Asthma Monitoring",
       "current_month": 6,
-      "predicted_next_month": 431,
-      "predicted_low": null,
-      "predicted_high": null,
+      "predicted_next_month": 12,
+      "predicted_low": 6,
+      "predicted_high": 19,
       "predicted_month": "Nov 2026",
       "trend": "Increasing"
     },
     {
-      "diagnosis": "Gastritis",
-      "current_month": 15,
-      "predicted_next_month": 411,
-      "predicted_low": null,
-      "predicted_high": null,
+      "diagnosis": "Fever",
+      "current_month": 12,
+      "predicted_next_month": 9,
+      "predicted_low": 4,
+      "predicted_high": 17,
       "predicted_month": "Nov 2026",
-      "trend": "Increasing"
+      "trend": "Decreasing"
     }
   ],
   "demographic_forecast": {
     "age_group": [
       {
         "age_group": "Adult",
-        "forecasted_cases": 6880
-      },
-      {
-        "age_group": "Senior",
-        "forecasted_cases": 1677
+        "forecasted_cases": 165
       },
       {
         "age_group": "Child",
-        "forecasted_cases": 1571
+        "forecasted_cases": 33
+      },
+      {
+        "age_group": "Senior",
+        "forecasted_cases": 33
       }
     ],
     "gender": [
       {
-        "gender": "Female",
-        "forecasted_cases": 5158
+        "gender": "Male",
+        "forecasted_cases": 84
       },
       {
-        "gender": "Male",
-        "forecasted_cases": 4970
+        "gender": "Female",
+        "forecasted_cases": 82
+      },
+      {
+        "gender": "Unknown",
+        "forecasted_cases": 65
       }
     ],
-    "segments": [],
-    "segments_grouped": []
+    "segments": [
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Adult",
+        "gender": "Unknown",
+        "forecasted_cases": 38
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 17
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 17
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Child",
+        "gender": "Male",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Child",
+        "gender": "Female",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Child",
+        "gender": "Unknown",
+        "forecasted_cases": 6
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Other Services/Cases",
+        "age_group": "Senior",
+        "gender": "Unknown",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 5
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 4
+      },
+      {
+        "diagnosis": "Gastritis",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Fever",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Fever",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Dermatitis and Allergy",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Dermatitis and Allergy",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 3
+      },
+      {
+        "diagnosis": "Preventive Health Check-up",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Child",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Abdominal Pain",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Preventive Health Check-up",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Routine Medical Consultation",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Routine Medical Consultation",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Senior",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Headache",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Headache",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "Gastritis",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 2
+      },
+      {
+        "diagnosis": "CBC",
+        "age_group": "Adult",
+        "gender": "Unknown",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "CBC",
+        "age_group": "Adult",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "CBC",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Senior",
+        "gender": "Male",
+        "forecasted_cases": 1
+      },
+      {
+        "diagnosis": "Abdominal Pain",
+        "age_group": "Adult",
+        "gender": "Female",
+        "forecasted_cases": 1
+      }
+    ],
+    "segments_grouped": [
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "age_group": "Adult",
+        "male_cases": 6,
+        "female_cases": 5,
+        "total_cases": 11,
+        "bar_percent": 100
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Adult",
+        "male_cases": 5,
+        "female_cases": 5,
+        "total_cases": 10,
+        "bar_percent": 91
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "age_group": "Adult",
+        "male_cases": 4,
+        "female_cases": 4,
+        "total_cases": 8,
+        "bar_percent": 73
+      },
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "age_group": "Senior",
+        "male_cases": 4,
+        "female_cases": 4,
+        "total_cases": 8,
+        "bar_percent": 73
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "age_group": "Adult",
+        "male_cases": 3,
+        "female_cases": 3,
+        "total_cases": 6,
+        "bar_percent": 55
+      }
+    ]
   },
-  "resource_recommendation": "Fallback forecast translated into staff-role guidance because Random Forest metrics are unavailable.",
+  "resource_recommendation": "Random Forest consultation forecast translated into staff-role guidance through configured clinic role mappings.",
   "reference_month": "Nov 2025",
   "predicted_month_label": "Nov 2026",
   "predicted_month_full_label": "November 2026",
@@ -422,35 +716,35 @@
   },
   "staff_demand_forecast": {
     "top_role": "Internal Medicine Physicians",
-    "top_role_demand": 2213,
+    "top_role_demand": 43,
     "monthly_rows": [
       {
         "staff_role": "Internal Medicine Physicians",
-        "forecast_demand": 2213,
+        "forecast_demand": 43,
         "appointment_demand": 0,
-        "planning_demand": 2213,
+        "planning_demand": 43,
         "available_staff": 2,
         "role_capacity": 40,
-        "estimated_required": 111,
-        "required_low": 111,
-        "required_high": 111,
-        "gap": 109,
+        "estimated_required": 3,
+        "required_low": 2,
+        "required_high": 4,
+        "gap": 1,
         "status": "Needs Staff",
         "status_class": "high"
       },
       {
         "staff_role": "General Physicians",
-        "forecast_demand": 764,
+        "forecast_demand": 26,
         "appointment_demand": 0,
-        "planning_demand": 764,
+        "planning_demand": 26,
         "available_staff": 4,
         "role_capacity": 80,
-        "estimated_required": 39,
-        "required_low": 39,
-        "required_high": 39,
-        "gap": 35,
-        "status": "Needs Staff",
-        "status_class": "high"
+        "estimated_required": 2,
+        "required_low": 1,
+        "required_high": 3,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
       },
       {
         "staff_role": "Registered Medical Technologists",
@@ -534,8 +828,8 @@
         "Registered Radiologic Technologists"
       ],
       "planning_demand": [
-        2213,
-        764,
+        43,
+        26,
         0,
         0,
         0,
@@ -626,21 +920,10 @@
         {
           "date": "2026-10-13",
           "day_name": "Tue",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 1,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-13",
-          "day_name": "Tue",
           "staff_role": "General Physicians",
-          "predicted_patients": 2,
+          "predicted_patients": 1,
           "scheduled_appointments": 1,
-          "required_staff": 2,
+          "required_staff": 1,
           "available_staff": 4,
           "status": "Sufficient",
           "status_class": "healthy"
@@ -649,12 +932,12 @@
           "date": "2026-10-13",
           "day_name": "Tue",
           "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
+          "predicted_patients": 1,
           "scheduled_appointments": 1,
-          "required_staff": 2,
+          "required_staff": 1,
           "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
+          "status": "Sufficient",
+          "status_class": "healthy"
         },
         {
           "date": "2026-10-13",
@@ -670,21 +953,10 @@
         {
           "date": "2026-10-13",
           "day_name": "Tue",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-14",
-          "day_name": "Wed",
           "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
+          "predicted_patients": 1,
+          "scheduled_appointments": 1,
+          "required_staff": 1,
           "available_staff": 6,
           "status": "Sufficient",
           "status_class": "healthy"
@@ -693,560 +965,10 @@
           "date": "2026-10-14",
           "day_name": "Wed",
           "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-14",
-          "day_name": "Wed",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-14",
-          "day_name": "Wed",
-          "staff_role": "Radiologists",
           "predicted_patients": 1,
-          "scheduled_appointments": 0,
+          "scheduled_appointments": 1,
           "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
           "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 5,
-          "scheduled_appointments": 0,
-          "required_staff": 5,
-          "available_staff": 6,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 5,
-          "scheduled_appointments": 0,
-          "required_staff": 5,
-          "available_staff": 6,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 5,
-          "scheduled_appointments": 0,
-          "required_staff": 5,
-          "available_staff": 6,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "General Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 4,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
           "status": "Sufficient",
           "status_class": "healthy"
         }
@@ -1255,21 +977,10 @@
         {
           "date": "2026-10-13",
           "day_name": "Tue",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 1,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-13",
-          "day_name": "Tue",
           "staff_role": "General Physicians",
-          "predicted_patients": 2,
+          "predicted_patients": 1,
           "scheduled_appointments": 1,
-          "required_staff": 2,
+          "required_staff": 1,
           "available_staff": 4,
           "status": "Sufficient",
           "status_class": "healthy"
@@ -1278,12 +989,12 @@
           "date": "2026-10-13",
           "day_name": "Tue",
           "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
+          "predicted_patients": 1,
           "scheduled_appointments": 1,
-          "required_staff": 2,
+          "required_staff": 1,
           "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
+          "status": "Sufficient",
+          "status_class": "healthy"
         },
         {
           "date": "2026-10-13",
@@ -1299,21 +1010,10 @@
         {
           "date": "2026-10-13",
           "day_name": "Tue",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-14",
-          "day_name": "Wed",
           "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
+          "predicted_patients": 1,
+          "scheduled_appointments": 1,
+          "required_staff": 1,
           "available_staff": 6,
           "status": "Sufficient",
           "status_class": "healthy"
@@ -1322,823 +1022,51 @@
           "date": "2026-10-14",
           "day_name": "Wed",
           "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-14",
-          "day_name": "Wed",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-14",
-          "day_name": "Wed",
-          "staff_role": "Radiologists",
           "predicted_patients": 1,
-          "scheduled_appointments": 0,
+          "scheduled_appointments": 1,
           "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
           "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 5,
-          "scheduled_appointments": 0,
-          "required_staff": 5,
-          "available_staff": 6,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 5,
-          "scheduled_appointments": 0,
-          "required_staff": 5,
-          "available_staff": 6,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
           "status": "Sufficient",
           "status_class": "healthy"
         }
       ],
-      "next_week_rows": [
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 4,
-          "scheduled_appointments": 0,
-          "required_staff": 4,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 5,
-          "scheduled_appointments": 0,
-          "required_staff": 5,
-          "available_staff": 6,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "General Physicians",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 4,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "Registered Medical Technologists",
-          "predicted_patients": 3,
-          "scheduled_appointments": 0,
-          "required_staff": 3,
-          "available_staff": 6,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "General Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 4,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "Internal Medicine Physicians",
-          "predicted_patients": 2,
-          "scheduled_appointments": 0,
-          "required_staff": 2,
-          "available_staff": 2,
-          "status": "Monitor",
-          "status_class": "moderate"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "staff_role": "Radiologists",
-          "predicted_patients": 1,
-          "scheduled_appointments": 0,
-          "required_staff": 1,
-          "available_staff": 3,
-          "status": "Sufficient",
-          "status_class": "healthy"
-        }
-      ],
+      "next_week_rows": [],
       "current_week_summary": [
         {
           "date": "2026-10-13",
           "day_name": "Tue",
-          "predicted_patients": 10,
+          "predicted_patients": 4,
           "scheduled_appointments": 4,
-          "required_staff_total": 10,
-          "available_staff_total": 18,
+          "required_staff_total": 4,
+          "available_staff_total": 15,
           "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 2 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
+            "General Physicians: 1 needed, 4 available",
+            "Internal Medicine Physicians: 1 needed, 2 available",
             "Laboratory Technicians: 1 needed, 3 available",
-            "Radiologists: 1 needed, 3 available"
+            "Registered Medical Technologists: 1 needed, 6 available"
           ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 2 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Laboratory Technicians: 1 needed, 3 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 2/4, Internal Medicine Physicians: 2/2, +2 more"
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "General Physicians: 1 needed, 4 available; Internal Medicine Physicians: 1 needed, 2 available; Laboratory Technicians: 1 needed, 3 available; Registered Medical Technologists: 1 needed, 6 available",
+          "short_role_summary": "General Physicians: 1/4, Internal Medicine Physicians: 1/2, Laboratory Technicians: 1/3, +1 more"
         },
         {
           "date": "2026-10-14",
           "day_name": "Wed",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
+          "predicted_patients": 1,
+          "scheduled_appointments": 1,
+          "required_staff_total": 1,
+          "available_staff_total": 4,
           "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
+            "General Physicians: 1 needed, 4 available"
           ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-15",
-          "day_name": "Thu",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-16",
-          "day_name": "Fri",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-17",
-          "day_name": "Sat",
-          "predicted_patients": 11,
-          "scheduled_appointments": 0,
-          "required_staff_total": 11,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 5 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 5 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 5/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-18",
-          "day_name": "Sun",
-          "predicted_patients": 11,
-          "scheduled_appointments": 0,
-          "required_staff_total": 11,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 5 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 5 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 5/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-19",
-          "day_name": "Mon",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "General Physicians: 1 needed, 4 available",
+          "short_role_summary": "General Physicians: 1/4"
         }
       ],
-      "next_week_summary": [
-        {
-          "date": "2026-10-20",
-          "day_name": "Tue",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-21",
-          "day_name": "Wed",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-22",
-          "day_name": "Thu",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-23",
-          "day_name": "Fri",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-24",
-          "day_name": "Sat",
-          "predicted_patients": 10,
-          "scheduled_appointments": 0,
-          "required_staff_total": 10,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 4 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 4 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 4/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-25",
-          "day_name": "Sun",
-          "predicted_patients": 11,
-          "scheduled_appointments": 0,
-          "required_staff_total": 11,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 5 needed, 6 available",
-            "General Physicians: 3 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 5 needed, 6 available; General Physicians: 3 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 5/6, General Physicians: 3/4, Internal Medicine Physicians: 2/2, +1 more"
-        },
-        {
-          "date": "2026-10-26",
-          "day_name": "Mon",
-          "predicted_patients": 8,
-          "scheduled_appointments": 0,
-          "required_staff_total": 8,
-          "available_staff_total": 15,
-          "role_summary": [
-            "Registered Medical Technologists: 3 needed, 6 available",
-            "General Physicians: 2 needed, 4 available",
-            "Internal Medicine Physicians: 2 needed, 2 available",
-            "Radiologists: 1 needed, 3 available"
-          ],
-          "status": "Monitor",
-          "status_class": "moderate",
-          "role_summary_text": "Registered Medical Technologists: 3 needed, 6 available; General Physicians: 2 needed, 4 available; Internal Medicine Physicians: 2 needed, 2 available; Radiologists: 1 needed, 3 available",
-          "short_role_summary": "Registered Medical Technologists: 3/6, General Physicians: 2/4, Internal Medicine Physicians: 2/2, +1 more"
-        }
-      ],
+      "next_week_summary": [],
       "alert_rows": [],
       "chart": {
         "labels": [
@@ -2161,39 +1089,39 @@
           {
             "label": "General Physicians",
             "data": [
-              2,
-              3,
-              3,
-              3,
-              3,
-              3,
-              3,
-              3,
-              3,
-              3,
-              3,
-              3,
-              3,
-              2
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
             ]
           },
           {
             "label": "Internal Medicine Physicians",
             "data": [
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2,
-              2
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
             ]
           },
           {
@@ -2216,41 +1144,22 @@
             ]
           },
           {
-            "label": "Radiologists",
-            "data": [
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1
-            ]
-          },
-          {
             "label": "Registered Medical Technologists",
             "data": [
-              4,
-              4,
-              4,
-              4,
-              5,
-              5,
-              4,
-              4,
-              4,
-              4,
-              4,
-              4,
-              5,
-              3
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
             ]
           }
         ]
@@ -2267,8 +1176,8 @@
         "share": 1.0,
         "confidence": null,
         "nearest_diagnosis": null,
-        "predicted_next_month": 785,
-        "trend": "Increasing"
+        "predicted_next_month": 19,
+        "trend": "Stable"
       },
       {
         "diagnosis": "Upper Respiratory Infection",
@@ -2280,8 +1189,8 @@
         "share": 1.0,
         "confidence": null,
         "nearest_diagnosis": null,
-        "predicted_next_month": 764,
-        "trend": "Increasing"
+        "predicted_next_month": 17,
+        "trend": "Decreasing"
       },
       {
         "diagnosis": "Diabetes Mellitus Monitoring",
@@ -2293,8 +1202,8 @@
         "share": 1.0,
         "confidence": null,
         "nearest_diagnosis": null,
-        "predicted_next_month": 586,
-        "trend": "Increasing"
+        "predicted_next_month": 12,
+        "trend": "Decreasing"
       },
       {
         "diagnosis": "Asthma Monitoring",
@@ -2306,21 +1215,21 @@
         "share": 1.0,
         "confidence": null,
         "nearest_diagnosis": null,
-        "predicted_next_month": 431,
+        "predicted_next_month": 12,
         "trend": "Increasing"
       },
       {
-        "diagnosis": "Gastritis",
+        "diagnosis": "Fever",
         "source": "historical",
         "roles": [
-          "Internal Medicine Physicians"
+          "General Physicians"
         ],
-        "support_count": 408,
+        "support_count": 310,
         "share": 1.0,
         "confidence": null,
         "nearest_diagnosis": null,
-        "predicted_next_month": 411,
-        "trend": "Increasing"
+        "predicted_next_month": 9,
+        "trend": "Decreasing"
       }
     ],
     "mapping_historical_count": 5,
@@ -2331,12 +1240,177 @@
     "mapping_min_similarity_pct": 55
   },
   "estimated_monthly_capacity": 440,
-  "forecast_pressure": 68,
-  "forecast_pressure_raw": 68,
-  "recommended_staff_count": 16,
+  "forecast_pressure": 52,
+  "forecast_pressure_raw": 52,
+  "recommended_staff_count": 12,
   "staff_gap": 0,
   "capacity_status": "Healthy",
   "resource_forecast_recommendation": "Current staffing and equipment capacity appears sufficient for forecasted demand.",
-  "rf_metrics": null,
+  "rf_metrics": {
+    "total_training_rows": 3672,
+    "total_segments": 102,
+    "diagnosis_count": 17,
+    "age_group_count": 3,
+    "gender_count": 2,
+    "complete_year_rule": true,
+    "original_training_years": [
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "used_training_years": [
+      2023,
+      2024,
+      2025
+    ],
+    "excluded_training_years": [
+      2026
+    ],
+    "excluded_year_record_count": 2790,
+    "complete_year_fallback_reason": null,
+    "diagnosis_grouping_minimum_records": 50,
+    "original_diagnosis_count": 291,
+    "modeled_diagnosis_count": 17,
+    "grouped_diagnosis_count": 275,
+    "grouped_record_count": 4096,
+    "data_period_start": "2023-01",
+    "data_period_end": "2025-12",
+    "r2_score": 0.9352,
+    "mae": 1.0514,
+    "mse": 2.7324,
+    "rmse": 1.653,
+    "validation_r2": 0.9352,
+    "validation_mae": 1.0514,
+    "validation_mse": 2.7324,
+    "validation_rmse": 1.653,
+    "training_r2": 0.9308,
+    "training_mae": 0.921,
+    "training_rmse": 1.5198,
+    "baseline_mae": 1.2386,
+    "baseline_rmse": 2.1043,
+    "baseline_r2": 0.895,
+    "improvement_vs_baseline_pct": 15.11,
+    "cv_r2_mean": 0.9121,
+    "cv_r2_std": 0.0,
+    "cv_mae_mean": 0.9631,
+    "cv_rmse_mean": 1.6037,
+    "common_diagnoses": [
+      "Hypertension Monitoring",
+      "Upper Respiratory Infection",
+      "Diabetes Mellitus Monitoring",
+      "Gastritis",
+      "Asthma Monitoring",
+      "Dermatitis and Allergy",
+      "Fever",
+      "Routine Medical Consultation",
+      "Headache",
+      "Preventive Health Check-up"
+    ],
+    "common_diagnoses_count": 10,
+    "common_validation_row_count": 360,
+    "common_validation_r2": 0.508,
+    "common_validation_mae": 1.0804,
+    "common_validation_mse": 2.3764,
+    "common_validation_rmse": 1.5416,
+    "common_cv_r2_mean": 0.5092,
+    "common_cv_mae_mean": 0.9457,
+    "common_cv_rmse_mean": 1.3398,
+    "training_months": 30,
+    "validation_months": 6,
+    "validation_period_start": "2025-07",
+    "validation_period_end": "2025-12",
+    "best_params": {
+      "n_estimators": 80,
+      "max_depth": 6,
+      "min_samples_split": 5,
+      "min_samples_leaf": 2,
+      "max_features": "sqrt"
+    },
+    "model_b_without_demographics": {
+      "training_grain": "diagnosis by month",
+      "training_rows": 612,
+      "validation_r2": 0.9696,
+      "validation_mae": 2.958,
+      "validation_rmse": 5.0877,
+      "baseline_mae": 3.8235,
+      "improvement_vs_baseline_pct": 22.64,
+      "training_months": 30,
+      "validation_months": 6,
+      "validation_period_start": "2025-07",
+      "validation_period_end": "2025-12"
+    },
+    "model_verdict": "Acceptable",
+    "prediction_intervals": {
+      "Other Services/Cases": [
+        37,
+        230
+      ],
+      "Hypertension Monitoring": [
+        11,
+        30
+      ],
+      "Upper Respiratory Infection": [
+        10,
+        25
+      ],
+      "Diabetes Mellitus Monitoring": [
+        8,
+        23
+      ],
+      "Asthma Monitoring": [
+        6,
+        19
+      ],
+      "Fever": [
+        4,
+        17
+      ],
+      "Gastritis": [
+        4,
+        16
+      ],
+      "Dermatitis and Allergy": [
+        4,
+        16
+      ],
+      "Preventive Health Check-up": [
+        3,
+        14
+      ],
+      "Headache": [
+        2,
+        14
+      ],
+      "Routine Medical Consultation": [
+        3,
+        13
+      ],
+      "Abdominal Pain": [
+        1,
+        12
+      ],
+      "CBC": [
+        0,
+        11
+      ],
+      "Amylase": [
+        0,
+        10
+      ],
+      "Magnesium": [
+        0,
+        12
+      ],
+      "Sodium (Na)": [
+        0,
+        11
+      ],
+      "Urinary Tract Infection": [
+        1,
+        12
+      ]
+    }
+  },
   "cache_version": 10
 }

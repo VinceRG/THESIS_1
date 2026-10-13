@@ -5,7 +5,6 @@
 {% block page_subtitle %}Trusted overview of patient demand, staffing, and readiness{% endblock %}
 
 {% block content %}
-{% set staff_forecast = summary.staff_demand_forecast if summary.staff_demand_forecast is defined else {} %}
 {% if not summary.rf_metrics %}
   <div class="flash-message flash-warning" style="margin-bottom:18px;">
     Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.
@@ -105,14 +104,14 @@
 
 <div class="section-heading">Diagnosis Forecast &amp; Resource Recommendation</div>
 <p class="section-subcopy">What the model expects next month, and the staffing implications.</p>
-<div class="chart-card">
+<div class="chart-card prediction-month-card">
   <h3>Prediction for {{ summary.predicted_month_full_label }}</h3>
   <p class="muted-copy">
     The prediction summary, resource recommendation, age-group forecast, sex forecast, and demographic segment forecast below all refer to {{ summary.predicted_month_full_label }}.
   </p>
 </div>
 
-<div class="grid section-grid">
+<div class="grid section-grid prediction-summary-grid">
   <div class="chart-card full-width">
     <h3>Prediction Summary</h3>
     <div class="prediction-period-banner">
@@ -172,38 +171,6 @@
         {% endfor %}
       </tbody>
     </table>
-  </div>
-  <div class="chart-card">
-    <h3>Forecast-Based Resource Recommendation</h3>
-    <p><strong>Recommendation:</strong> {{ summary.resource_recommendation }}</p>
-    <p class="muted-copy">
-      Random Forest forecasts consultation volume. Staff-role guidance is produced by mapping forecasted cases and scheduled services to clinic staff roles. This is decision support, not a directive.
-    </p>
-    <p><strong>Staff Capacity:</strong> {{ summary.estimated_monthly_capacity }} consultations/month</p>
-    <div class="resource-progress">
-      <div class="resource-progress-label">
-        <span><strong>Forecast Pressure</strong></span>
-        <strong>{{ summary.forecast_pressure_raw }}%</strong>
-      </div>
-      <div class="resource-progress-track">
-        <div class="resource-progress-bar status-{{ summary.capacity_status|lower }}" style="width:{{ summary.forecast_pressure }}%;"></div>
-      </div>
-    </div>
-    <p><strong>Top Mapped Staff Role:</strong> {{ staff_forecast.get('top_role', 'No role demand yet') }} ({{ staff_forecast.get('top_role_demand', 0) }} cases or service needs)</p>
-    <p><em>{{ summary.resource_forecast_recommendation }}</em></p>
-  </div>
-</div>
-
-<div class="chart-card pipeline-explainer">
-  <h3>How the Prediction Works</h3>
-  <div class="pipeline-steps">
-    <span class="pipeline-step">Historical Data</span><span class="pipeline-arrow">&rarr;</span>
-    <span class="pipeline-step">RF Forecast</span><span class="pipeline-arrow">&rarr;</span>
-    <span class="pipeline-step">Predicted Demand</span><span class="pipeline-arrow">&rarr;</span>
-    <span class="pipeline-step">Diagnosis Mapping</span><span class="pipeline-arrow">&rarr;</span>
-    <span class="pipeline-step">Required Staff</span><span class="pipeline-arrow">&rarr;</span>
-    <span class="pipeline-step">Compare Available</span><span class="pipeline-arrow">&rarr;</span>
-    <span class="pipeline-step">Recommendation</span>
   </div>
 </div>
 
