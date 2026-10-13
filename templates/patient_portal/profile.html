@@ -1,3 +1,18 @@
+{# Formats a YYYY-MM-DD string. part: 'full' -> 20 Oct 2026, 'day' -> 20, 'month' -> Oct 2026 #}
+{% macro pp_date(value, part='full') -%}
+  {%- set months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] -%}
+  {%- set v = (value or '')|string -%}
+  {%- set m = v[5:7]|int -%}
+  {%- if v|length == 10 and v[4] == '-' and v[7] == '-' and m >= 1 and m <= 12 -%}
+    {%- if part == 'day' -%}{{ v[8:10]|int }}
+    {%- elif part == 'month' -%}{{ months[m - 1] }} {{ v[0:4] }}
+    {%- else -%}{{ v[8:10]|int }} {{ months[m - 1] }} {{ v[0:4] }}{%- endif -%}
+  {%- else -%}{{ v }}{%- endif -%}
+{%- endmacro %}
+{# Combined list of what was booked: packages first, then individual services #}
+{% macro pp_services(appointment) -%}
+  {{- (appointment.package_items() + appointment.service_items())|join(', ') or 'Consultation request' -}}
+{%- endmacro %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,9 +22,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20261013-patient-status-text-only') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css', v='20261013-profile-redesign-4') }}">
 </head>
-<body class="patient-public-body">
+<body class="patient-public-body pp-page">
   <header class="clinic-home-header">
     <a class="clinic-home-brand" href="{{ url_for('landing_page') }}">
       <img src="{{ url_for('static', filename='acudetek.jfif') }}" alt="Accudetek logo">
@@ -20,112 +36,182 @@
     <div class="clinic-home-actions"><a class="clinic-book-button" href="{{ url_for('patient_portal') }}">Book appointment <span>→</span></a></div>
   </header>
 
-  <main class="patient-profile-main">
-    <div class="patient-profile-notifications">
+  <main class="pp-main">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      <div class="patient-flash-stack">
-        {% for category, message in messages %}
-          <div class="flash-message flash-{{ category }}" role="{{ 'alert' if category in ['error', 'danger'] else 'status' }}" aria-live="{{ 'assertive' if category in ['error', 'danger'] else 'polite' }}" tabindex="0">
-            <span>{{ message }}</span>
-            <button type="button" class="flash-dismiss" aria-label="Dismiss notification" data-patient-flash-dismiss>&times;</button>
-          </div>
-        {% endfor %}
-      </div>
+      {% if messages %}
+        <div class="pp-notices">
+          {% for category, message in messages %}
+            <div class="pp-notice pp-notice-{{ category }}" role="{{ 'alert' if category in ['error', 'danger'] else 'status' }}" aria-live="{{ 'assertive' if category in ['error', 'danger'] else 'polite' }}" tabindex="0">
+              {% if category in ['welcome', 'success'] %}<span class="pp-notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 10 17l-5-5"></path></svg></span>{% endif %}
+              <span class="pp-notice-text">{{ message }}</span>
+              <button type="button" class="pp-notice-dismiss" aria-label="Dismiss notification" data-patient-flash-dismiss>&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
     {% endwith %}
-    </div>
 
-    <div class="patient-dashboard">
-      <aside class="patient-profile-sidebar" aria-label="Patient profile navigation">
-        <span class="patient-kicker">Patient portal</span>
-        <form method="post" enctype="multipart/form-data" class="patient-photo-form">
-          <input type="hidden" name="action" value="upload_photo">
-          <label class="patient-avatar" for="profile_photo" aria-label="Change profile photo">{% if patient.profile_photo %}<img src="{{ url_for('patient_profile_photo', filename=patient.profile_photo) }}" alt="Profile photo of {{ patient.full_name }}">{% else %}<span aria-hidden="true">{{ patient.full_name[:1]|upper }}</span>{% endif %}<b aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></b></label>
-          <input id="profile_photo" name="profile_photo" type="file" accept="image/jpeg,image/png,image/webp" data-profile-photo-input>
-          <button class="patient-photo-save" type="submit" data-profile-photo-save hidden>Save photo</button>
-        </form>
-        <h1>{{ patient.full_name }}</h1><p>Patient number: <strong>{{ patient.patient_number }}</strong></p>
-        <nav class="patient-profile-tabs" role="tablist" aria-orientation="vertical">
-          <button type="button" class="is-active" role="tab" aria-selected="true" aria-controls="profile-information" id="tab-information" data-profile-tab="information">My information</button>
-          <button type="button" role="tab" aria-selected="false" aria-controls="profile-upcoming" id="tab-upcoming" data-profile-tab="upcoming">Upcoming <span>{{ upcoming_appointments|length }}</span></button>
-          <button type="button" role="tab" aria-selected="false" aria-controls="profile-history" id="tab-history" data-profile-tab="history">Appointment history <span>{{ appointments|length }}</span></button>
-        </nav>
-        <div class="patient-profile-account-actions"><a href="{{ url_for('patient_logout') }}">Sign out</a></div>
-      </aside>
-
-      <div class="patient-profile-panels">
-      <section class="patient-profile-card patient-profile-panel is-active" id="profile-information" role="tabpanel" aria-labelledby="tab-information" data-profile-panel="information">
-        <span class="patient-kicker">My information</span><div class="patient-profile-heading"><div><h2>Personal and contact details</h2><p>Keep your details current so the clinic can provide safe, accurate care.</p></div><span class="patient-profile-number">{{ patient.patient_number }}</span></div>
-        <form method="post" class="patient-profile-form">
-          <input type="hidden" name="action" value="update_profile">
-          <fieldset class="patient-profile-fieldset">
-            <legend>Personal information</legend>
-            <label>Full Name<input name="full_name" value="{{ patient.full_name or '' }}" maxlength="140" required></label>
-            <label>Birthdate<input type="date" name="birthdate" value="{{ patient.birthdate or '' }}" required></label>
-            <label>Gender<select name="gender" required><option value="Female" {% if patient.gender == 'Female' %}selected{% endif %}>Female</option><option value="Male" {% if patient.gender == 'Male' %}selected{% endif %}>Male</option></select></label>
-          </fieldset>
-          <fieldset class="patient-profile-fieldset">
-            <legend>Contact information</legend>
-            <label>Contact Number<input name="contact_number" value="{{ patient.contact_number or '' }}" maxlength="60"></label>
-            <label>Email Address<input type="email" value="{{ patient.email or '' }}" maxlength="140" readonly aria-describedby="email-help"><small id="email-help">Email changes require verification. Please contact the clinic for assistance.</small></label>
-            <label class="patient-form-wide">Address<input name="address" value="{{ patient.address or '' }}" maxlength="255"></label>
-            <label>Emergency Contact Name<input name="emergency_contact_name" value="{{ patient.emergency_contact_name or '' }}" maxlength="140"></label>
-            <label>Emergency Contact Number<input name="emergency_contact_number" value="{{ patient.emergency_contact_number or '' }}" maxlength="60"></label>
-          </fieldset>
-          <button type="submit">Save Profile Changes</button>
-        </form>
-      </section>
-
-      <section class="patient-profile-card patient-history-card patient-profile-panel" id="profile-upcoming" role="tabpanel" aria-labelledby="tab-upcoming" data-profile-panel="upcoming" hidden>
-        <div class="patient-profile-heading"><div><h2>Appointment Status</h2><p>Upcoming appointments and their current clinic status.</p></div><a class="patient-secondary-action" href="{{ url_for('patient_portal') }}">Book Appointment</a></div>
-        <div class="patient-history-list">
-          {% for appointment in upcoming_appointments %}
-            <article class="patient-history-item">
-              <div><strong>{{ appointment.appointment_date }}{% if appointment.appointment_time %} at {{ format_appointment_time(appointment.appointment_time) }}{% endif %}</strong><span>{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</span></div>
-              <span class="patient-status-badge patient-status-{{ appointment.status|lower }}">{{ appointment.status }}</span>
-              <div class="patient-history-services"><b>Requested:</b> {{ appointment.service_items()|join(', ') or appointment.package_items()|join(', ') or 'Consultation request' }}</div>
-              <div class="patient-history-actions">
-                <form method="post" data-confirm="This will cancel your current appointment and start a new booking with your details pre-filled. Continue?" data-confirm-title="Reschedule appointment" data-loading-title="Preparing your reschedule" data-loading-message="Cancelling your current appointment and setting up a new booking with your details pre-filled."><input type="hidden" name="action" value="reschedule_appointment"><input type="hidden" name="appointment_id" value="{{ appointment.id }}"><button type="submit" class="patient-reschedule-button">Reschedule</button></form>
-                <form method="post" data-confirm="Cancel this appointment? This cannot be undone." data-confirm-title="Cancel appointment" data-loading-title="Cancelling appointment" data-loading-message="Please wait while we cancel your appointment and send you a confirmation email."><input type="hidden" name="action" value="cancel_appointment"><input type="hidden" name="appointment_id" value="{{ appointment.id }}"><button type="submit" class="patient-cancel-button">Cancel</button></form>
-              </div>
-            </article>
+    <header class="pp-identity">
+      <form method="post" enctype="multipart/form-data" class="pp-photo-form">
+        <input type="hidden" name="action" value="upload_photo">
+        <label class="pp-avatar" for="profile_photo" title="Change profile photo">
+          <span class="pp-sr">Change profile photo</span>
+          {% if patient.profile_photo %}
+            <img src="{{ url_for('patient_profile_photo', filename=patient.profile_photo) }}" alt="Profile photo of {{ patient.full_name }}">
           {% else %}
-            <div class="patient-empty-state">You have no pending or confirmed appointments. You can book online using the button above.</div>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="patient-profile-card patient-history-card patient-profile-panel" id="profile-history" role="tabpanel" aria-labelledby="tab-history" data-profile-panel="history" hidden>
-        <div class="patient-profile-heading"><div><h2>Appointment History</h2><p>{{ history_total }} appointment{{ '' if history_total == 1 else 's' }} found</p></div></div>
-        <div class="patient-history-list">
-          {% for appointment in appointments %}
-            <article class="patient-history-item">
-              <div><strong>{{ appointment.appointment_date }}{% if appointment.appointment_time %} at {{ format_appointment_time(appointment.appointment_time) }}{% endif %}</strong><span>{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</span></div>
-              <span class="patient-status-badge patient-status-{{ appointment.status|lower }}">{{ appointment.status }}</span>
-              <div class="patient-history-services"><b>Services:</b> {{ appointment.service_items()|join(', ') or appointment.package_items()|join(', ') or 'Consultation request' }}</div>
-            </article>
-          {% else %}
-            <div class="patient-empty-state">No appointments have been recorded for this profile yet.</div>
-          {% endfor %}
-        </div>
-        {% if history_total_pages > 1 %}
-          <nav class="patient-history-pagination" aria-label="Appointment history pages">
-            {% if history_page > 1 %}
-              <a class="patient-secondary-action" href="{{ url_for('patient_profile', history_page=history_page - 1) }}#profile-history">← Previous</a>
-            {% else %}
-              <span class="patient-secondary-action is-disabled" aria-disabled="true">← Previous</span>
-            {% endif %}
-            <span>Page {{ history_page }} of {{ history_total_pages }}</span>
-            {% if history_page < history_total_pages %}
-              <a class="patient-secondary-action" href="{{ url_for('patient_profile', history_page=history_page + 1) }}#profile-history">Next →</a>
-            {% else %}
-              <span class="patient-secondary-action is-disabled" aria-disabled="true">Next →</span>
-            {% endif %}
-          </nav>
-        {% endif %}
-      </section>
+            <span class="pp-avatar-initial" aria-hidden="true">{{ patient.full_name[:1]|upper }}</span>
+          {% endif %}
+          <span class="pp-avatar-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></span>
+        </label>
+        <input id="profile_photo" name="profile_photo" type="file" accept="image/jpeg,image/png,image/webp" data-profile-photo-input>
+      </form>
+      <div class="pp-identity-text">
+        <h1>{{ patient.full_name }}</h1>
+        <p>Patient number <strong>{{ patient.patient_number }}</strong></p>
       </div>
+      <a class="pp-btn pp-btn-secondary pp-signout" href="{{ url_for('patient_logout') }}">Sign out</a>
+    </header>
+
+    <div class="pp-tabs" role="tablist" aria-label="Profile sections">
+      <button type="button" class="pp-tab" role="tab" id="tab-upcoming" aria-selected="true" aria-controls="profile-upcoming" tabindex="0" data-profile-tab="upcoming">Upcoming{% if upcoming_appointments %}<span class="pp-tab-count">{{ upcoming_appointments|length }}</span>{% endif %}</button>
+      <button type="button" class="pp-tab" role="tab" id="tab-history" aria-selected="false" aria-controls="profile-history" tabindex="-1" data-profile-tab="history">History{% if history_total %}<span class="pp-tab-count">{{ history_total }}</span>{% endif %}</button>
+      <button type="button" class="pp-tab" role="tab" id="tab-information" aria-selected="false" aria-controls="profile-information" tabindex="-1" data-profile-tab="information">My details</button>
     </div>
+
+    <section class="pp-panel" id="profile-upcoming" role="tabpanel" aria-labelledby="tab-upcoming" data-profile-panel="upcoming">
+      <div class="pp-panel-head">
+        <h2>Upcoming appointments</h2>
+        {% if upcoming_appointments %}<a class="pp-btn pp-btn-primary" href="{{ url_for('patient_portal') }}">Book appointment</a>{% endif %}
+      </div>
+      {% if upcoming_appointments %}
+        <ul class="pp-slips">
+          {% for appointment in upcoming_appointments %}
+            <li>
+              <article class="pp-slip{% if loop.first %} is-next{% endif %}">
+                <div class="pp-slip-date">
+                  <time datetime="{{ appointment.appointment_date }}" data-appt-date="{{ appointment.appointment_date }}">
+                    <span class="pp-sr">{{ pp_date(appointment.appointment_date) }}</span>
+                    <span class="pp-slip-month" aria-hidden="true">{{ pp_date(appointment.appointment_date, 'month') }}</span>
+                    <span class="pp-slip-day" aria-hidden="true">{{ pp_date(appointment.appointment_date, 'day') }}</span>
+                    <span class="pp-slip-weekday" aria-hidden="true" data-weekday></span>
+                  </time>
+                  <span class="pp-slip-relative" data-relative></span>
+                </div>
+                <div class="pp-slip-body">
+                  <div class="pp-slip-head">
+                    <div>
+                      <h3 class="pp-slip-time">{{ format_appointment_time(appointment.appointment_time) }}</h3>
+                      <p class="pp-slip-branch">{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</p>
+                    </div>
+                    <span class="pp-status" data-status="{{ appointment.status|lower|replace(' ', '-') }}">{{ appointment.status }}</span>
+                  </div>
+                  <p class="pp-slip-services"><span>Requested:</span> {{ pp_services(appointment) }}</p>
+                  {% if appointment.appointment_code %}<p class="pp-slip-ref">Reference {{ appointment.appointment_code }}</p>{% endif %}
+                  <div class="pp-slip-actions">
+                    <form method="post" data-confirm="This will cancel your current appointment and start a new booking with your details pre-filled. Continue?" data-confirm-title="Reschedule appointment" data-loading-title="Preparing your reschedule" data-loading-message="Cancelling your current appointment and setting up a new booking with your details pre-filled."><input type="hidden" name="action" value="reschedule_appointment"><input type="hidden" name="appointment_id" value="{{ appointment.id }}"><button type="submit" class="pp-btn pp-btn-secondary" aria-label="Reschedule appointment on {{ pp_date(appointment.appointment_date) }}">Reschedule</button></form>
+                    <form method="post" data-confirm="Cancel this appointment? This cannot be undone." data-confirm-title="Cancel appointment" data-loading-title="Cancelling appointment" data-loading-message="Please wait while we cancel your appointment and send you a confirmation email."><input type="hidden" name="action" value="cancel_appointment"><input type="hidden" name="appointment_id" value="{{ appointment.id }}"><button type="submit" class="pp-btn pp-btn-danger" aria-label="Cancel appointment on {{ pp_date(appointment.appointment_date) }}">Cancel appointment</button></form>
+                  </div>
+                </div>
+              </article>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="pp-empty">
+          <h3>Nothing scheduled</h3>
+          <p>Book a visit and it will show up here with its status.</p>
+          <a class="pp-btn pp-btn-primary" href="{{ url_for('patient_portal') }}">Book appointment</a>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="pp-panel" id="profile-history" role="tabpanel" aria-labelledby="tab-history" data-profile-panel="history" hidden>
+      <div class="pp-panel-head">
+        <div>
+          <h2>Appointment history</h2>
+          <p>{{ history_total }} appointment{{ '' if history_total == 1 else 's' }} on record</p>
+        </div>
+      </div>
+      {% if appointments %}
+        <ul class="pp-history">
+          {% for appointment in appointments %}
+            <li>
+              <div class="pp-history-when">
+                <strong>{{ pp_date(appointment.appointment_date) }}</strong>
+                {% if appointment.appointment_time %}<span>{{ format_appointment_time(appointment.appointment_time) }}</span>{% endif %}
+              </div>
+              <div class="pp-history-what">
+                <p>{{ pp_services(appointment) }}</p>
+                <p class="pp-muted">{{ appointment.branch.name if appointment.branch else 'Clinic branch' }}</p>
+              </div>
+              <span class="pp-status" data-status="{{ appointment.status|lower|replace(' ', '-') }}">{{ appointment.status }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="pp-empty">
+          <h3>No appointments yet</h3>
+          <p>Appointments you book will be listed here.</p>
+        </div>
+      {% endif %}
+      {% if history_total_pages > 1 %}
+        <nav class="pp-pagination" aria-label="Appointment history pages">
+          {% if history_page > 1 %}
+            <a class="pp-btn pp-btn-secondary" href="{{ url_for('patient_profile', history_page=history_page - 1) }}#profile-history">Previous</a>
+          {% else %}
+            <span class="pp-btn pp-btn-secondary is-disabled" aria-disabled="true">Previous</span>
+          {% endif %}
+          <span>Page {{ history_page }} of {{ history_total_pages }}</span>
+          {% if history_page < history_total_pages %}
+            <a class="pp-btn pp-btn-secondary" href="{{ url_for('patient_profile', history_page=history_page + 1) }}#profile-history">Next</a>
+          {% else %}
+            <span class="pp-btn pp-btn-secondary is-disabled" aria-disabled="true">Next</span>
+          {% endif %}
+        </nav>
+      {% endif %}
+    </section>
+
+    <section class="pp-panel" id="profile-information" role="tabpanel" aria-labelledby="tab-information" data-profile-panel="information" hidden>
+      <div class="pp-panel-head">
+        <div>
+          <h2>My details</h2>
+          <p>Keep your contact details current so the clinic can reach you.</p>
+        </div>
+      </div>
+
+
+      <form method="post" class="pp-form">
+        <input type="hidden" name="action" value="update_profile">
+        <fieldset class="pp-fieldset">
+          <legend>How we reach you</legend>
+          <div class="pp-fields">
+            <label class="pp-field">Contact number<input type="tel" inputmode="tel" autocomplete="tel" name="contact_number" value="{{ patient.contact_number or '' }}" maxlength="60"></label>
+            <label class="pp-field pp-field-wide">Address<input name="address" autocomplete="street-address" value="{{ patient.address or '' }}" maxlength="255"></label>
+          </div>
+        </fieldset>
+        <fieldset class="pp-fieldset">
+          <legend>Emergency contact</legend>
+          <div class="pp-fields">
+            <label class="pp-field">Name<input name="emergency_contact_name" autocomplete="off" value="{{ patient.emergency_contact_name or '' }}" maxlength="140"></label>
+            <label class="pp-field">Contact number<input type="tel" inputmode="tel" autocomplete="off" name="emergency_contact_number" value="{{ patient.emergency_contact_number or '' }}" maxlength="60"></label>
+          </div>
+        </fieldset>
+        <div class="pp-form-actions"><button type="submit" class="pp-btn pp-btn-primary">Save changes</button></div>
+      </form>
+
+      <div class="pp-section">
+        <h3>Registered details</h3>
+        <p class="pp-section-note">To change your name, birthdate, gender or email, please contact the clinic.</p>
+        <dl class="pp-facts">
+          <div><dt>Full name</dt><dd>{{ patient.full_name }}</dd></div>
+          <div><dt>Birthdate</dt><dd>{{ pp_date(patient.birthdate) or 'Not provided' }}</dd></div>
+          <div><dt>Gender</dt><dd>{{ patient.gender or 'Not provided' }}</dd></div>
+          <div><dt>Email</dt><dd>{{ patient.email or 'Not provided' }}</dd></div>
+        </dl>
+      </div>
+    </section>
   </main>
+
   <footer class="clinic-home-footer patient-flow-footer"><div class="clinic-home-brand"><img src="{{ url_for('static', filename='acudetek.jfif') }}" alt=""><span><strong>Accudetek</strong><small>Health Diagnostics</small></span></div><p>Care you can trust, from booking to results.</p><a href="{{ url_for('landing_page') }}">Return home</a></footer>
 
   <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-hidden="true">
@@ -160,22 +246,75 @@
       homeHeader.classList.remove('is-menu-open');
       menuToggle?.setAttribute('aria-expanded', 'false');
     }));
-    const profileTabs = document.querySelectorAll('[data-profile-tab]');
-    const profilePanels = document.querySelectorAll('[data-profile-panel]');
-    profileTabs.forEach(tab => tab.addEventListener('click', () => {
-      const target = tab.dataset.profileTab;
-      profileTabs.forEach(item => { const active = item === tab; item.classList.toggle('is-active', active); item.setAttribute('aria-selected', String(active)); });
-      profilePanels.forEach(panel => { const active = panel.dataset.profilePanel === target; panel.classList.toggle('is-active', active); panel.hidden = !active; });
-    }));
+
+    /* ---- Tabs: arrow keys, Home/End, and remembers where you were after a save ---- */
+    const profileTabs = Array.from(document.querySelectorAll('[data-profile-tab]'));
+    const profilePanels = Array.from(document.querySelectorAll('[data-profile-panel]'));
+    const PROFILE_TAB_KEY = 'pp-tab';
+
+    function showProfileTab(key, moveFocus = false) {
+      profileTabs.forEach(tab => {
+        const active = tab.dataset.profileTab === key;
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+        if (active && moveFocus) tab.focus();
+      });
+      profilePanels.forEach(panel => { panel.hidden = panel.dataset.profilePanel !== key; });
+    }
+    function currentProfileTab() {
+      return profileTabs.find(tab => tab.getAttribute('aria-selected') === 'true')?.dataset.profileTab;
+    }
+    profileTabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => showProfileTab(tab.dataset.profileTab));
+      tab.addEventListener('keydown', event => {
+        let next = null;
+        if (event.key === 'ArrowRight') next = (index + 1) % profileTabs.length;
+        else if (event.key === 'ArrowLeft') next = (index - 1 + profileTabs.length) % profileTabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = profileTabs.length - 1;
+        if (next === null) return;
+        event.preventDefault();
+        showProfileTab(profileTabs[next].dataset.profileTab, true);
+      });
+    });
+
+    (function openInitialTab() {
+      let initial = 'upcoming';
+      try {
+        const saved = sessionStorage.getItem(PROFILE_TAB_KEY);
+        if (saved) { initial = saved; sessionStorage.removeItem(PROFILE_TAB_KEY); }
+      } catch (error) { /* storage unavailable: use the default tab */ }
+      const hashTabs = { '#profile-upcoming': 'upcoming', '#profile-history': 'history', '#profile-information': 'information' };
+      if (new URLSearchParams(location.search).has('history_page')) initial = 'history';
+      else if (hashTabs[location.hash]) initial = hashTabs[location.hash];
+      if (!profileTabs.some(tab => tab.dataset.profileTab === initial)) initial = 'upcoming';
+      showProfileTab(initial);
+    })();
+
+    /* ---- Weekday and "In 3 days" on appointment slips ---- */
+    (function decorateSlips() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      document.querySelectorAll('[data-appt-date]').forEach(el => {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(el.dataset.apptDate || '');
+        if (!match) return;
+        const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        const weekday = el.querySelector('[data-weekday]');
+        if (weekday) weekday.textContent = date.toLocaleDateString('en', { weekday: 'short' });
+        const relative = el.closest('.pp-slip')?.querySelector('[data-relative]');
+        const days = Math.round((date - today) / 86400000);
+        if (relative) relative.textContent = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : days > 1 ? 'In ' + days + ' days' : '';
+      });
+    })();
+
     document.querySelectorAll('[data-patient-flash-dismiss]').forEach(button => button.addEventListener('click', () => {
-      button.closest('.flash-message')?.remove();
+      const stack = button.closest('.pp-notices');
+      button.closest('.pp-notice')?.remove();
+      if (stack && !stack.querySelector('.pp-notice')) stack.remove();
     }));
     document.querySelector('[data-profile-photo-input]')?.addEventListener('change', event => {
-      document.querySelector('[data-profile-photo-save]')?.toggleAttribute('hidden', !event.target.files.length);
+      if (event.target.files?.length) event.target.form?.requestSubmit();
     });
-    if (new URLSearchParams(location.search).has('history_page') || location.hash === '#profile-history') {
-      document.querySelector('[data-profile-tab="history"]')?.click();
-    }
 
     let pendingConfirmForm = null;
     let confirmReturnFocus = null;
@@ -242,6 +381,8 @@
         return;
       }
       if (form.dataset.confirmed === 'true') delete form.dataset.confirmed;
+      /* The server redirects back to this page; remember the tab so the success message appears in context. */
+      try { sessionStorage.setItem(PROFILE_TAB_KEY, currentProfileTab() || 'upcoming'); } catch (error) { /* ignore */ }
       startLoading(form.dataset.loadingTitle || 'Processing request', form.dataset.loadingMessage || 'Please wait while the system saves your changes.');
     });
     document.getElementById('confirmCancel')?.addEventListener('click', closeConfirmModal);
@@ -279,4 +420,4 @@
 {% include 'partials/csrf_inject.html' %}
 {% include 'partials/patient_chatbot.html' %}
 </body>
-</html>
+</html>\n
