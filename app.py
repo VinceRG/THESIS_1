@@ -215,6 +215,9 @@ class Branch(db.Model):
     contact_number = db.Column(db.String(40), nullable=True)
     is_main = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    operating_status = db.Column(db.String(40), default='Open', nullable=False)
+    manager_name = db.Column(db.String(120), nullable=True)
+    head_doctor_name = db.Column(db.String(120), nullable=True)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -223,6 +226,7 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(40), default='staff')
     must_change_password = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     branch = db.relationship('Branch', backref='users')
 
 class AuditLog(db.Model):
@@ -2105,6 +2109,8 @@ def create_app():
     app.jinja_env.globals['csrf_token'] = csrf_token
 
     def validate_csrf_token():
+        if app.config.get('TESTING') and not app.config.get('WTF_CSRF_ENABLED', True):
+            return True
         expected = session.get('_csrf_token')
         submitted = request.form.get('_csrf_token') or request.headers.get('X-CSRFToken')
         return bool(expected and submitted and secrets.compare_digest(expected, submitted))
@@ -3654,6 +3660,60 @@ def create_app():
             })
         return rows
 
+    def build_branch_operations_summary(branch_id='selected'):
+        if branch_id == 'selected':
+            branch_id = selected_branch_scope()
+
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        today_day = datetime.now().strftime('%A')
+
+        if branch_id is None or branch_id == ALL_BRANCHES_SCOPE:
+            active_branch = None
+            branch_label = 'All Clinic Branches'
+            operating_status = 'Open'
+            manager_name = 'Maria Santos'
+            head_doctor_name = 'Dr. Juan Reyes'
+            staff_q = StaffMember.query.filter_by(is_active=True)
+            appt_q = Appointment.query
+        else:
+            active_branch = db.session.get(Branch, branch_id) or ensure_default_branch()
+            branch_label = active_branch.name
+            operating_status = active_branch.operating_status or 'Open'
+            manager_name = active_branch.manager_name or 'Maria Santos'
+            head_doctor_name = active_branch.head_doctor_name or 'Dr. Juan Reyes'
+            staff_q = StaffMember.query.filter_by(branch_id=active_branch.id, is_active=True)
+            appt_q = Appointment.query.filter_by(branch_id=active_branch.id)
+
+        all_staff = staff_q.all()
+        active_doctors = sum(1 for s in all_staff if any(k in (s.role or '').lower() for k in ['doctor', 'physician', 'specialist']))
+        active_nurses = sum(1 for s in all_staff if 'nurse' in (s.role or '').lower())
+        on_duty_staff = sum(1 for s in all_staff if s.is_working_on(today_day) and s.availability == 'Available')
+
+        today_appts = appt_q.filter_by(appointment_date=today_str).all()
+        scheduled_count = sum(1 for a in today_appts if a.status in ['Pending', 'Confirmed'])
+        patient_queue_count = sum(1 for a in today_appts if a.status == 'Pending')
+        completed_consultations = sum(1 for a in today_appts if a.status == 'Completed')
+
+        if active_branch is not None:
+            records_today = ConsultationRecord.query.filter_by(branch_id=active_branch.id, consultation_date=today_str).count()
+        else:
+            records_today = ConsultationRecord.query.filter_by(consultation_date=today_str).count()
+        completed_consultations = max(completed_consultations, records_today)
+
+        return {
+            'branch': active_branch,
+            'branch_label': branch_label,
+            'manager_name': manager_name,
+            'head_doctor_name': head_doctor_name,
+            'operating_status': operating_status,
+            'active_doctors': active_doctors,
+            'active_nurses': active_nurses,
+            'scheduled_appointments': scheduled_count,
+            'on_duty_staff': on_duty_staff,
+            'patient_queue': patient_queue_count,
+            'completed_consultations': completed_consultations,
+        }
+
     # -------------------------------------------------------------
     # Routes (unchanged except for dashboard/upload which use the new logic)
     # -------------------------------------------------------------
@@ -3679,6 +3739,9 @@ def create_app():
                 'approve_staff_allocation': 'staff_allocations',
                 'cancel_staff_allocation': 'staff_allocations',
                 'delete_staff_allocation': 'staff_allocations',
+                'reset_user_password': 'branches',
+                'force_user_password_change': 'branches',
+                'toggle_user_active': 'branches',
             }
             fallback_endpoint = csrf_fallbacks.get(request.endpoint, request.endpoint if request.endpoint and request.endpoint != 'static' else 'dashboard')
             try:
@@ -3705,10 +3768,17 @@ def create_app():
             'approve_staffing_plan', 'reject_staffing_plan', 'delete_staffing_plan',
             'staff_allocations', 'create_staff_allocation', 'approve_staff_allocation',
             'cancel_staff_allocation', 'delete_staff_allocation',
+            'reset_user_password', 'force_user_password_change', 'toggle_user_active',
             'chatbot_ask',
         }
         if request.endpoint in protected_endpoints and 'user_id' not in session:
             return redirect(url_for('login'))
+        if 'user_id' in session:
+            current_u = db.session.get(User, session['user_id'])
+            if current_u and not getattr(current_u, 'is_active', True):
+                session.clear()
+                flash('Your account has been deactivated. Please contact your Superadministrator.', 'error')
+                return redirect(url_for('login'))
         if (session.get('must_change_password') and 'user_id' in session
                 and request.endpoint not in {'change_password', 'logout', 'static'}):
             return redirect(url_for('change_password'))
@@ -3788,6 +3858,11 @@ def create_app():
                 return render_template('auth/login.html')
             user = User.query.filter_by(username=request.form['username']).first()
             if user and verify_user_password(user, request.form.get('password')):
+                if not getattr(user, 'is_active', True):
+                    flash('This account has been deactivated. Please contact your Superadministrator.', 'error')
+                    log_audit('login_deactivated_attempt', 'User', user.id, {'username': user.username}, branch_id=user.branch_id)
+                    db.session.commit()
+                    return render_template('auth/login.html')
                 if not user.branch_id:
                     user.branch_id = ensure_default_branch().id
                     db.session.commit()
@@ -4918,6 +4993,7 @@ def create_app():
             branch_rows=branch_rows,
             branches_page=branches_page,
             users_page=users_page,
+            branch_ops=build_branch_operations_summary(),
             active_branches=Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all(),
             role_options=USER_ROLE_OPTIONS,
             current_date=datetime.now().strftime('%Y-%m-%d'),
@@ -5043,6 +5119,54 @@ def create_app():
         flash('User branch access updated.', 'success')
         return redirect(url_for('branches'))
 
+    @app.route('/branches/users/<int:user_id>/reset-password', methods=['POST'])
+    def reset_user_password(user_id):
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+
+        user = User.query.get_or_404(user_id)
+        # Generate a secure randomized temporary password
+        temp_password = f"Accudetek@{secrets.randbelow(9000) + 1000}!"
+        user.password = generate_password_hash(temp_password)
+        user.must_change_password = True
+        log_audit('reset_user_password', 'User', user.id, {'username': user.username}, branch_id=user.branch_id)
+        db.session.commit()
+        flash(f'Password for {user.username} has been reset. Temporary password: {temp_password} (User will be required to change it on next login).', 'success')
+        return redirect(url_for('branches'))
+
+    @app.route('/branches/users/<int:user_id>/force-password-change', methods=['POST'])
+    def force_user_password_change(user_id):
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+
+        user = User.query.get_or_404(user_id)
+        user.must_change_password = True
+        log_audit('force_password_change', 'User', user.id, {'username': user.username}, branch_id=user.branch_id)
+        db.session.commit()
+        flash(f'User {user.username} will be required to change their password on next sign-in.', 'success')
+        return redirect(url_for('branches'))
+
+    @app.route('/branches/users/<int:user_id>/toggle-active', methods=['POST'])
+    def toggle_user_active(user_id):
+        redirect_response = require_main_admin()
+        if redirect_response:
+            return redirect_response
+
+        user = User.query.get_or_404(user_id)
+        if user.id == session.get('user_id'):
+            flash('You cannot deactivate your own Superadmin account.', 'error')
+            return redirect(url_for('branches'))
+
+        user.is_active = not getattr(user, 'is_active', True)
+        action_name = 'reactivate_user' if user.is_active else 'deactivate_user'
+        log_audit(action_name, 'User', user.id, {'username': user.username, 'is_active': user.is_active}, branch_id=user.branch_id)
+        db.session.commit()
+        status_label = 'activated' if user.is_active else 'deactivated'
+        flash(f'Account for {user.username} has been {status_label}.', 'success')
+        return redirect(url_for('branches'))
+
     @app.route('/branches/new', methods=['GET', 'POST'])
     def create_branch():
         redirect_response = require_main_admin()
@@ -5055,6 +5179,9 @@ def create_app():
             address = request.form.get('address', '').strip()
             email = request.form.get('email', '').strip()
             contact_number = request.form.get('contact_number', '').strip()
+            operating_status = request.form.get('operating_status', 'Open').strip()
+            manager_name = request.form.get('manager_name', '').strip()
+            head_doctor_name = request.form.get('head_doctor_name', '').strip()
             if not name or not code:
                 flash('Branch name and code are required.', 'error')
                 return redirect(url_for('create_branch'))
@@ -5067,6 +5194,9 @@ def create_app():
                 address=address,
                 email=email,
                 contact_number=contact_number,
+                operating_status=operating_status,
+                manager_name=manager_name,
+                head_doctor_name=head_doctor_name,
                 is_main=False,
                 is_active=True,
             )
@@ -5098,6 +5228,9 @@ def create_app():
             address = request.form.get('address', '').strip()
             email = request.form.get('email', '').strip()
             contact_number = request.form.get('contact_number', '').strip()
+            operating_status = request.form.get('operating_status', branch.operating_status or 'Open').strip()
+            manager_name = request.form.get('manager_name', '').strip()
+            head_doctor_name = request.form.get('head_doctor_name', '').strip()
             if not name or not code:
                 flash('Branch name and code are required.', 'error')
                 return redirect(url_for('edit_branch', branch_id=branch.id))
@@ -5110,6 +5243,9 @@ def create_app():
             branch.address = address
             branch.email = email
             branch.contact_number = contact_number
+            branch.operating_status = operating_status
+            branch.manager_name = manager_name
+            branch.head_doctor_name = head_doctor_name
             log_audit('edit_branch', 'Branch', branch.id, {'name': branch.name, 'code': branch.code}, branch_id=branch.id)
             db.session.commit()
             invalidate_branch_cache()
@@ -5909,6 +6045,7 @@ def create_app():
         return render_template(
             'dashboard/index.html',
             summary=summary,
+            branch_ops=build_branch_operations_summary(),
             weekly_gaps=weekly_staffing_gaps(summary),
             current_date=datetime.now().strftime('%Y-%m-%d'),
             current_time=datetime.now().strftime('%H:%M'),
@@ -8993,6 +9130,17 @@ def migrate_branch_schema(app):
             branch_columns = {row[1] for row in result.fetchall()}
             if 'email' not in branch_columns:
                 conn.execute(text("ALTER TABLE branch ADD COLUMN email VARCHAR(120)"))
+            if 'operating_status' not in branch_columns:
+                conn.execute(text("ALTER TABLE branch ADD COLUMN operating_status VARCHAR(40) NOT NULL DEFAULT 'Open'"))
+            if 'manager_name' not in branch_columns:
+                conn.execute(text("ALTER TABLE branch ADD COLUMN manager_name VARCHAR(120)"))
+            if 'head_doctor_name' not in branch_columns:
+                conn.execute(text("ALTER TABLE branch ADD COLUMN head_doctor_name VARCHAR(120)"))
+
+            user_result = conn.execute(text("PRAGMA table_info(user)"))
+            user_columns = {row[1] for row in user_result.fetchall()}
+            if 'is_active' not in user_columns:
+                conn.execute(text("ALTER TABLE user ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"))
 
         branch = Branch.query.filter_by(code=DEFAULT_BRANCH_CODE).first()
         if branch is None:
@@ -9002,9 +9150,25 @@ def migrate_branch_schema(app):
                 address=DEFAULT_BRANCH_ADDRESS,
                 is_main=True,
                 is_active=True,
+                operating_status='Open',
+                manager_name='Maria Santos',
+                head_doctor_name='Dr. Juan Reyes',
             )
             db.session.add(branch)
             db.session.commit()
+        else:
+            updated = False
+            if not branch.manager_name:
+                branch.manager_name = 'Maria Santos'
+                updated = True
+            if not branch.head_doctor_name:
+                branch.head_doctor_name = 'Dr. Juan Reyes'
+                updated = True
+            if not branch.operating_status:
+                branch.operating_status = 'Open'
+                updated = True
+            if updated:
+                db.session.commit()
 
         with db.engine.begin() as conn:
             for table_name in ('user', 'consultation_record', 'staff_member'):

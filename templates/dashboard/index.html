@@ -40,6 +40,95 @@
   </div>
 {% endif %}
 <div class="section-stack">
+{% if branch_ops %}
+<div class="section-heading-row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
+  <div>
+    <div class="section-heading" style="margin:0;">Branch Summary & Live Operations</div>
+    <p class="section-subcopy" style="margin:4px 0 0;">Overview of branch leadership, active staffing, and today's operational workflow for <strong>{{ branch_ops.branch_label }}</strong>.</p>
+  </div>
+  {% if can_manage %}
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    {% if can_view_all_branches %}
+    <a href="{{ url_for('branches') }}" class="btn secondary" style="font-size:13px; padding:6px 12px;"><i class="bi bi-diagram-3" aria-hidden="true"></i> Manage Branches & Staff</a>
+    {% endif %}
+    <a href="{{ url_for('appointments') }}" class="btn secondary" style="font-size:13px; padding:6px 12px;"><i class="bi bi-calendar-check" aria-hidden="true"></i> View Today's Schedule</a>
+    <a href="{{ url_for('staff') }}" class="btn secondary" style="font-size:13px; padding:6px 12px;"><i class="bi bi-people" aria-hidden="true"></i> Staff Roster</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Row 1: Branch Leadership & Operating Status -->
+<div class="grid cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:20px;">
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <h3>Branch Manager</h3>
+      <span class="topbar-pill" style="font-size:11px; padding:2px 8px;">Leadership</span>
+    </div>
+    <div class="value" style="font-size:18px; margin:10px 0 4px; word-break:break-word;">{{ branch_ops.manager_name }}</div>
+    <p class="card-caption">Assigned clinic manager</p>
+  </div>
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <h3>Head Doctor</h3>
+      <span class="topbar-pill" style="font-size:11px; padding:2px 8px;">Physician</span>
+    </div>
+    <div class="value" style="font-size:18px; margin:10px 0 4px; word-break:break-word;">{{ branch_ops.head_doctor_name }}</div>
+    <p class="card-caption">Assigned chief physician</p>
+  </div>
+  <div class="card">
+    <h3>Active Doctors</h3>
+    <div class="value" style="color:var(--primary);">{{ branch_ops.active_doctors }}</div>
+    <p class="card-caption">Physicians on staff roster</p>
+  </div>
+  <div class="card">
+    <h3>Active Nurses</h3>
+    <div class="value" style="color:var(--primary);">{{ branch_ops.active_nurses }}</div>
+    <p class="card-caption">Nurses on staff roster</p>
+  </div>
+  <div class="card">
+    <h3>Operating Status</h3>
+    <div style="margin:10px 0 6px;">
+      {% set status_pill_class = 'badge-green' if branch_ops.operating_status == 'Open' else ('badge-amber' if branch_ops.operating_status == 'Temporarily Closed' else 'badge-red') %}
+      <span class="card-trend-badge {{ status_pill_class }}" style="display:inline-block; margin:0; padding:6px 12px; font-weight:700;">
+        <i class="bi bi-{{ 'check-circle' if branch_ops.operating_status == 'Open' else 'exclamation-triangle' }}"></i>
+        {{ branch_ops.operating_status }}
+      </span>
+    </div>
+    <p class="card-caption">{{ 'Branch is operating normally' if branch_ops.operating_status == 'Open' else 'Operating with schedule adjustments' }}</p>
+  </div>
+</div>
+
+<!-- Row 2: Today's Operations -->
+<div class="section-heading" style="font-size:16px; margin-bottom:4px;">Today's Operations</div>
+<p class="section-subcopy">Live overview of daily clinic bookings, queue load, and completed care today.</p>
+<div class="grid cards" style="margin-bottom:24px;">
+  <div class="card">
+    <h3>Scheduled Appointments</h3>
+    <div class="value">{{ branch_ops.scheduled_appointments }}</div>
+    <div class="card-trend-plain">Today's bookings</div>
+    <p class="card-caption">Confirmed & pending slots for today</p>
+  </div>
+  <div class="card">
+    <h3>On-Duty Staff</h3>
+    <div class="value">{{ branch_ops.on_duty_staff }}</div>
+    <div class="card-trend-badge badge-green" style="margin:6px 0 0; padding:4px 8px; font-size:12px;">Active on shift</div>
+    <p class="card-caption">Staff scheduled on duty today</p>
+  </div>
+  <div class="card">
+    <h3>Patient Queue</h3>
+    <div class="value" style="color:var(--warning);">{{ branch_ops.patient_queue }}</div>
+    <div class="card-trend-plain">Waiting patients</div>
+    <p class="card-caption">Pending arrivals & queue entries</p>
+  </div>
+  <div class="card">
+    <h3>Completed Consultations</h3>
+    <div class="value" style="color:var(--success);">{{ branch_ops.completed_consultations }}</div>
+    <div class="card-trend-badge badge-green" style="margin:6px 0 0; padding:4px 8px; font-size:12px;">Completed today</div>
+    <p class="card-caption">Successfully served today</p>
+  </div>
+</div>
+{% endif %}
+
 <div class="section-heading">Forecast Overview</div>
 <p class="section-subcopy">Key numbers driving this month's staffing and readiness decisions.</p>
 {% set capacity_headline = 'Optimal Capacity' if summary.capacity_status == 'Healthy' else ('Approaching Capacity' if summary.capacity_status == 'Moderate' else 'Capacity Exceeded') %}

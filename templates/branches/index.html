@@ -7,6 +7,72 @@
 
 {% block content %}
 <div class="section-stack">
+{% if branch_ops %}
+<div class="chart-card" style="margin-bottom:20px;">
+  <div class="page-heading-row" style="margin-bottom:12px;">
+    <div>
+      <h3 style="margin:0;">Branch Leadership & Daily Operations</h3>
+      <p class="muted-copy" style="margin:4px 0 0;">Live oversight of leadership assignments, active clinical staff, and today's facility throughput.</p>
+    </div>
+    <span class="status-pill status-{{ 'healthy' if branch_ops.operating_status == 'Open' else 'high' }}">
+      <i class="bi bi-{{ 'check-circle' if branch_ops.operating_status == 'Open' else 'exclamation-triangle' }}"></i> {{ branch_ops.operating_status }}
+    </span>
+  </div>
+
+  <div class="grid cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:18px;">
+    <div class="card" style="border:1px solid #e2e8f0;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <h3>Branch Manager</h3>
+        <span class="topbar-pill" style="font-size:11px; padding:2px 8px;">Leadership</span>
+      </div>
+      <div class="value" style="font-size:17px; margin:8px 0 4px; word-break:break-word;">{{ branch_ops.manager_name }}</div>
+      <p class="card-caption">Assigned clinic manager</p>
+    </div>
+    <div class="card" style="border:1px solid #e2e8f0;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <h3>Head Doctor</h3>
+        <span class="topbar-pill" style="font-size:11px; padding:2px 8px;">Physician</span>
+      </div>
+      <div class="value" style="font-size:17px; margin:8px 0 4px; word-break:break-word;">{{ branch_ops.head_doctor_name }}</div>
+      <p class="card-caption">Assigned chief physician</p>
+    </div>
+    <div class="card" style="border:1px solid #e2e8f0;">
+      <h3>Active Doctors</h3>
+      <div class="value" style="color:var(--primary); font-size:24px;">{{ branch_ops.active_doctors }}</div>
+      <p class="card-caption">Physicians on roster</p>
+    </div>
+    <div class="card" style="border:1px solid #e2e8f0;">
+      <h3>Active Nurses</h3>
+      <div class="value" style="color:var(--primary); font-size:24px;">{{ branch_ops.active_nurses }}</div>
+      <p class="card-caption">Nurses on roster</p>
+    </div>
+    <div class="card" style="border:1px solid #e2e8f0;">
+      <h3>On-Duty Staff</h3>
+      <div class="value" style="color:var(--success); font-size:24px;">{{ branch_ops.on_duty_staff }}</div>
+      <p class="card-caption">Scheduled on duty today</p>
+    </div>
+  </div>
+
+  <div class="grid cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+    <div class="card" style="background:#f8fafc; border:1px solid #e2e8f0;">
+      <h3 style="color:#475569;">Scheduled Appointments</h3>
+      <div class="value" style="font-size:22px; margin:6px 0 2px;">{{ branch_ops.scheduled_appointments }}</div>
+      <p class="card-caption">Bookings scheduled today</p>
+    </div>
+    <div class="card" style="background:#f8fafc; border:1px solid #e2e8f0;">
+      <h3 style="color:#475569;">Patient Queue</h3>
+      <div class="value" style="font-size:22px; margin:6px 0 2px; color:var(--warning);">{{ branch_ops.patient_queue }}</div>
+      <p class="card-caption">Waiting patient arrivals</p>
+    </div>
+    <div class="card" style="background:#f8fafc; border:1px solid #e2e8f0;">
+      <h3 style="color:#475569;">Completed Consultations</h3>
+      <div class="value" style="font-size:22px; margin:6px 0 2px; color:var(--success);">{{ branch_ops.completed_consultations }}</div>
+      <p class="card-caption">Consultations finished today</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
   <div class="chart-card">
   <div class="page-heading-row">
     <h3 style="margin:0;">Clinic Branches</h3>
@@ -19,6 +85,7 @@
           <th>Branch</th>
           <th>Code</th>
           <th>Status</th>
+          <th>Leadership</th>
           <th>Patients</th>
           <th>Appointments</th>
           <th>Consultations</th>
@@ -44,6 +111,12 @@
                 {{ 'Active' if row.branch.is_active else 'Inactive' }}
               </span>
             </td>
+            <td>
+              <div style="font-size:12px; line-height:1.4;">
+                <div><span class="muted-copy">Manager:</span> <strong>{{ row.branch.manager_name or 'Unassigned' }}</strong></div>
+                <div><span class="muted-copy">Head Dr:</span> <strong>{{ row.branch.head_doctor_name or 'Unassigned' }}</strong></div>
+              </div>
+            </td>
             <td>{{ row.patients }}</td>
             <td>{{ row.appointments }}</td>
             <td>{{ row.consultations }}</td>
@@ -61,7 +134,7 @@
             </td>
           </tr>
         {% else %}
-          <tr class="table-empty-state"><td colspan="9"><strong>No branches yet.</strong>Add your first branch to start tracking clinic operations.</td></tr>
+          <tr class="table-empty-state"><td colspan="10"><strong>No branches yet.</strong>Add your first branch to start tracking clinic operations.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -71,7 +144,10 @@
 
 <div class="chart-card">
   <div class="page-heading-row">
-    <h3 style="margin:0;">User Branch Access</h3>
+    <div>
+      <h3 style="margin:0;">Administrator & Staff Account Management</h3>
+      <p class="muted-copy" style="margin:4px 0 0;">Manage administrator accounts, assign branch access, and perform secure password lifecycle operations.</p>
+    </div>
     <a href="{{ url_for('create_user') }}" class="btn"><i class="bi bi-person-plus" aria-hidden="true"></i> Add New User</a>
   </div>
 
@@ -107,40 +183,102 @@
     <table class="table table-sticky-head">
       <thead>
         <tr>
-          <th>Username</th>
+          <th>Administrator Account</th>
           <th>Role</th>
-          <th>Assigned Branch</th>
-          <th>Update Access</th>
+          <th>Branch Assignment</th>
+          <th>Status</th>
+          <th>Password Security</th>
+          <th>Security & Recovery Actions</th>
         </tr>
       </thead>
       <tbody id="userTableBody">
         {% for user in users_page.items %}
           <tr data-user-row data-username="{{ user.username|lower }}" data-role="{{ user.role }}" data-branch-id="{{ user.branch_id or '' }}">
-            <td>{{ user.username }}</td>
+            <td>
+              <strong>{{ user.username }}</strong>
+              <div class="muted-copy" style="font-size:12px;">
+                {% if user.id == session.get('user_id') %}
+                  <span class="tag-pill tag-primary" style="font-size:10px; padding:2px 6px;">Current User</span>
+                {% endif %}
+                ID #{{ user.id }}
+              </div>
+            </td>
             <td><span class="tag-pill{{ ' tag-primary' if user.role in ('superadmin', 'main_admin') else '' }}">{{ user.role|replace('_', ' ')|title }}</span></td>
-            <td>{{ user.branch.name if user.branch else 'Unassigned' }}</td>
             <td class="admin-status-cell">
               <form method="post" action="{{ url_for('assign_user_branch', user_id=user.id) }}" class="inline-status-form admin-status-control"
                     data-confirm-title="Update user access?"
-                    data-confirm="This will update {{ user.username }} branch access. Continue?">
-                <select name="branch_id" required>
+                    data-confirm="This will update {{ user.username }} branch access and role. Continue?">
+                <select name="branch_id" required style="max-width:140px;">
                   {% for branch in active_branches %}
                     <option value="{{ branch.id }}" {% if user.branch_id == branch.id %}selected{% endif %}>{{ branch.name }}</option>
                   {% endfor %}
                 </select>
-                <select name="role" required>
+                <select name="role" required style="max-width:120px;">
                   {% for role in role_options %}
                     <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>{{ role|replace('_', ' ')|title }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit" class="btn secondary admin-action-save"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
+                <button type="submit" class="btn secondary admin-action-save" title="Save Role & Branch"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
               </form>
+            </td>
+            <td>
+              {% if user.is_active %}
+                <span class="status-pill status-healthy"><i class="bi bi-check-circle" aria-hidden="true"></i> Active</span>
+              {% else %}
+                <span class="status-pill status-high"><i class="bi bi-dash-circle" aria-hidden="true"></i> Deactivated</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <code style="letter-spacing:2px; font-weight:bold; color:#64748b;">••••••••••••</code>
+                <span class="topbar-pill" style="font-size:10px; padding:2px 6px; background:#f1f5f9; color:#64748b;" title="Passwords are securely hashed with PBKDF2/scrypt and cannot be retrieved">Hidden</span>
+              </div>
+              {% if user.must_change_password %}
+                <div style="font-size:11px; color:#d97706; margin-top:3px;"><i class="bi bi-exclamation-circle"></i> Password change pending</div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="admin-action-group" style="display:flex; flex-wrap:wrap; gap:6px;">
+                <!-- Reset Password -->
+                <form method="post" action="{{ url_for('reset_user_password', user_id=user.id) }}"
+                      data-confirm-title="Reset password for {{ user.username }}?"
+                      data-confirm="This will generate a secure temporary password and require {{ user.username }} to change it on next login. Continue?">
+                  <button type="submit" class="btn secondary" style="font-size:12px; padding:5px 8px;" title="Reset password with secure temporary password">
+                    <i class="bi bi-key" aria-hidden="true"></i> Reset Password
+                  </button>
+                </form>
+
+                <!-- Force Password Change -->
+                <form method="post" action="{{ url_for('force_user_password_change', user_id=user.id) }}"
+                      data-confirm-title="Require password change?"
+                      data-confirm="Force {{ user.username }} to change their password on next sign in?">
+                  <button type="submit" class="btn secondary" style="font-size:12px; padding:5px 8px;" title="Require password change on next login">
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i> Force Change
+                  </button>
+                </form>
+
+                <!-- Deactivate / Reactivate -->
+                {% if user.id != session.get('user_id') %}
+                  <form method="post" action="{{ url_for('toggle_user_active', user_id=user.id) }}"
+                        data-confirm-title="{{ 'Deactivate' if user.is_active else 'Reactivate' }} account?"
+                        data-confirm="This will {{ 'revoke access for' if user.is_active else 'restore access for' }} {{ user.username }}. Continue?">
+                    <button type="submit" class="btn secondary admin-action-toggle" style="font-size:12px; padding:5px 8px;">
+                      <i class="bi bi-power" aria-hidden="true"></i> {{ 'Deactivate' if user.is_active else 'Activate' }}
+                    </button>
+                  </form>
+                {% endif %}
+
+                <!-- View Audit Logs -->
+                <a href="{{ url_for('audit_logs') }}" class="btn secondary" style="font-size:12px; padding:5px 8px;" title="View system audit logs">
+                  <i class="bi bi-journal-text" aria-hidden="true"></i> Logs
+                </a>
+              </div>
             </td>
           </tr>
         {% else %}
-          <tr class="table-empty-state"><td colspan="4"><strong>No users yet.</strong>Add a user to grant staff access to this system.</td></tr>
+          <tr class="table-empty-state"><td colspan="6"><strong>No users yet.</strong>Add a user to grant staff access to this system.</td></tr>
         {% endfor %}
-        <tr id="userFilterEmptyRow" class="table-empty-state" style="display:none;"><td colspan="4"><strong>No matching users found.</strong>Try adjusting your search or filters.</td></tr>
+        <tr id="userFilterEmptyRow" class="table-empty-state" style="display:none;"><td colspan="6"><strong>No matching users found.</strong>Try adjusting your search or filters.</td></tr>
       </tbody>
     </table>
   </div>

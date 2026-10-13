@@ -30,6 +30,22 @@
       Contact Number
       <input type="text" name="contact_number" value="{{ branch.contact_number if branch and branch.contact_number else '' }}">
     </label>
+    <label>
+      Operating Status
+      <select name="operating_status">
+        <option value="Open" {% if branch and branch.operating_status == 'Open' %}selected{% endif %}>Open (Normal Operations)</option>
+        <option value="Closed" {% if branch and branch.operating_status == 'Closed' %}selected{% endif %}>Closed</option>
+        <option value="Temporarily Closed" {% if branch and branch.operating_status == 'Temporarily Closed' %}selected{% endif %}>Temporarily Closed</option>
+      </select>
+    </label>
+    <label>
+      Branch Manager
+      <input type="text" name="manager_name" value="{{ branch.manager_name if branch and branch.manager_name else '' }}" placeholder="e.g. Maria Santos">
+    </label>
+    <label>
+      Head Doctor / Assigned Physician
+      <input type="text" name="head_doctor_name" value="{{ branch.head_doctor_name if branch and branch.head_doctor_name else '' }}" placeholder="e.g. Dr. Juan Reyes">
+    </label>
     <div class="form-actions">
       <button type="submit" class="btn"><i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save Branch' if branch else 'Create Branch' }}</button>
       <a href="{{ url_for('branches') }}" class="btn secondary admin-cancel"><i class="bi bi-x-lg" aria-hidden="true"></i> Cancel</a>
