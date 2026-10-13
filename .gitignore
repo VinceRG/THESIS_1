@@ -36,3 +36,7 @@ CS114_Theme_Submission_Draft.txt
 
 # IDE configurations
 .vscode/
+
+# Demo media and generator scripts
+demo_video/
+scripts/generate_video_demo.py
