@@ -271,6 +271,12 @@
   const demographicLabelColor = '#11354f';
   const SEX_COLORS = Object.freeze({ male: '#2563eb', female: '#ec4899' });
   const sexColorFor = (label) => SEX_COLORS[String(label).toLowerCase()] || SEX_COLORS.male;
+  const sexLabelFor = (label) => {
+    const normalized = String(label).trim().toLowerCase();
+    if (['male', 'm'].includes(normalized)) return 'Male';
+    if (['female', 'f'].includes(normalized)) return 'Female';
+    return String(label);
+  };
 
   function wrapLabel(text, maxLineLength) {
     const words = String(text).split(' ');
@@ -405,9 +411,8 @@
 
   const sexDistributionDonutCtx = document.getElementById('sexDistributionDonutChart');
   if (sexDistributionDonutCtx) {
-    const sexLabels = {{ summary.gender_distribution | map('first') | list | tojson }};
+    const sexLabels = {{ summary.gender_distribution | map('first') | list | tojson }}.map(sexLabelFor);
     const sexValues = {{ summary.gender_distribution | map('last') | list | tojson }};
-    const sexTotal = sexValues.reduce((sum, value) => sum + value, 0);
     const sexColors = sexLabels.map(sexColorFor);
     new Chart(sexDistributionDonutCtx, {
       type: 'doughnut',
@@ -432,16 +437,7 @@
               }
             }
           },
-          datalabels: {
-            display: true,
-            color: '#fff',
-            font: { weight: '600', size: 12 },
-            formatter: (value, context) => {
-              const label = context.chart.data.labels[context.dataIndex];
-              const pct = sexTotal ? Math.round((value / sexTotal) * 100) : 0;
-              return label + '\n' + value + ' (' + pct + '%)';
-            }
-          }
+          datalabels: { display: false }
         }
       }
     });

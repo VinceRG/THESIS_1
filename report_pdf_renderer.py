@@ -108,8 +108,9 @@ class _ReportPdf:
         if not datasets or not labels:
             return
 
-        chart_height = 205
-        self.ensure_space(chart_height + 10)
+        chart_height = 175
+        label_clearance = 48
+        self.ensure_space(chart_height + label_clearance)
         bottom = self.y - chart_height
         axes = self.figure.add_axes([
             MARGIN / PAGE_WIDTH,
@@ -143,10 +144,10 @@ class _ReportPdf:
             for label in axes.get_xticklabels():
                 label.set_horizontalalignment('right')
         axes.legend(
-            loc='upper center', bbox_to_anchor=(0.5, 1.18),
+            loc='upper center', bbox_to_anchor=(0.5, 1.06),
             ncol=min(4, len(datasets)), frameon=False, fontsize=7,
         )
-        self.y = bottom - 18
+        self.y = bottom - label_clearance
 
     def draw_bar_chart(self, chart):
         labels = chart.get('labels', [])

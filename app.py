@@ -4008,7 +4008,7 @@ def create_app():
                 session.pop('pending_patient_login', None)
                 session['patient_account_id'] = account.id
                 session['patient_portal_patient_id'] = account.patient_id
-                flash(f'Welcome back, {account.patient.full_name}.', 'success')
+                flash(f'Welcome back, {account.patient.full_name}.', 'welcome')
                 return redirect(url_for('patient_profile'))
         return render_template('patient_portal/verify_login.html', email=account.email)
 

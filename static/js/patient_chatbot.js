@@ -10,6 +10,7 @@
   const form = document.getElementById('patientChatbotForm');
   const input = document.getElementById('patientChatbotInput');
   const sendBtn = document.getElementById('patientChatbotSend');
+  const csrfToken = widget.dataset.csrfToken || '';
 
   // Patient pages share this widget, so it also supplies a consistent
   // keyboard shortcut past repeated navigation on every public portal page.
@@ -242,7 +243,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '',
+        'X-CSRFToken': csrfToken,
       },
       body: JSON.stringify({ question: question, conversation_id: conversationId }),
     });
