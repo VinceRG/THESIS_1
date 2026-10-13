@@ -81,11 +81,6 @@
     <p class="card-caption">Physicians on staff roster</p>
   </div>
   <div class="card">
-    <h3>Active Nurses</h3>
-    <div class="value" style="color:var(--primary);">{{ branch_ops.active_nurses }}</div>
-    <p class="card-caption">Nurses on staff roster</p>
-  </div>
-  <div class="card">
     <h3>Operating Status</h3>
     <div style="margin:10px 0 6px;">
       {% set status_pill_class = 'badge-green' if branch_ops.operating_status == 'Open' else ('badge-amber' if branch_ops.operating_status == 'Temporarily Closed' else 'badge-red') %}

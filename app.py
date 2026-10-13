@@ -3689,8 +3689,7 @@ def create_app():
             appt_q = Appointment.query.filter_by(branch_id=active_branch.id)
 
         all_staff = staff_q.all()
-        active_doctors = sum(1 for s in all_staff if any(k in (s.role or '').lower() for k in ['doctor', 'physician', 'specialist']))
-        active_nurses = sum(1 for s in all_staff if 'nurse' in (s.role or '').lower())
+        active_doctors = sum(1 for s in all_staff if any(k in (s.role or '').lower() for k in ['doctor', 'physician', 'specialist', 'pathologist', 'radiologist']))
         on_duty_staff = sum(1 for s in all_staff if s.is_working_on(today_day) and s.availability == 'Available')
 
         today_appts = appt_q.filter_by(appointment_date=today_str).all()
@@ -3711,7 +3710,6 @@ def create_app():
             'head_doctor_name': head_doctor_name,
             'operating_status': operating_status,
             'active_doctors': active_doctors,
-            'active_nurses': active_nurses,
             'scheduled_appointments': scheduled_count,
             'on_duty_staff': on_duty_staff,
             'patient_queue': patient_queue_count,
