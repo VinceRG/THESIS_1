@@ -13,7 +13,9 @@
 }
 * { box-sizing: border-box; }
 html, body { height:100%; }
-body { margin:0; font-family:'Inter', sans-serif; background:var(--background); color:var(--text); overflow:hidden; }
+html.admin-html { height:100%; overflow:hidden !important; }
+body.admin-app { margin:0; font-family:'Inter', sans-serif; background:var(--background); color:var(--text); overflow:hidden !important; height:100%; }
+body { margin:0; font-family:'Inter', sans-serif; background:var(--background); color:var(--text); }
 .app-shell { display:flex; height:100vh; min-height:100vh; overflow:hidden; }
 .sidebar { width:260px; min-height:100vh; flex:0 0 260px; background:var(--sidebar); color:white; padding:24px 18px; overflow-y:auto; display:flex; flex-direction:column; }
 .brand { display:flex; align-items:center; gap:12px; margin-bottom:30px; }
@@ -2253,18 +2255,24 @@ body.admin-app .sidebar-user {
 }
 body.admin-app .main-panel { background:var(--background); }
 body.admin-app .topbar {
+  flex-shrink:0;
+  position:sticky;
+  top:0;
+  z-index:50;
   min-height:76px;
   padding:14px 24px;
   border-bottom:1px solid var(--admin-line);
   background:#FFFFFF;
 }
 body.admin-app .topbar h1 {
+  margin:0;
   font-size:24px;
   line-height:1.15;
   letter-spacing:.01em;
   font-weight:700;
 }
 body.admin-app .topbar p {
+  margin:4px 0 0;
   color:var(--soft-text);
   font-size:13px;
 }

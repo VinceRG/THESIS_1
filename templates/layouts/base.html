@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="admin-html">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20261013-prediction-summary-grid-fix') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20261014-fix-header-sticky-scroll') }}">
   <style>
     #topProgressBar {
       position: fixed; top: 0; left: 0; height: 3px;
@@ -367,12 +367,28 @@
       return path === '/dashboard';
     }
 
+    function resetViewScroll() {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      const mainPanel = document.querySelector('.main-panel');
+      if (mainPanel) mainPanel.scrollTop = 0;
+    }
+
+    // Guard against unwanted outer document scroll offsets
+    window.addEventListener('scroll', () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+    });
+
     async function fetchPage(path) {
       const contentElement = document.querySelector('.content');
       if (!contentElement) return;
 
       // Immediately highlight the selected tab in the sidebar
       updateActiveLink(path);
+      resetViewScroll();
 
       // Start sleek top progress bar
       const topBar = document.getElementById('topProgressBar');
@@ -416,14 +432,17 @@
           window.history.pushState({}, '', path);
         }
 
+        resetViewScroll();
         injectCsrfTokens(contentElement);
         await runInlineScripts(contentElement);
+        resetViewScroll();
       } catch (error) {
         console.error(error);
         window.location.href = path;
       } finally {
         finishLoading();
         contentElement.style.opacity = '1';
+        resetViewScroll();
         if (topBar) {
           topBar.style.width = '100%';
           window.setTimeout(() => {
@@ -468,7 +487,9 @@
         if (!href || href === '/logout' || href.startsWith('http')) return;
         link.addEventListener('click', event => {
           event.preventDefault();
+          link.blur();
           closeSidebar();
+          resetViewScroll();
           if (shouldFullReload(href)) {
             startLoading('Loading dashboard', 'Refreshing dashboard summaries and charts.');
             window.location.href = href;
