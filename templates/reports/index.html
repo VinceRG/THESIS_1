@@ -12,39 +12,90 @@
       Report scope
       <select name="scope" data-report-scope>
         <option value="monthly" {% if scope == 'monthly' %}selected{% endif %}>Monthly</option>
-        <option value="annually" {% if scope == 'annually' %}selected{% endif %}>Annually</option>
         <option value="quarterly" {% if scope == 'quarterly' %}selected{% endif %}>Quarterly</option>
-        <option value="date-range" {% if scope == 'date-range' %}selected{% endif %}>Data range</option>
       </select>
     </label>
-    <label>
-      From date
-      <input type="date" name="date_from" value="{{ date_from }}" data-report-date-from {% if scope == 'date-range' %}required{% else %}disabled{% endif %}>
-    </label>
-    <label>
-      To date
-      <input type="date" name="date_to" value="{{ date_to }}" data-report-date-to {% if scope == 'date-range' %}required{% else %}disabled{% endif %}>
-    </label>
+
+    <!-- Monthly Controls: Month Pickers Only (No Day Option) -->
+    <div class="report-scope-group" data-monthly-group {% if scope != 'monthly' %}style="display:none;"{% endif %}>
+      <label class="report-date-field" data-date-field-wrapper>
+        <span>From month <small class="report-date-hint" data-date-hint>{% if date_from and date_to and scope == 'monthly' %}(Active){% else %}(Optional){% endif %}</small></span>
+        <input type="month" name="date_from" value="{{ date_from if scope == 'monthly' else '' }}" data-monthly-from min="{{ min_month }}" max="{{ max_month }}" {% if scope != 'monthly' %}disabled{% endif %}>
+      </label>
+      <label class="report-date-field" data-date-field-wrapper>
+        <span>To month <small class="report-date-hint" data-date-hint>{% if date_from and date_to and scope == 'monthly' %}(Active){% else %}(Optional){% endif %}</small></span>
+        <input type="month" name="date_to" value="{{ date_to if scope == 'monthly' else '' }}" data-monthly-to min="{{ min_month }}" max="{{ max_month }}" {% if scope != 'monthly' %}disabled{% endif %}>
+      </label>
+    </div>
+
+    <!-- Quarterly Controls: Year Pickers Only (No Month/Day Option) -->
+    <div class="report-scope-group" data-quarterly-group {% if scope != 'quarterly' %}style="display:none;"{% endif %}>
+      <label class="report-date-field">
+        <span>From year</span>
+        <select name="date_from" data-quarterly-from {% if scope != 'quarterly' %}disabled{% endif %}>
+          {% for yr in available_years %}
+            <option value="{{ yr }}" {% if yr == selected_year_from %}selected{% endif %}>{{ yr }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="report-date-field">
+        <span>To year</span>
+        <select name="date_to" data-quarterly-to {% if scope != 'quarterly' %}disabled{% endif %}>
+          {% for yr in available_years %}
+            <option value="{{ yr }}" {% if yr == selected_year_to %}selected{% endif %}>{{ yr }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
     <button type="submit" class="btn"><i class="bi bi-funnel" aria-hidden="true"></i> Apply Scope</button>
+    {% if date_from or date_to %}
+      <a href="{{ url_for('reports', scope=scope) }}" class="btn secondary" title="Reset filter" style="margin-left:6px;"><i class="bi bi-x-circle" aria-hidden="true"></i> Reset Filter</a>
+    {% endif %}
   </form>
-  <p class="report-applied-scope" role="status">
-    <strong>Applied scope:</strong> {{ scope_label }}{% if date_range_label %} ({{ date_range_label }}){% endif %}
-  </p>
+
+  <div class="report-scope-meta-row" style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:10px;">
+    <p class="report-applied-scope" role="status" style="margin:0;">
+      <strong>Applied scope:</strong> {{ scope_label }}{% if date_range_label %} ({{ date_range_label }}){% endif %}
+    </p>
+    {% if min_year and max_year %}
+      <span class="muted-copy" style="font-size:12px;">
+        <i class="bi bi-calendar3" aria-hidden="true"></i> Available records in database: <strong>{{ min_year }} – {{ max_year }}</strong>
+      </span>
+    {% endif %}
+  </div>
 </section>
 
 <div class="grid grid-auto-fit report-dashboard-grid">
   {% for key, report in reports.items() %}
-  <article class="chart-card report-dashboard-card">
-    <h3>{{ report.title }}</h3>
-    <p class="muted-copy" style="margin-bottom:14px;">{{ report.description }}</p>
-    <div class="report-card-actions" role="group" aria-label="Actions for {{ report.title }}">
-      <a class="btn" href="{{ url_for('report_view', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}" data-loading-link="report-view"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
-      <div class="report-export-actions" role="group" aria-label="Export {{ report.title }}">
-        <a class="btn secondary" href="{{ url_for('report_print', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
-        <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-download" aria-hidden="true"></i> Save as PDF</a>
+    {% set is_quarterly_disabled = (scope == 'monthly' and key == 'quarterly') %}
+    <article class="chart-card report-dashboard-card{% if is_quarterly_disabled %} report-card-disabled{% endif %}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+        <h3>{{ report.title }}</h3>
+        {% if is_quarterly_disabled %}
+          <span class="status-pill status-inactive" style="font-size:11px;white-space:nowrap;">Requires Quarterly Scope</span>
+        {% endif %}
       </div>
-    </div>
-  </article>
+      <p class="muted-copy" style="margin-bottom:14px;">{{ report.description }}</p>
+      {% if is_quarterly_disabled %}
+        <p class="muted-copy" style="font-size:12px;margin-bottom:12px;color:#94a3b8;">
+          <i class="bi bi-lock" aria-hidden="true"></i> Disabled when Report Scope is set to Monthly.
+        </p>
+        <div class="report-card-actions" role="group" aria-label="Actions for {{ report.title }}">
+          <a class="btn secondary btn-sm" href="{{ url_for('reports', scope='quarterly') }}" title="Switch to Quarterly scope to view this report">
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Switch to Quarterly
+          </a>
+        </div>
+      {% else %}
+        <div class="report-card-actions" role="group" aria-label="Actions for {{ report.title }}">
+          <a class="btn" href="{{ url_for('report_view', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}" data-loading-link="report-view"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
+          <div class="report-export-actions" role="group" aria-label="Export {{ report.title }}">
+            <a class="btn secondary" href="{{ url_for('report_print', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+            <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-download" aria-hidden="true"></i> Save as PDF</a>
+          </div>
+        </div>
+      {% endif %}
+    </article>
   {% else %}
   <article class="chart-card report-dashboard-card">
     <h3>No reports are available yet</h3>
@@ -55,36 +106,87 @@
 <script>
   const reportScopeForm = document.querySelector('[data-report-scope-form]');
   const reportScopeSelect = document.querySelector('[data-report-scope]');
-  const reportDateFrom = document.querySelector('[data-report-date-from]');
-  const reportDateTo = document.querySelector('[data-report-date-to]');
-  const updateReportDateFields = () => {
-    const isDateRange = reportScopeSelect?.value === 'date-range';
-    [reportDateFrom, reportDateTo].forEach(field => {
-      if (!field) return;
-      field.disabled = !isDateRange;
-      field.required = isDateRange;
+  const monthlyGroup = document.querySelector('[data-monthly-group]');
+  const quarterlyGroup = document.querySelector('[data-quarterly-group]');
+  const monthlyFrom = document.querySelector('[data-monthly-from]');
+  const monthlyTo = document.querySelector('[data-monthly-to]');
+  const quarterlyFrom = document.querySelector('[data-quarterly-from]');
+  const quarterlyTo = document.querySelector('[data-quarterly-to]');
+
+  const toggleScopeFields = () => {
+    const isQuarterly = reportScopeSelect?.value === 'quarterly';
+    if (monthlyGroup && quarterlyGroup) {
+      monthlyGroup.style.display = isQuarterly ? 'none' : 'flex';
+      quarterlyGroup.style.display = isQuarterly ? 'flex' : 'none';
+      if (monthlyFrom) monthlyFrom.disabled = isQuarterly;
+      if (monthlyTo) monthlyTo.disabled = isQuarterly;
+      if (quarterlyFrom) quarterlyFrom.disabled = !isQuarterly;
+      if (quarterlyTo) quarterlyTo.disabled = !isQuarterly;
+    }
+  };
+
+  const validateScopeRange = () => {
+    const isQuarterly = reportScopeSelect?.value === 'quarterly';
+    if (isQuarterly) {
+      if (quarterlyFrom && quarterlyTo) {
+        if (parseInt(quarterlyFrom.value, 10) > parseInt(quarterlyTo.value, 10)) {
+          quarterlyTo.setCustomValidity("The 'To year' must be on or after the 'From year'.");
+          return;
+        }
+        quarterlyTo.setCustomValidity('');
+      }
+    } else {
+      if (monthlyFrom && monthlyTo) {
+        const hasFrom = !!monthlyFrom.value;
+        const hasTo = !!monthlyTo.value;
+        if ((hasFrom && !hasTo) || (!hasFrom && hasTo)) {
+          monthlyTo.setCustomValidity('Please provide both start and end months, or leave both empty.');
+          return;
+        }
+        if (hasFrom && hasTo && monthlyFrom.value > monthlyTo.value) {
+          monthlyTo.setCustomValidity('The end month must be on or after the start month.');
+          return;
+        }
+        monthlyTo.setCustomValidity('');
+      }
+    }
+  };
+
+  const updateHints = () => {
+    document.querySelectorAll('[data-date-hint]').forEach(hint => {
+      if (monthlyFrom?.value && monthlyTo?.value) {
+        hint.textContent = '(Active)';
+      } else {
+        hint.textContent = '(Optional)';
+      }
     });
   };
-  const validateReportDateRange = () => {
-    reportDateTo?.setCustomValidity(
-      reportScopeSelect?.value === 'date-range' && reportDateFrom?.value && reportDateTo?.value
-        && reportDateFrom.value > reportDateTo.value
-        ? 'The end date must be on or after the start date.'
-        : ''
-    );
-  };
-  reportScopeSelect?.addEventListener('change', updateReportDateFields);
-  reportScopeSelect?.addEventListener('change', validateReportDateRange);
-  reportDateFrom?.addEventListener('input', validateReportDateRange);
-  reportDateTo?.addEventListener('input', validateReportDateRange);
+
+  reportScopeSelect?.addEventListener('change', () => {
+    toggleScopeFields();
+    reportScopeForm?.submit();
+  });
+  monthlyFrom?.addEventListener('input', () => {
+    validateScopeRange();
+    updateHints();
+  });
+  monthlyTo?.addEventListener('input', () => {
+    validateScopeRange();
+    updateHints();
+  });
+  quarterlyFrom?.addEventListener('change', validateScopeRange);
+  quarterlyTo?.addEventListener('change', validateScopeRange);
+
   reportScopeForm?.addEventListener('submit', event => {
-    validateReportDateRange();
+    validateScopeRange();
     if (!reportScopeForm.checkValidity()) {
       event.preventDefault();
       reportScopeForm.reportValidity();
     }
   });
-  updateReportDateFields();
-  validateReportDateRange();
+
+  toggleScopeFields();
+  validateScopeRange();
+  updateHints();
 </script>
 {% endblock %}

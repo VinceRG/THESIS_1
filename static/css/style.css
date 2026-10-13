@@ -3222,7 +3222,31 @@ body.admin-app .service-table td.package-included-services {
 .report-scope-form input:disabled {
   background:#f1f5f9;
   color:#64748b;
+  cursor:pointer;
+  pointer-events:none;
 }
+.report-date-field {
+  cursor:pointer;
+}
+.report-date-hint {
+  font-size:11px;
+  font-weight:400;
+  color:#64748b;
+  margin-left:4px;
+}
+.report-card-disabled {
+  opacity:0.68;
+  background:#f8fafc;
+  border-style:dashed;
+}
+.report-scope-group {
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  align-items:flex-end;
+}
+
+
 @media (max-width:600px) {
   .report-scope-form {
     align-items:stretch;

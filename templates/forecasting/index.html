@@ -27,15 +27,17 @@
       <p class="muted-copy">Retrain the Random Forest model using the current consultation records for the selected branch.</p>
       <p style="margin-top:8px;"><span class="status-pill status-{{ verdict_class }}">{{ verdict|default('Not yet evaluated') }}</span></p>
     </div>
-    {% if summary.branch_code != 'ALL' %}
-      <form method="post" action="{{ url_for('retrain') }}"
-            data-confirm-title="Retrain Random Forest model?"
-            data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <button class="btn" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Retrain Model</button>
-      </form>
-    {% else %}
-      <span class="topbar-pill">Select one branch to retrain</span>
+    {% if can_manage %}
+      {% if summary.branch_code != 'ALL' %}
+        <form method="post" action="{{ url_for('retrain') }}"
+              data-confirm-title="Retrain Random Forest model?"
+              data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="btn" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Retrain Model</button>
+        </form>
+      {% else %}
+        <span class="topbar-pill">Select one branch to retrain</span>
+      {% endif %}
     {% endif %}
   </div>
 </div>
@@ -238,15 +240,17 @@
   <p class="muted-copy">
     The Random Forest model predicts monthly consultation demand using lag features, rolling averages, seasonality, diagnosis, age group, and sex. Doctor and staff guidance is generated after prediction by mapping forecasted diagnoses, services, and appointments to required staff roles.
   </p>
-  {% if summary.branch_code != 'ALL' %}
-    <form method="post" action="{{ url_for('retrain') }}" style="margin-top:12px;"
-          data-confirm-title="Retrain Random Forest model?"
-          data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <button class="btn" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Retrain from existing data</button>
-    </form>
-  {% else %}
-    <p class="muted-copy" style="margin-top:12px;">Select one branch to retrain the model for branch-specific forecasting.</p>
+  {% if can_manage %}
+    {% if summary.branch_code != 'ALL' %}
+      <form method="post" action="{{ url_for('retrain') }}" style="margin-top:12px;"
+            data-confirm-title="Retrain Random Forest model?"
+            data-confirm="This will rebuild the model and refresh prediction metrics using current consultation records. Continue?">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Retrain from existing data</button>
+      </form>
+    {% else %}
+      <p class="muted-copy" style="margin-top:12px;">Select one branch to retrain the model for branch-specific forecasting.</p>
+    {% endif %}
   {% endif %}
 </div>
 </div>

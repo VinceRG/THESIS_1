@@ -50,6 +50,7 @@
           <a href="/resources" class="{% if request.path == '/resources' %}active{% endif %}"><i class="bi bi-diagram-3 nav-icon" aria-hidden="true"></i>Resource Planning</a>
           <a href="/reports" class="{% if request.path == '/reports' %}active{% endif %}"><i class="bi bi-file-earmark-bar-graph nav-icon" aria-hidden="true"></i>Reports</a>
         </div>
+        {% if can_manage %}
         <div class="nav-group">
           <span class="nav-group-label">Management</span>
           <a href="/staff" class="{% if request.path == '/staff' %}active{% endif %}"><i class="bi bi-person-badge nav-icon" aria-hidden="true"></i>Staff Management</a>
@@ -60,6 +61,7 @@
             <a href="/packages" class="{% if request.path.startswith('/packages') %}active{% endif %}"><i class="bi bi-box-seam nav-icon" aria-hidden="true"></i>Packages</a>
           {% endif %}
         </div>
+        {% endif %}
         {% if can_view_all_branches %}
           <div class="nav-group">
           <span class="nav-group-label">System</span>
@@ -69,7 +71,9 @@
         {% endif %}
         <div class="nav-group nav-group-account">
           <span class="nav-group-label">Account</span>
-          <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}"><i class="bi bi-gear nav-icon" aria-hidden="true"></i>Settings</a>
+          {% if can_manage %}
+            <a href="/settings" class="{% if request.path == '/settings' %}active{% endif %}"><i class="bi bi-gear nav-icon" aria-hidden="true"></i>Settings</a>
+          {% endif %}
           <a href="/logout"><i class="bi bi-box-arrow-right nav-icon" aria-hidden="true"></i>Logout</a>
         </div>
       </nav>
@@ -418,6 +422,7 @@
         console.error(error);
         window.location.href = path;
       } finally {
+        finishLoading();
         contentElement.style.opacity = '1';
         if (topBar) {
           topBar.style.width = '100%';

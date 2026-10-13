@@ -10,7 +10,7 @@
   <h3>Search and Filter</h3>
   <p class="admin-section-description">Find records by date, diagnosis, age group, or sex.</p>
   <div class="admin-record-actions">
-    {% if not all_branches_view %}
+    {% if can_manage and not all_branches_view %}
       <a class="btn" href="/upload"><i class="bi bi-upload" aria-hidden="true"></i> Import Records</a>
       <a class="btn secondary" href="{{ url_for('patients') }}"><i class="bi bi-clipboard2-plus" aria-hidden="true"></i> Add Patient Consultation</a>
       <form action="{{ url_for('clear_records') }}" method="post"
@@ -18,7 +18,7 @@
             data-confirm="This will permanently remove consultation records for the current branch only. Continue?">
         <button type="submit" class="btn admin-action-delete"><i class="bi bi-trash" aria-hidden="true"></i> Clear All Records</button>
       </form>
-    {% else %}
+    {% elif all_branches_view %}
       <span class="topbar-pill">All-branch view is read-only. Select one branch to import or clear records.</span>
     {% endif %}
   </div>

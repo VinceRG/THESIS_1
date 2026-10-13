@@ -23,15 +23,17 @@
             <strong>{{ gap.role }}</strong>
             <span class="muted-copy">Need {{ gap.gap }} more (required {{ gap.required_staff }}, available {{ gap.available_staff }}) on {{ gap.day_name }} {{ gap.date }}</span>
           </div>
-          {% if selected_branch_value != 'all' %}
-            <form method="post" action="{{ url_for('notify_staffing_gap') }}" style="display:inline-block;"
-                  data-confirm-title="Notify {{ gap.role }} staff?"
-                  data-confirm="This will email every active {{ gap.role }} on this branch who has an email on file, asking them to cover extra shifts this week. Continue?">
-              <input type="hidden" name="role" value="{{ gap.role }}">
-              <button type="submit" class="btn"><i class="bi bi-envelope" aria-hidden="true"></i> Notify {{ gap.role }}</button>
-            </form>
-          {% else %}
-            <span class="topbar-pill">Select a branch to notify staff</span>
+          {% if can_manage %}
+            {% if selected_branch_value != 'all' %}
+              <form method="post" action="{{ url_for('notify_staffing_gap') }}" style="display:inline-block;"
+                    data-confirm-title="Notify {{ gap.role }} staff?"
+                    data-confirm="This will email every active {{ gap.role }} on this branch who has an email on file, asking them to cover extra shifts this week. Continue?">
+                <input type="hidden" name="role" value="{{ gap.role }}">
+                <button type="submit" class="btn"><i class="bi bi-envelope" aria-hidden="true"></i> Notify {{ gap.role }}</button>
+              </form>
+            {% else %}
+              <span class="topbar-pill">Select a branch to notify staff</span>
+            {% endif %}
           {% endif %}
         </div>
       {% endfor %}

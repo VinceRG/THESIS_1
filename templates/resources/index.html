@@ -44,14 +44,16 @@
       <h3 style="margin:0;"><i class="bi bi-calendar-check" aria-hidden="true"></i> Staffing Plans &amp; Shift Allocations</h3>
       <p class="muted-copy" style="margin:4px 0 0 0;">Convert demand recommendations into official reviewable staff schedules, review pending assignments, and notify staff of approved schedules.</p>
     </div>
-    <div style="display:flex; gap:8px;">
-      <a href="{{ url_for('staff_allocations') }}" class="btn">
-        <i class="bi bi-clipboard-check" aria-hidden="true"></i> Review Allocations
-      </a>
-      <a href="{{ url_for('staffing_plans') }}" class="btn secondary">
-        <i class="bi bi-calendar2-week" aria-hidden="true"></i> Weekly Plans
-      </a>
-    </div>
+    {% if can_manage %}
+      <div style="display:flex; gap:8px;">
+        <a href="{{ url_for('staff_allocations') }}" class="btn">
+          <i class="bi bi-clipboard-check" aria-hidden="true"></i> Review Allocations
+        </a>
+        <a href="{{ url_for('staffing_plans') }}" class="btn secondary">
+          <i class="bi bi-calendar2-week" aria-hidden="true"></i> Weekly Plans
+        </a>
+      </div>
+    {% endif %}
   </div>
 </div>
 
@@ -141,9 +143,13 @@
             <td><strong>{{ row.required_staff }}</strong></td>
             <td>{{ row.available_staff }}</td>
             <td>
-              <a href="{{ url_for('create_staff_allocation', date=row.date, role=row.staff_role, reason='Staffing shortage alert: Need ' ~ row.required_staff ~ ' vs Available ' ~ row.available_staff) }}" class="btn btn-sm secondary" style="white-space:nowrap;">
-                <i class="bi bi-calendar-plus" aria-hidden="true"></i> Prepare Allocation
-              </a>
+              {% if can_manage %}
+                <a href="{{ url_for('create_staff_allocation', date=row.date, role=row.staff_role, reason='Staffing shortage alert: Need ' ~ row.required_staff ~ ' vs Available ' ~ row.available_staff) }}" class="btn btn-sm secondary" style="white-space:nowrap;">
+                  <i class="bi bi-calendar-plus" aria-hidden="true"></i> Prepare Allocation
+                </a>
+              {% else %}
+                <span class="muted-copy">—</span>
+              {% endif %}
             </td>
           </tr>
         {% else %}

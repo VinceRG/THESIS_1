@@ -37,7 +37,6 @@
     {% if highlighted_quarter.value %}<div><dt>Latest quarter represented</dt><dd>{{ highlighted_quarter.value }}</dd></div>{% endif %}
     {% if report_coverage.value %}<div><dt>Historical data covered</dt><dd>{{ report_coverage.value }}</dd></div>{% endif %}
     {% if report.key in ['prediction', 'resource-recommendation', 'attribution-gaps'] %}<div><dt>Historical data available</dt><dd>{{ report.historical_period_label }}</dd></div>{% endif %}
-    <div><dt>Applied scope</dt><dd>{{ report.scope_label }}{% if report.date_range_label %}: {{ report.date_range_label }}{% endif %}</dd></div>
     {% if report.branch_name %}<div><dt>Branch</dt><dd>{{ report.branch_name }}{% if report.branch_code %} ({{ report.branch_code }}){% endif %}</dd></div>{% endif %}
     {% if report.generated_at %}<div><dt>Generated</dt><dd>{{ report.generated_at }}</dd></div>{% endif %}
     {% if current_user_name %}<div class="report-prepared-by"><dt>Prepared by</dt><dd>{{ current_user_name }}<span class="report-signature-line" aria-hidden="true"></span><small>Signature</small></dd></div>{% endif %}
@@ -245,7 +244,7 @@
     const reportKey = {{ report.key|tojson }};
     const chartPayload = {{ report.chart_rows | tojson }};
     if (!chartPayload.datasets || !chartPayload.datasets.length) return;
-    const isQuarterly = reportKey === 'quarterly' || chartPayload.scope === 'quarterly';
+    const isQuarterly = reportKey === 'quarterly';
     const wrapChartLabel = (value, maxLength = 18) => {
       const lines = [];
       let line = '';

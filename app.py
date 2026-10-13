@@ -1902,8 +1902,6 @@ def _build_report_pdf(payload, logo_path=None):
             draw_table(page, demographic_tables[0].get('title', 'Forecast by Age Group'), demographic_tables[0].get('rows', []), y=705, max_rows=5)
         if len(demographic_tables) > 1:
             draw_table(page, demographic_tables[1].get('title', 'Forecast by Gender'), demographic_tables[1].get('rows', []), y=520, max_rows=5)
-        if len(demographic_tables) > 2:
-            draw_table(page, demographic_tables[2].get('title', 'Top Diagnosis-Demographic Forecast Segments'), demographic_tables[2].get('rows', []), y=335, max_rows=8)
         add_footer(page)
     elif payload.get('key') in {'monthly-consultation', 'quarterly'} and payload.get('chart_rows', {}).get('datasets'):
         add_footer(first)
@@ -2331,6 +2329,12 @@ def create_app():
         if session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin':
             return None
         flash('Only branch administrators can update service and package settings.', 'error')
+        return redirect(url_for('dashboard'))
+
+    def require_management_access():
+        if session.get('role') in MAIN_ADMIN_ROLES or session.get('role') == 'branch_admin':
+            return None
+        flash('Staff accounts are read-only and do not have permission to add, edit, or delete records.', 'error')
         return redirect(url_for('dashboard'))
 
     def parse_iso_date(date_value):
@@ -3689,13 +3693,16 @@ def create_app():
                     active_branch = db.session.get(Branch, scope) or ensure_default_branch()
                 active_label = active_branch.name if active_branch else DEFAULT_BRANCH_NAME
 
+            can_manage = user_role in MAIN_ADMIN_ROLES or user_role == 'branch_admin'
             return {
                 'active_branch': active_branch,
                 'active_branch_label': active_label,
                 'selected_branch_value': ALL_BRANCHES_SCOPE if scope is None else str(scope),
                 'branch_options': branch_options,
                 'can_view_all_branches': can_all,
-                'can_manage_services': user_role in MAIN_ADMIN_ROLES or user_role == 'branch_admin',
+                'can_manage_services': can_manage,
+                'can_manage': can_manage,
+                'is_staff': user_role == 'staff',
                 'can_use_chatbot': can_all,
                 'current_user_name': current_user_name,
                 'current_user_role_label': user_role.replace('_', ' ').title(),
@@ -3710,6 +3717,8 @@ def create_app():
                 'branch_options': [],
                 'can_view_all_branches': False,
                 'can_manage_services': False,
+                'can_manage': False,
+                'is_staff': True,
                 'can_use_chatbot': False,
                 'current_user_name': session.get('username'),
                 'current_user_role_label': '',
@@ -5126,7 +5135,7 @@ def create_app():
 
     @app.route('/patients/new', methods=['GET', 'POST'])
     def create_patient():
-        redirect_response = require_specific_branch('patients')
+        redirect_response = require_management_access() or require_specific_branch('patients')
         if redirect_response:
             return redirect_response
         if request.method == 'POST':
@@ -5186,7 +5195,7 @@ def create_app():
 
     @app.route('/patients/<int:patient_id>/edit', methods=['GET', 'POST'])
     def edit_patient(patient_id):
-        redirect_response = require_specific_branch('patients')
+        redirect_response = require_management_access() or require_specific_branch('patients')
         if redirect_response:
             return redirect_response
         patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
@@ -5223,7 +5232,7 @@ def create_app():
 
     @app.route('/patients/<int:patient_id>/archive', methods=['POST'])
     def archive_patient(patient_id):
-        redirect_response = require_specific_branch('patients')
+        redirect_response = require_management_access() or require_specific_branch('patients')
         if redirect_response:
             return redirect_response
         patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
@@ -5236,7 +5245,7 @@ def create_app():
 
     @app.route('/patients/<int:patient_id>/restore', methods=['POST'])
     def restore_patient(patient_id):
-        redirect_response = require_specific_branch('patients')
+        redirect_response = require_management_access() or require_specific_branch('patients')
         if redirect_response:
             return redirect_response
         patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
@@ -5249,7 +5258,7 @@ def create_app():
 
     @app.route('/patients/<int:patient_id>/consultations/new', methods=['GET', 'POST'])
     def create_patient_consultation(patient_id):
-        redirect_response = require_specific_branch('patients')
+        redirect_response = require_management_access() or require_specific_branch('patients')
         if redirect_response:
             return redirect_response
         patient = Patient.query.filter_by(id=patient_id, branch_id=current_branch_id()).first_or_404()
@@ -5311,7 +5320,7 @@ def create_app():
 
     @app.route('/appointments/new', methods=['GET', 'POST'])
     def create_appointment():
-        redirect_response = require_specific_branch('appointments')
+        redirect_response = require_management_access() or require_specific_branch('appointments')
         if redirect_response:
             return redirect_response
         selected_patient = None
@@ -5390,7 +5399,7 @@ def create_app():
 
     @app.route('/appointments/<int:appointment_id>/status', methods=['POST'])
     def update_appointment_status(appointment_id):
-        redirect_response = require_specific_branch('appointments')
+        redirect_response = require_management_access() or require_specific_branch('appointments')
         if redirect_response:
             return redirect_response
         appointment = Appointment.query.filter_by(id=appointment_id, branch_id=current_branch_id()).first_or_404()
@@ -5422,7 +5431,7 @@ def create_app():
 
     @app.route('/appointments/<int:appointment_id>/complete', methods=['GET', 'POST'])
     def complete_appointment(appointment_id):
-        redirect_response = require_specific_branch('appointments')
+        redirect_response = require_management_access() or require_specific_branch('appointments')
         if redirect_response:
             return redirect_response
         appointment = Appointment.query.filter_by(id=appointment_id, branch_id=current_branch_id()).first_or_404()
@@ -5514,6 +5523,9 @@ def create_app():
 
     @app.route('/services')
     def services():
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         import_services_from_upload()
         page = request.args.get('page', 1, type=int)
         search_query = request.args.get('q', '').strip()
@@ -5671,6 +5683,9 @@ def create_app():
 
     @app.route('/packages')
     def packages():
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         import_services_from_upload()
         import_packages_from_upload()
         page = request.args.get('page', 1, type=int)
@@ -5873,7 +5888,7 @@ def create_app():
 
     @app.route('/records/clear', methods=['POST'])
     def clear_records():
-        redirect_response = require_specific_branch('records')
+        redirect_response = require_management_access() or require_specific_branch('records')
         if redirect_response:
             return redirect_response
         deleted_count = ConsultationRecord.query.filter_by(branch_id=current_branch_id()).delete()
@@ -5888,6 +5903,9 @@ def create_app():
 
     @app.route('/upload', methods=['GET', 'POST'])
     def upload():
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         if selected_branch_scope() is None:
             flash('Select a specific branch before uploading consultation data.', 'error')
             return redirect(url_for('records'))
@@ -6043,7 +6061,7 @@ def create_app():
 
     @app.route('/retrain', methods=['POST'])
     def retrain():
-        redirect_response = require_specific_branch('predict')
+        redirect_response = require_management_access() or require_specific_branch('predict')
         if redirect_response:
             return redirect_response
         records = ConsultationRecord.query.filter_by(branch_id=current_branch_id()).all()
@@ -6097,6 +6115,9 @@ def create_app():
 
     @app.route('/staff')
     def staff():
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         cutoff = datetime.now() - timedelta(days=STAFF_PURGE_AFTER_DAYS)
         expired_staff = scoped_query(StaffMember.query, StaffMember).filter(
             StaffMember.is_active.is_(False),
@@ -6172,7 +6193,7 @@ def create_app():
 
     @app.route('/staff/load-facility-complement', methods=['POST'])
     def load_facility_complement():
-        redirect_response = require_specific_branch('staff')
+        redirect_response = require_management_access() or require_specific_branch('staff')
         if redirect_response:
             return redirect_response
         StaffMember.query.filter_by(is_active=True, branch_id=current_branch_id()).delete()
@@ -6193,7 +6214,7 @@ def create_app():
 
     @app.route('/staff/new', methods=['GET', 'POST'])
     def create_staff():
-        redirect_response = require_specific_branch('staff')
+        redirect_response = require_management_access() or require_specific_branch('staff')
         if redirect_response:
             return redirect_response
         if request.method == 'POST':
@@ -6227,7 +6248,7 @@ def create_app():
 
     @app.route('/staff/<int:staff_id>/edit', methods=['GET', 'POST'])
     def edit_staff(staff_id):
-        redirect_response = require_specific_branch('staff')
+        redirect_response = require_management_access() or require_specific_branch('staff')
         if redirect_response:
             return redirect_response
         staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
@@ -6255,7 +6276,7 @@ def create_app():
 
     @app.route('/staff/notify-gap', methods=['POST'])
     def notify_staffing_gap():
-        redirect_response = require_specific_branch('dashboard')
+        redirect_response = require_management_access() or require_specific_branch('dashboard')
         if redirect_response:
             return redirect_response
         role = request.form.get('role', '').strip()
@@ -6306,7 +6327,7 @@ def create_app():
         """Human-in-the-loop counterpart to /staff/notify-gap: lets an admin
         hand-pick specific staff to email, independent of whether the
         automatic weekly-gap forecast flagged anything."""
-        redirect_response = require_specific_branch('staff')
+        redirect_response = require_management_access() or require_specific_branch('staff')
         if redirect_response:
             return redirect_response
         staff_ids = request.form.getlist('staff_ids', type=int)
@@ -6356,7 +6377,7 @@ def create_app():
 
     @app.route('/staff/<int:staff_id>/delete', methods=['POST'])
     def delete_staff(staff_id):
-        redirect_response = require_specific_branch('staff')
+        redirect_response = require_management_access() or require_specific_branch('staff')
         if redirect_response:
             return redirect_response
         staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
@@ -6370,7 +6391,7 @@ def create_app():
 
     @app.route('/staff/<int:staff_id>/restore', methods=['POST'])
     def restore_staff(staff_id):
-        redirect_response = require_specific_branch('staff')
+        redirect_response = require_management_access() or require_specific_branch('staff')
         if redirect_response:
             return redirect_response
         staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
@@ -6384,7 +6405,7 @@ def create_app():
 
     @app.route('/staff/<int:staff_id>/permanent-delete', methods=['POST'])
     def permanent_delete_staff(staff_id):
-        redirect_response = require_specific_branch('staff')
+        redirect_response = require_management_access() or require_specific_branch('staff')
         if redirect_response:
             return redirect_response
         staff_member = StaffMember.query.filter_by(id=staff_id, branch_id=current_branch_id()).first_or_404()
@@ -6400,6 +6421,9 @@ def create_app():
     # -------------------------------------------------------------
     @app.route('/staffing-plans')
     def staffing_plans():
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         branch = current_branch()
         query = StaffingPlan.query
         if branch is not None:
@@ -6420,7 +6444,7 @@ def create_app():
 
     @app.route('/staffing-plans/generate', methods=['POST'])
     def generate_staffing_plan():
-        redirect_response = require_specific_branch('staffing_plans')
+        redirect_response = require_management_access() or require_specific_branch('staffing_plans')
         if redirect_response:
             return redirect_response
 
@@ -6516,6 +6540,9 @@ def create_app():
 
     @app.route('/staffing-plans/<int:plan_id>')
     def view_staffing_plan(plan_id):
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         plan = db.session.get(StaffingPlan, plan_id) or abort(404)
         if not can_view_all_branches() and plan.branch_id != current_branch_id():
             abort(403)
@@ -6555,7 +6582,9 @@ def create_app():
 
     @app.route('/staffing-plans/<int:plan_id>/update-shifts', methods=['POST'])
     def update_staffing_plan_shifts(plan_id):
-        require_service_manager()
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         plan = db.session.get(StaffingPlan, plan_id) or abort(404)
         if plan.status != 'Pending':
             flash('Only pending staffing plans can be modified.', 'error')
@@ -6584,7 +6613,9 @@ def create_app():
 
     @app.route('/staffing-plans/<int:plan_id>/approve', methods=['POST'])
     def approve_staffing_plan(plan_id):
-        require_service_manager()
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         plan = db.session.get(StaffingPlan, plan_id) or abort(404)
         if plan.status == 'Approved':
             flash('This staffing plan has already been approved.', 'warning')
@@ -6652,7 +6683,9 @@ def create_app():
 
     @app.route('/staffing-plans/<int:plan_id>/reject', methods=['POST'])
     def reject_staffing_plan(plan_id):
-        require_service_manager()
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         plan = db.session.get(StaffingPlan, plan_id) or abort(404)
         plan.status = 'Rejected'
         plan.reviewed_by = session.get('username') or 'admin'
@@ -6667,7 +6700,9 @@ def create_app():
 
     @app.route('/staffing-plans/<int:plan_id>/delete', methods=['POST'])
     def delete_staffing_plan(plan_id):
-        require_service_manager()
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         plan = db.session.get(StaffingPlan, plan_id) or abort(404)
         branch_id = plan.branch_id
         db.session.delete(plan)
@@ -6681,6 +6716,9 @@ def create_app():
     # -------------------------------------------------------------
     @app.route('/staff-allocations')
     def staff_allocations():
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         branch = current_branch()
         query = StaffAllocation.query
         if branch is not None:
@@ -6712,7 +6750,7 @@ def create_app():
 
     @app.route('/staff-allocations/new', methods=['GET', 'POST'])
     def create_staff_allocation():
-        redirect_response = require_specific_branch('staff_allocations')
+        redirect_response = require_management_access() or require_specific_branch('staff_allocations')
         if redirect_response:
             return redirect_response
 
@@ -6798,6 +6836,9 @@ def create_app():
 
     @app.route('/staff-allocations/<int:id>/approve', methods=['POST'])
     def approve_staff_allocation(id):
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         allocation = db.session.get(StaffAllocation, id) or abort(404)
         if not can_view_all_branches() and allocation.branch_id != current_branch_id():
             abort(403)
@@ -6854,6 +6895,9 @@ def create_app():
 
     @app.route('/staff-allocations/<int:id>/cancel', methods=['POST'])
     def cancel_staff_allocation(id):
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         allocation = db.session.get(StaffAllocation, id) or abort(404)
         if not can_view_all_branches() and allocation.branch_id != current_branch_id():
             abort(403)
@@ -6869,6 +6913,9 @@ def create_app():
 
     @app.route('/staff-allocations/<int:id>/delete', methods=['POST'])
     def delete_staff_allocation(id):
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         allocation = db.session.get(StaffAllocation, id) or abort(404)
         if not can_view_all_branches() and allocation.branch_id != current_branch_id():
             abort(403)
@@ -6925,17 +6972,57 @@ def create_app():
 
     def normalize_report_scope(scope, date_from='', date_to=''):
         if scope not in report_scope_labels:
-            raise ValueError('Select a valid report scope.')
-        if scope != 'date-range':
+            scope = 'monthly'
+        date_from = (date_from or '').strip()
+        date_to = (date_to or '').strip()
+        if not date_from and not date_to:
+            if scope == 'date-range':
+                raise ValueError('Enter valid start and end months for the date range scope.')
             return scope, '', '', None, None
+        if bool(date_from) != bool(date_to):
+            unit = 'years' if scope == 'quarterly' else 'months'
+            raise ValueError(f'Enter both start and end {unit} to filter the range.')
+
+        def parse_scope_boundary(val, is_end=False):
+            val = val.strip()
+            # 4-digit year: YYYY
+            if len(val) == 4 and val.isdigit():
+                yr = int(val)
+                if is_end:
+                    return datetime(yr, 12, 31).date()
+                return datetime(yr, 1, 1).date()
+            # 7-character month: YYYY-MM
+            if len(val) == 7 and val[4] == '-':
+                dt = datetime.strptime(val, '%Y-%m')
+                if is_end:
+                    if dt.month == 12:
+                        next_m = dt.replace(year=dt.year + 1, month=1, day=1)
+                    else:
+                        next_m = dt.replace(month=dt.month + 1, day=1)
+                    return (next_m - timedelta(days=1)).date()
+                return dt.date().replace(day=1)
+            # 10-character date: YYYY-MM-DD
+            elif len(val) >= 10:
+                return datetime.strptime(val[:10], '%Y-%m-%d').date()
+            raise ValueError('Invalid date or year format.')
+
         try:
-            scope_start = datetime.strptime(date_from, '%Y-%m-%d').date()
-            scope_end = datetime.strptime(date_to, '%Y-%m-%d').date()
-        except (TypeError, ValueError):
-            raise ValueError('Enter valid start and end dates for the report range.')
+            scope_start = parse_scope_boundary(date_from, is_end=False)
+            scope_end = parse_scope_boundary(date_to, is_end=True)
+        except Exception:
+            unit = 'years' if scope == 'quarterly' else 'months'
+            raise ValueError(f'Enter valid start and end {unit} for the report range.')
         if scope_end < scope_start:
-            raise ValueError('The report end date must be on or after the start date.')
-        return scope, date_from, date_to, scope_start, scope_end
+            unit = 'year' if scope == 'quarterly' else 'month'
+            raise ValueError(f'The end {unit} must be on or after the start {unit}.')
+
+        if len(date_from) == 4 and len(date_to) == 4 and date_from.isdigit() and date_to.isdigit():
+            clean_from = date_from
+            clean_to = date_to
+        else:
+            clean_from = scope_start.strftime('%Y-%m')
+            clean_to = scope_end.strftime('%Y-%m')
+        return scope, clean_from, clean_to, scope_start, scope_end
 
     def build_report_payload(report_key, scope='monthly', date_from='', date_to=''):
         if report_key not in report_definitions:
@@ -6949,19 +7036,6 @@ def create_app():
         df = records_to_dataframe()
         title = report_definitions[report_key]['title']
         description = report_definitions[report_key]['description']
-        if report_key == 'monthly-consultation':
-            title = {
-                'monthly': 'Monthly Consultation Report',
-                'annually': 'Annual Consultation Report',
-                'quarterly': 'Quarterly Consultation Report',
-                'date-range': 'Consultation Report - Date Range',
-            }[scope]
-            description = {
-                'monthly': 'Monthly consultation totals and most common diagnoses.',
-                'annually': 'Annual consultation totals and most common diagnoses.',
-                'quarterly': 'Quarterly consultation totals and most common diagnoses.',
-                'date-range': 'Consultation totals and most common diagnoses within the selected date range.',
-            }[scope]
         generated_at = datetime.now().strftime('%Y-%m-%d %H:%M')
         sections = []
         rows = []
@@ -6981,7 +7055,7 @@ def create_app():
                     f"{df['consultation_date'].min().strftime('%B %Y')} - "
                     f"{df['consultation_date'].max().strftime('%B %Y')}"
                 )
-            if scope == 'date-range':
+            if scope_start and scope_end:
                 df = df[
                     (df['consultation_date'].dt.date >= scope_start)
                     & (df['consultation_date'].dt.date <= scope_end)
@@ -6994,7 +7068,9 @@ def create_app():
         def report_period_label():
             if df.empty:
                 return 'No consultation records'
-            return f"{df['consultation_date'].min().strftime('%B %Y')} - {df['consultation_date'].max().strftime('%B %Y')}"
+            min_m = df['consultation_date'].min().strftime('%B %Y')
+            max_m = df['consultation_date'].max().strftime('%B %Y')
+            return min_m if min_m == max_m else f"{min_m} - {max_m}"
 
         def monthly_trend_interpretation(monthly_frame):
             if monthly_frame is None or len(monthly_frame) < 2:
@@ -7057,26 +7133,17 @@ def create_app():
                 'quarterly': 'Quarterly',
                 'date-range': 'Date range',
             }
-            chart_rows = {'labels': [], 'x_title': 'Period', 'datasets': [], 'scope': scope}
+            chart_rows = {'labels': [], 'x_title': 'Month', 'datasets': [], 'scope': 'monthly'}
             forecast_month_label = summary.get('predicted_month_label', 'Next Month')
             try:
                 forecast_month_label = datetime.strptime(forecast_month_label, '%b %Y').strftime('%B %Y')
             except Exception:
                 pass
             if not df.empty:
-                if scope == 'annually':
-                    period_values = df['consultation_date'].dt.year.astype(str)
-                    period_name = 'year'
-                    period_adjective = 'Annual'
-                elif scope == 'quarterly':
-                    period_values = df['consultation_date'].dt.to_period('Q').astype(str)
-                    period_name = 'quarter'
-                    period_adjective = 'Quarterly'
-                else:
-                    period_values = df['consultation_date'].dt.to_period('M').astype(str)
-                    period_name = 'month'
-                    period_adjective = 'Monthly'
-                if scope in {'monthly', 'quarterly'}:
+                period_values = df['consultation_date'].dt.to_period('M').astype(str)
+                period_name = 'month'
+                period_adjective = 'Monthly'
+                if not (scope_start and scope_end):
                     included_periods = sorted(period_values.unique())[-12:]
                     df = df.loc[period_values.isin(included_periods)].copy()
                     period_values = period_values.loc[df.index]
@@ -7097,46 +7164,23 @@ def create_app():
                     .reset_index(name='consultations')
                     .sort_values('month', ascending=False)
                 )
-                monthly_rows = monthly.head(12).to_dict('records')
-                if scope in {'monthly', 'date-range'}:
-                    monthly_for_chart = (
-                        df.assign(period=df['consultation_date'].dt.to_period('M').astype(str))
-                        .groupby('period')
-                        .size()
-                        .sort_index()
-                    )
-                    if scope == 'monthly':
-                        monthly_for_chart = monthly_for_chart.tail(12)
-                    chart_rows['labels'] = [
-                        datetime.strptime(period, '%Y-%m').strftime('%b %Y')
-                        for period in monthly_for_chart.index
-                    ]
-                    chart_rows['x_title'] = 'Month'
-                    chart_data = monthly_for_chart.astype(int).tolist()
-                elif scope == 'annually':
-                    annual_for_chart = (
-                        df.assign(period=df['consultation_date'].dt.year.astype(str))
-                        .groupby('period')
-                        .size()
-                        .sort_index()
-                    )
-                    chart_rows['labels'] = annual_for_chart.index.tolist()
-                    chart_rows['x_title'] = 'Year'
-                    chart_data = annual_for_chart.astype(int).tolist()
-                else:
-                    quarterly_for_chart = (
-                        df.assign(period=df['consultation_date'].dt.to_period('Q').astype(str))
-                        .groupby('period')
-                        .size()
-                        .sort_index()
-                        .tail(12)
-                    )
-                    chart_rows['labels'] = quarterly_for_chart.index.tolist()
-                    chart_rows['x_title'] = 'Quarter'
-                    chart_data = quarterly_for_chart.astype(int).tolist()
+                monthly_rows = (monthly if (scope_start and scope_end) else monthly.head(12)).to_dict('records')
+                monthly_for_chart = (
+                    df.assign(period=df['consultation_date'].dt.to_period('M').astype(str))
+                    .groupby('period')
+                    .size()
+                    .sort_index()
+                )
+                if not (scope_start and scope_end):
+                    monthly_for_chart = monthly_for_chart.tail(12)
+                chart_rows['labels'] = [
+                    datetime.strptime(period, '%Y-%m').strftime('%b %Y')
+                    for period in monthly_for_chart.index
+                ]
+                chart_rows['x_title'] = 'Month'
                 chart_rows['datasets'] = [{
-                    'label': scope_titles[scope],
-                    'data': chart_data,
+                    'label': 'Monthly Consultations',
+                    'data': monthly_for_chart.astype(int).tolist(),
                 }]
                 diagnosis_counts = df['diagnosis'].value_counts()
                 top_diagnosis = diagnosis_counts.index[0] if not diagnosis_counts.empty else 'None'
@@ -7180,11 +7224,11 @@ def create_app():
                         .sort_values('consultations', ascending=False)
                     )
                     extra_charts.append({
-                        'title': f'Average {period_adjective} Consultations by Age Group',
+                        'title': 'Average Monthly Consultations by Age Group',
                         'type': 'bar',
                         'labels': age_summary['age_group'].tolist(),
                         'data': age_summary['consultations'].tolist(),
-                        'y_title': f'Average Consultations per {period_name}'
+                        'y_title': 'Average Consultations per month'
                     })
                 gender_periods = (
                     df.assign(period=period_values)
@@ -7201,36 +7245,27 @@ def create_app():
                         .sort_values('consultations', ascending=False)
                     )
                     extra_charts.append({
-                        'title': f'Average {period_adjective} Consultations by Sex',
+                        'title': 'Average Monthly Consultations by Sex',
                         'type': 'bar',
                         'labels': gender_summary['gender'].tolist(),
                         'data': gender_summary['consultations'].tolist(),
-                        'y_title': f'Average Consultations per {period_name}'
+                        'y_title': 'Average Consultations per month'
                     })
             sections = [
-                {
-                    'metric': 'Report Scope',
-                    'value': scope_titles[scope],
-                    'explanation': 'Controls whether the consultation trend is grouped by month, year, quarter, or a selected date range.'
-                },
                 {
                     'metric': 'Data Period Covered',
                     'value': report_period_label(),
                     'explanation': 'Shows the historical consultation period included in this report.'
                 },
                 {
-                    'metric': {
-                        'month': 'Total Months Analyzed',
-                        'year': 'Total Years Analyzed',
-                        'quarter': 'Total Quarters Analyzed',
-                    }[period_name],
+                    'metric': 'Total Months Analyzed',
                     'value': total_periods_analyzed,
-                    'explanation': f'Number of {period_name} periods used to calculate the report summaries.'
+                    'explanation': 'Number of monthly periods used to calculate the report summaries.'
                 },
                 {
-                    'metric': f'Average {period_adjective} Consultations',
+                    'metric': 'Average Monthly Consultations',
                     'value': average_period_consultations,
-                    'explanation': f'Average number of consultations per {period_name} based on the uploaded records.'
+                    'explanation': 'Average number of consultations per month based on the uploaded records.'
                 },
                 {
                     'metric': 'Top Diagnosis',
@@ -7238,14 +7273,14 @@ def create_app():
                     'explanation': 'The diagnosis with the highest total count in the records included in this report.'
                 },
                 {
-                    'metric': f'Average {period_adjective} Consultations of Top Diagnosis',
+                    'metric': 'Average Monthly Consultations of Top Diagnosis',
                     'value': average_period_top_diagnosis_consultations,
-                    'explanation': f'Average {period_name} consultation count for the top diagnosis in the records included in this report.'
+                    'explanation': 'Average monthly consultation count for the top diagnosis in the records included in this report.'
                 },
                 {
-                    'metric': f'{period_adjective} Trend Interpretation',
+                    'metric': 'Monthly Trend Interpretation',
                     'value': trend_interpretation,
-                    'explanation': f'Brief reading of whether the latest {period_name} consultation volume is increasing, decreasing, or stable.'
+                    'explanation': 'Brief reading of whether the latest monthly consultation volume is increasing, decreasing, or stable.'
                 },
                 {
                     'metric': f'Forecasted Total Cases for the Next Month ({forecast_month_label})',
@@ -7254,18 +7289,18 @@ def create_app():
                 },
             ]
             rows = []
-            details_title = f'{period_adjective} Consultation Trend Graph'
-            if scope == 'date-range':
-                scope_start_label = scope_start.strftime('%B %d, %Y').replace(' 0', ' ')
-                scope_end_label = scope_end.strftime('%B %d, %Y').replace(' 0', ' ')
-                scope_description = f'from {scope_start_label} through {scope_end_label}'
-                details_note = f'Monthly consultation totals within the selected date range {scope_description}.'
-            elif scope == 'monthly':
-                details_note = 'Monthly consultation totals for the latest 12 months with recorded data.'
-            elif scope == 'annually':
-                details_note = 'Annual consultation totals across the available historical data.'
+            details_title = 'Monthly Consultation Trend Graph'
+            if scope_start and scope_end:
+                if scope == 'quarterly' and scope_start.year == scope_end.year:
+                    details_note = f'Monthly consultation totals for the year {scope_start.year}.'
+                elif scope == 'quarterly':
+                    details_note = f'Monthly consultation totals from {scope_start.year} through {scope_end.year}.'
+                else:
+                    scope_start_label = scope_start.strftime('%B %Y')
+                    scope_end_label = scope_end.strftime('%B %Y')
+                    details_note = f'Monthly consultation totals from {scope_start_label} through {scope_end_label}.'
             else:
-                details_note = 'Quarterly consultation totals for the latest 12 quarters with recorded data.'
+                details_note = 'Monthly consultation totals for the latest 12 months with recorded data.'
 
         elif report_key == 'quarterly':
             filter_note = 'Quarterly Report always aggregates consultation counts by quarter. A selected date range is applied to the source records before those quarter totals are calculated.'
@@ -7292,7 +7327,7 @@ def create_app():
                     .reset_index(name='consultations')
                     .sort_values('quarter', ascending=False)
                 )
-                quarterly_rows = quarterly.head(8).to_dict('records')
+                quarterly_rows = (quarterly if (scope_start and scope_end) else quarterly.head(8)).to_dict('records')
                 average_quarterly_consultations = round(quarterly['consultations'].mean(), 2)
                 total_quarters_analyzed = int(quarterly['quarter'].nunique())
                 latest_row = quarterly.sort_values('quarter').iloc[-1]
@@ -7486,10 +7521,6 @@ def create_app():
                     'title': 'Forecast by Gender',
                     'rows': demographic_forecast.get('gender', [])
                 },
-                {
-                    'title': 'Top Diagnosis-Demographic Forecast Segments',
-                    'rows': demographic_forecast.get('segments', [])
-                },
             ]
 
         elif report_key == 'resource-recommendation':
@@ -7616,9 +7647,12 @@ def create_app():
             'date_from': date_from,
             'date_to': date_to,
             'date_range_label': (
-                f'{scope_start.strftime("%B %d, %Y").replace(" 0", " ")} - '
-                f'{scope_end.strftime("%B %d, %Y").replace(" 0", " ")}'
-                if scope_start and scope_end else ''
+                (f"{scope_start.year}" if scope_start.year == scope_end.year else f"{scope_start.year} - {scope_end.year}")
+                if (scope == 'quarterly' and scope_start and scope_end)
+                else (scope_start.strftime("%B %Y")
+                      if (scope_start and scope_end and scope_start.year == scope_end.year and scope_start.month == scope_end.month)
+                      else f'{scope_start.strftime("%B %Y")} - {scope_end.strftime("%B %Y")}'
+                      if scope_start and scope_end else '')
             ),
             'filter_note': filter_note,
         }
@@ -8488,37 +8522,86 @@ def create_app():
 
     @app.route('/reports')
     def reports():
+        raw_scope = request.args.get('scope', 'monthly')
+        raw_from = request.args.get('date_from', '')
+        raw_to = request.args.get('date_to', '')
+
+        db_min = db.session.query(db.func.min(ConsultationRecord.consultation_date)).scalar()
+        db_max = db.session.query(db.func.max(ConsultationRecord.consultation_date)).scalar()
+        try:
+            min_year = datetime.strptime(str(db_min)[:10], '%Y-%m-%d').year if db_min else 2023
+        except Exception:
+            min_year = 2023
+        try:
+            max_year = datetime.strptime(str(db_max)[:10], '%Y-%m-%d').year if db_max else datetime.now().year
+        except Exception:
+            max_year = datetime.now().year
+
+        available_years = list(range(min_year, max_year + 1))
+        min_month = f"{min_year}-01"
+        max_month = f"{max_year}-12"
+
+        # Default quarterly to the latest year if not specified
+        if raw_scope == 'quarterly' and not raw_from and not raw_to:
+            raw_from = str(max_year)
+            raw_to = str(max_year)
+
         try:
             scope, date_from, date_to, scope_start, scope_end = normalize_report_scope(
-                request.args.get('scope', 'monthly'),
-                request.args.get('date_from', ''),
-                request.args.get('date_to', ''),
+                raw_scope,
+                raw_from,
+                raw_to,
             )
         except ValueError as exc:
             flash(str(exc), 'error')
             return redirect(url_for('reports'))
+
+        date_range_label = ''
+        if scope == 'quarterly':
+            if scope_start and scope_end:
+                if scope_start.year == scope_end.year:
+                    date_range_label = f"{scope_start.year}"
+                else:
+                    date_range_label = f"{scope_start.year} - {scope_end.year}"
+        else:
+            if scope_start and scope_end:
+                if scope_start.year == scope_end.year and scope_start.month == scope_end.month:
+                    date_range_label = scope_start.strftime("%B %Y")
+                else:
+                    date_range_label = f'{scope_start.strftime("%B %Y")} - {scope_end.strftime("%B %Y")}'
+
+        selected_year_from = int(date_from) if (date_from and len(date_from) == 4 and date_from.isdigit()) else max_year
+        selected_year_to = int(date_to) if (date_to and len(date_to) == 4 and date_to.isdigit()) else max_year
+
         return render_template(
             'reports/index.html',
             reports=report_definitions,
             scope=scope,
-            scope_label=report_scope_labels[scope],
+            scope_label=report_scope_labels.get(scope, 'Monthly'),
             date_from=date_from,
             date_to=date_to,
-            date_range_label=(
-                f'{scope_start.strftime("%B %d, %Y").replace(" 0", " ")} - '
-                f'{scope_end.strftime("%B %d, %Y").replace(" 0", " ")}'
-                if scope_start and scope_end else ''
-            ),
+            date_range_label=date_range_label,
+            min_year=min_year,
+            max_year=max_year,
+            min_month=min_month,
+            max_month=max_month,
+            available_years=available_years,
+            selected_year_from=selected_year_from,
+            selected_year_to=selected_year_to,
             current_date=datetime.now().strftime('%Y-%m-%d'),
             current_time=datetime.now().strftime('%H:%M'),
         )
 
     @app.route('/reports/<report_key>')
     def report_view(report_key):
+        scope = request.args.get('scope', 'monthly')
+        if report_key == 'quarterly' and scope == 'monthly':
+            flash('The Quarterly Report requires Quarterly scope. Please switch Report Scope to Quarterly to view it.', 'info')
+            return redirect(url_for('reports', scope='monthly', date_from=request.args.get('date_from', ''), date_to=request.args.get('date_to', '')))
         try:
             payload = build_report_payload(
                 report_key,
-                scope=request.args.get('scope', 'monthly'),
+                scope=scope,
                 date_from=request.args.get('date_from', ''),
                 date_to=request.args.get('date_to', ''),
             )
@@ -8538,10 +8621,14 @@ def create_app():
 
     @app.route('/reports/<report_key>/print')
     def report_print(report_key):
+        scope = request.args.get('scope', 'monthly')
+        if report_key == 'quarterly' and scope == 'monthly':
+            flash('The Quarterly Report requires Quarterly scope.', 'info')
+            return redirect(url_for('reports', scope='monthly'))
         try:
             payload = build_report_payload(
                 report_key,
-                scope=request.args.get('scope', 'monthly'),
+                scope=scope,
                 date_from=request.args.get('date_from', ''),
                 date_to=request.args.get('date_to', ''),
             )
@@ -8561,10 +8648,14 @@ def create_app():
 
     @app.route('/reports/<report_key>/pdf')
     def report_pdf(report_key):
+        scope = request.args.get('scope', 'monthly')
+        if report_key == 'quarterly' and scope == 'monthly':
+            flash('The Quarterly Report requires Quarterly scope.', 'info')
+            return redirect(url_for('reports', scope='monthly'))
         try:
             payload = build_report_payload(
                 report_key,
-                scope=request.args.get('scope', 'monthly'),
+                scope=scope,
                 date_from=request.args.get('date_from', ''),
                 date_to=request.args.get('date_to', ''),
             )
@@ -8590,6 +8681,9 @@ def create_app():
 
     @app.route('/settings', methods=['GET', 'POST'])
     def settings():
+        redirect_response = require_management_access()
+        if redirect_response:
+            return redirect_response
         app_settings = load_app_settings()
         if request.method == 'POST':
             try:

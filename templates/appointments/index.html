@@ -11,9 +11,9 @@
     <div>
       <h3>Appointment Planning</h3>
     </div>
-    {% if not all_branches_view %}
+    {% if can_manage and not all_branches_view %}
       <a href="{{ url_for('create_appointment') }}" class="btn"><i class="bi bi-calendar-plus" aria-hidden="true"></i> Book Appointment</a>
-    {% else %}
+    {% elif all_branches_view %}
       <span class="topbar-pill">All-branch view is read-only. Select one branch to book or update appointments.</span>
     {% endif %}
   </div>
@@ -114,7 +114,7 @@
               {% endif %}
             </td>
             <td class="appointment-col-status admin-status-cell" data-label="Status">
-              {% if not all_branches_view and not appointment.converted_to_records %}
+              {% if can_manage and not all_branches_view and not appointment.converted_to_records %}
                 <form method="post" action="{{ url_for('update_appointment_status', appointment_id=appointment.id) }}" class="inline-status-form admin-status-control"
                       data-confirm-title="Update appointment status?"
                       data-confirm="This will update the appointment status. Continue?">
