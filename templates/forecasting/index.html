@@ -17,7 +17,7 @@
 {% if not summary.rf_metrics %}
   <div class="flash-message flash-warning">
     Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.
-    Use <strong>Retrain Model</strong> below for a fresh forecast.
+    {% if can_manage %}Use <strong>Retrain Model</strong> below for a fresh forecast.{% endif %}
   </div>
 {% endif %}
 <div class="chart-card">
@@ -144,7 +144,7 @@
   <p class="muted-copy" style="margin-top:6px;">Demographic comparison shown is from the last full retrain, not this refresh.</p>
   {% endif %}
   {% else %}
-  <p class="muted-copy">Demographic comparison not available yet. Use <strong>Retrain Model</strong> above to generate it.</p>
+  <p class="muted-copy">Demographic comparison not available yet.{% if can_manage %} Use <strong>Retrain Model</strong> above to generate it.{% endif %}</p>
   {% endif %}
 </div>
 
