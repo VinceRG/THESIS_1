@@ -90,7 +90,7 @@
         <div class="report-card-actions" role="group" aria-label="Actions for {{ report.title }}">
           <a class="btn" href="{{ url_for('report_view', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}" data-loading-link="report-view"><i class="bi bi-eye" aria-hidden="true"></i> View</a>
           <div class="report-export-actions" role="group" aria-label="Export {{ report.title }}">
-            <a class="btn secondary" href="{{ url_for('report_print', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+            <a class="btn secondary" data-report-print href="{{ url_for('report_print', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
             <a class="btn secondary" href="{{ url_for('report_pdf', report_key=key, scope=scope, date_from=date_from, date_to=date_to) }}"><i class="bi bi-download" aria-hidden="true"></i> Save as PDF</a>
           </div>
         </div>

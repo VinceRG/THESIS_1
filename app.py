@@ -124,6 +124,31 @@ RARE_DIAGNOSIS_BUCKET = 'Other Services/Cases'
 MIN_DIAGNOSIS_RECORDS_FOR_RF = 50
 MIN_MODELED_DIAGNOSES_FOR_RF = 10
 REQUIRE_COMPLETE_TRAINING_YEARS = True
+RF_TRAINING_WINDOW_YEARS = 5
+LAST_CONSULTATION_ARCHIVE_RUN_DATE = None
+
+
+def rolling_training_cutoff(today=None):
+    """Return the exact calendar-day cutoff for the rolling RF training window."""
+    today = today or datetime.now().date()
+    try:
+        return today.replace(year=today.year - RF_TRAINING_WINDOW_YEARS)
+    except ValueError:  # Feb 29 in a leap year -> Feb 28 five years earlier.
+        return today.replace(year=today.year - RF_TRAINING_WINDOW_YEARS, day=28)
+
+
+def filter_to_recent_training_window(raw, today=None):
+    """Keep consultation rows dated on/after the exact five-year cutoff."""
+    if raw.empty or 'consultation_date' not in raw.columns:
+        return raw, {'cutoff_date': rolling_training_cutoff(today).isoformat(), 'excluded_record_count': 0}
+    cutoff = rolling_training_cutoff(today)
+    dates = pd.to_datetime(raw['consultation_date'], errors='coerce')
+    keep = dates.dt.date >= cutoff
+    result = raw.loc[keep].copy()
+    return result, {
+        'cutoff_date': cutoff.isoformat(),
+        'excluded_record_count': int((~keep).sum()),
+    }
 
 # Number of highest-volume individually-named diagnoses (excluding the rare-diagnosis
 # aggregate bucket) used to report forecast accuracy specifically for common cases,
@@ -298,6 +323,57 @@ class ConsultationRecord(db.Model):
     patient_age = db.Column(db.Integer, nullable=True)
     branch = db.relationship('Branch', backref='consultation_records')
     patient = db.relationship('Patient', backref='consultation_records')
+
+
+class ConsultationRecordArchive(db.Model):
+    """Cold storage for consultations outside the live five-year window."""
+    id = db.Column(db.Integer, primary_key=True)
+    original_record_id = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    branch_id = db.Column(db.Integer, nullable=True, index=True)
+    consultation_date = db.Column(db.String(20), nullable=False, index=True)
+    age_group = db.Column(db.String(40), nullable=False)
+    gender = db.Column(db.String(20), nullable=False)
+    diagnosis = db.Column(db.String(100), nullable=False)
+    department = db.Column(db.String(100), nullable=False)
+    physician = db.Column(db.String(100), nullable=False)
+    consultation_type = db.Column(db.String(100), nullable=False)
+    patient_id = db.Column(db.Integer, nullable=True)
+    patient_age = db.Column(db.Integer, nullable=True)
+    archived_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
+def archive_expired_consultations():
+    """Move records older than the rolling cutoff to archive in one transaction."""
+    cutoff = rolling_training_cutoff().isoformat()
+    expired = ConsultationRecord.query.filter(
+        ConsultationRecord.consultation_date < cutoff
+    ).all()
+    if not expired:
+        return 0
+    existing_ids = {
+        row[0] for row in db.session.query(ConsultationRecordArchive.original_record_id)
+        .filter(ConsultationRecordArchive.original_record_id.in_([r.id for r in expired])).all()
+    }
+    archived_count = 0
+    for record in expired:
+        if record.id not in existing_ids:
+            db.session.add(ConsultationRecordArchive(
+                original_record_id=record.id,
+                branch_id=record.branch_id,
+                consultation_date=record.consultation_date,
+                age_group=record.age_group,
+                gender=record.gender,
+                diagnosis=record.diagnosis,
+                department=record.department,
+                physician=record.physician,
+                consultation_type=record.consultation_type,
+                patient_id=record.patient_id,
+                patient_age=record.patient_age,
+            ))
+            archived_count += 1
+        db.session.delete(record)
+    db.session.commit()
+    return archived_count
 
 STAFF_DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 DEFAULT_STAFF_WORKING_DAYS = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'
@@ -736,13 +812,11 @@ def build_forecasting_training_frame(df, apply_year_filter=True, keep_diagnoses=
         raw['gender'] = 'Unknown'
     raw['age_group'] = raw['age_group'].replace(['', 'nan', 'None', 'NaT'], 'Unknown').fillna('Unknown')
     raw['gender'] = raw['gender'].replace(['', 'nan', 'None', 'NaT'], 'Unknown').fillna('Unknown')
+    raw, training_window = filter_to_recent_training_window(raw)
     if raw.empty:
         return pd.DataFrame()
 
-    # Anchor time_index to this call's full (pre-filter) date range so a
-    # training call (year-filtered) and a lag-context call (unfiltered) on the
-    # same source df always agree on the numeric time scale, even though one
-    # of them may drop early/incomplete years afterward.
+    # Anchor time_index to the same five-year data window used by the model.
     time_index_anchor_year = int(raw['consultation_date'].dt.year.min())
 
     if apply_year_filter:
@@ -814,6 +888,7 @@ def build_forecasting_training_frame(df, apply_year_filter=True, keep_diagnoses=
     merged.attrs['diagnosis_encoder'] = le
     merged.attrs['diagnosis_grouping'] = diagnosis_grouping
     merged.attrs['year_filtering'] = year_filtering
+    merged.attrs['training_window'] = training_window
     merged.attrs['time_index_anchor_year'] = time_index_anchor_year
     return merged
 
@@ -973,6 +1048,7 @@ def build_non_demographic_training_frame(df):
     raw['consultation_date'] = pd.to_datetime(raw['consultation_date'], errors='coerce')
     raw = raw.dropna(subset=['consultation_date'])
     raw = raw[raw['diagnosis'] != '']
+    raw, training_window = filter_to_recent_training_window(raw)
     if raw.empty:
         return pd.DataFrame()
 
@@ -1025,6 +1101,7 @@ def build_non_demographic_training_frame(df):
     merged = pd.concat([merged, diagnosis_dummies], axis=1)
     merged.attrs['diagnosis_grouping'] = diagnosis_grouping
     merged.attrs['year_filtering'] = year_filtering
+    merged.attrs['training_window'] = training_window
     return merged
 
 def evaluate_model_without_demographics(df, fast=False):
@@ -1109,6 +1186,7 @@ def train_and_evaluate_model(df, fast=False, compute_model_b=True):
     diagnosis_encoder = training_df.attrs.get('diagnosis_encoder')
     diagnosis_grouping = training_df.attrs.get('diagnosis_grouping') or {}
     year_filtering = training_df.attrs.get('year_filtering') or {}
+    training_window = training_df.attrs.get('training_window') or {}
     diagnosis_volume = training_df.groupby('diagnosis')['case_count'].sum()
     common_diagnoses = (
         diagnosis_volume.drop(index=RARE_DIAGNOSIS_BUCKET, errors='ignore')
@@ -1253,6 +1331,9 @@ def train_and_evaluate_model(df, fast=False, compute_model_b=True):
         'excluded_training_years': year_filtering.get('excluded_years'),
         'excluded_year_record_count': year_filtering.get('excluded_record_count'),
         'complete_year_fallback_reason': year_filtering.get('fallback_reason'),
+        'training_window_years': RF_TRAINING_WINDOW_YEARS,
+        'training_cutoff_date': training_window.get('cutoff_date'),
+        'excluded_outside_window_record_count': training_window.get('excluded_record_count'),
         'diagnosis_grouping_minimum_records': diagnosis_grouping.get('minimum_records'),
         'original_diagnosis_count': diagnosis_grouping.get('original_diagnosis_count'),
         'modeled_diagnosis_count': diagnosis_grouping.get('modeled_diagnosis_count'),
@@ -1500,6 +1581,8 @@ def write_training_report(report_path, metrics):
         handle.write('\n2. Dataset and Feature Preparation\n')
         handle.write('\n')
         handle.write(f"Dataset Period: {month_label(metrics.get('data_period_start', 'N/A'))} - {month_label(metrics.get('data_period_end', 'N/A'))}\n\n")
+        handle.write(f"RF Training Window: Exact rolling {metrics.get('training_window_years', RF_TRAINING_WINDOW_YEARS)} years from {metrics.get('training_cutoff_date', 'N/A')} through the latest available consultation date.\n")
+        handle.write(f"Records excluded as older than the window: {metrics.get('excluded_outside_window_record_count', 0)}\n\n")
         handle.write(f"Training Frame Rows: {metrics.get('total_training_rows', 'N/A')}\n\n")
         handle.write(f"Diagnosis-Age Group-Gender Segments: {metrics.get('total_segments', 'N/A')}\n\n")
         handle.write(f"Diagnoses Covered: {metrics.get('diagnosis_count', 'N/A')}\n\n")
@@ -3356,11 +3439,13 @@ def create_app():
         diagnosis_counts = Counter()
         gender_counts = Counter()
         age_group_counts = Counter()
+        consultation_dates = []
         for record in records:
             try:
                 d = pd.to_datetime(record.consultation_date, errors='coerce')
                 if pd.notna(d):
                     monthly_counts[d.strftime('%Y-%m')] += 1
+                    consultation_dates.append(d.date())
             except Exception:
                 pass
             if record.diagnosis:
@@ -3551,6 +3636,8 @@ def create_app():
             'branch_name': branch.name if branch else DEFAULT_BRANCH_NAME,
             'branch_code': branch.code if branch else DEFAULT_BRANCH_CODE,
             'total_consultations': total_consultations,
+            'data_shown_start': min(consultation_dates).isoformat() if consultation_dates else None,
+            'data_shown_end': max(consultation_dates).isoformat() if consultation_dates else None,
             'staff_count': len(staff_members),
             'facility_staff_count': facility_staff_count,
             'staff_capacity_per_month': staff_capacity_per_month,
@@ -3607,6 +3694,14 @@ def create_app():
                 remove_cached_dashboard_summary(None)
         if not force_refresh:
             cached = load_cached_dashboard_summary(branch_id)
+            live_dates = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id).with_entities(
+                db.func.min(ConsultationRecord.consultation_date),
+                db.func.max(ConsultationRecord.consultation_date),
+            ).first()
+            live_start, live_end = live_dates or (None, None)
+            if cached is not None:
+                if cached.get('data_shown_start') != (str(live_start)[:10] if live_start else None) or cached.get('data_shown_end') != (str(live_end)[:10] if live_end else None):
+                    cached = None
             if cached is not None:
                 try:
                     cached_period = pd.Period(
@@ -3721,6 +3816,11 @@ def create_app():
     # -------------------------------------------------------------
     @app.before_request
     def require_login():
+        global LAST_CONSULTATION_ARCHIVE_RUN_DATE
+        today = datetime.now().date()
+        if LAST_CONSULTATION_ARCHIVE_RUN_DATE != today:
+            archive_expired_consultations()
+            LAST_CONSULTATION_ARCHIVE_RUN_DATE = today
         if request.method == 'POST' and not validate_csrf_token():
             if request.endpoint in {'chatbot_ask', 'patient_chatbot_ask'}:
                 return jsonify({'error': 'csrf'}), 400
@@ -9016,12 +9116,18 @@ def create_app():
         if payload is None:
             flash('Report not found.', 'error')
             return redirect(url_for('reports'))
-        return render_template(
-            'reports/view.html',
-            report=payload,
-            print_mode=True,
-            current_date=datetime.now().strftime('%Y-%m-%d'),
-            current_time=datetime.now().strftime('%H:%M'),
+        current_user = db.session.get(User, session.get('user_id')) if session.get('user_id') else None
+        logo_path = os.path.join(app.static_folder, 'acudetek.jfif')
+        pdf_bytes = build_preview_report_pdf(
+            payload,
+            logo_path=logo_path,
+            prepared_by=current_user.username if current_user else None,
+        )
+        filename = f"{report_key}-{datetime.now().strftime('%Y%m%d')}.pdf"
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'inline; filename="{filename}"'}
         )
 
     @app.route('/reports/<report_key>/pdf')
@@ -9318,6 +9424,7 @@ def init_db(app=None):
             for user in User.query.filter_by(role='administrator').all():
                 user.role = 'superadmin'
             db.session.commit()
+        archive_expired_consultations()
         default_branch = Branch.query.filter_by(code=DEFAULT_BRANCH_CODE).first()
         if not User.query.filter_by(username='admin').first():
             db.session.add(User(username='admin', password=generate_password_hash('admin123'), role='superadmin', branch_id=default_branch.id, must_change_password=True))

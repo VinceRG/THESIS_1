@@ -9,7 +9,7 @@
 <div class="page-actions">
   <a class="btn secondary" href="{{ url_for('reports', scope=report.scope, date_from=report.date_from, date_to=report.date_to) }}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to Reports</a>
   <div class="report-export-actions" role="group" aria-label="Export {{ report.title }}">
-    <a class="btn secondary" href="{{ url_for('report_print', report_key=report.key, scope=report.scope, date_from=report.date_from, date_to=report.date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
+    <a class="btn secondary" data-report-print href="{{ url_for('report_print', report_key=report.key, scope=report.scope, date_from=report.date_from, date_to=report.date_to) }}"><i class="bi bi-printer" aria-hidden="true"></i> Print</a>
     <a class="btn" href="{{ url_for('report_pdf', report_key=report.key, scope=report.scope, date_from=report.date_from, date_to=report.date_to) }}"><i class="bi bi-download" aria-hidden="true"></i> Save as PDF</a>
   </div>
 </div>
@@ -219,9 +219,94 @@
 </div>
 {% if print_mode %}
 <script>
+  function printSvgElement(name, attributes = {}, text = '') {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+    Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+    if (text) element.textContent = text;
+    return element;
+  }
+
+  function buildPrintChart(canvas, chart, isLineChart) {
+    if (!chart) return;
+    const labels = chart.labels || [];
+    const datasets = isLineChart ? (chart.datasets || []) : [{ label: chart.y_title || 'Value', data: chart.data || [] }];
+    if (!labels.length || !datasets.some(dataset => (dataset.data || []).length)) return;
+
+    const width = 760;
+    const height = 340;
+    const svg = printSvgElement('svg', {
+      viewBox: `0 0 ${width} ${height}`,
+      role: 'img',
+      'aria-label': canvas.getAttribute('aria-label') || 'Report graph',
+      class: 'report-print-chart-image',
+      preserveAspectRatio: 'xMidYMid meet'
+    });
+    canvas.closest('.chart-container')?.removeAttribute('hidden');
+    canvas.closest('.report-figure')?.querySelector('[data-report-chart-fallback]')?.setAttribute('hidden', '');
+    const colors = ['#333333', '#666666', '#888888', '#111111', '#555555', '#999999'];
+    if (isLineChart) {
+      const left = 58, right = 20, top = 28, bottom = 76;
+      const plotWidth = width - left - right;
+      const plotHeight = height - top - bottom;
+      const values = datasets.flatMap(dataset => dataset.data || []).map(Number).filter(Number.isFinite);
+      const minimum = Math.min(0, ...values);
+      const maximum = Math.max(1, ...values);
+      const range = maximum - minimum || 1;
+      for (let tick = 0; tick <= 4; tick++) {
+        const y = top + plotHeight * tick / 4;
+        const value = maximum - range * tick / 4;
+        svg.appendChild(printSvgElement('line', { x1: left, y1: y, x2: width - right, y2: y, stroke: '#ccc', 'stroke-width': 1 }));
+        svg.appendChild(printSvgElement('text', { x: left - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#111' }, String(Math.round(value))));
+      }
+      datasets.forEach((dataset, seriesIndex) => {
+        const data = (dataset.data || []).slice(0, labels.length).map(Number);
+        if (!data.length) return;
+        const points = data.map((value, index) => {
+          const x = left + (labels.length === 1 ? plotWidth / 2 : plotWidth * index / (labels.length - 1));
+          const y = top + plotHeight * (maximum - value) / range;
+          svg.appendChild(printSvgElement('circle', { cx: x, cy: y, r: 3, fill: colors[seriesIndex % colors.length] }));
+          return `${x},${y}`;
+        }).join(' ');
+        svg.appendChild(printSvgElement('polyline', { points, fill: 'none', stroke: colors[seriesIndex % colors.length], 'stroke-width': 2.5 }));
+        const legendX = left + seriesIndex * Math.min(170, plotWidth / Math.max(1, datasets.length));
+        svg.appendChild(printSvgElement('line', { x1: legendX, y1: 13, x2: legendX + 20, y2: 13, stroke: colors[seriesIndex % colors.length], 'stroke-width': 3 }));
+        svg.appendChild(printSvgElement('text', { x: legendX + 25, y: 17, 'font-size': 11, fill: '#111' }, String(dataset.label || dataset.year || 'Series')));
+      });
+      const labelStep = Math.max(1, Math.ceil(labels.length / 12));
+      labels.forEach((label, index) => {
+        if (index % labelStep) return;
+        const x = left + (labels.length === 1 ? plotWidth / 2 : plotWidth * index / (labels.length - 1));
+        svg.appendChild(printSvgElement('text', { x, y: height - bottom + 18, 'text-anchor': 'middle', 'font-size': 10, fill: '#111' }, String(label)));
+      });
+      svg.appendChild(printSvgElement('text', { x: width / 2, y: height - 12, 'text-anchor': 'middle', 'font-size': 12, fill: '#111' }, String(chart.x_title || 'Period')));
+    } else {
+      const left = 220, right = 34, top = 14, rowHeight = Math.max(22, Math.min(38, (height - 32) / labels.length));
+      const plotWidth = width - left - right;
+      const values = (datasets[0].data || []).slice(0, labels.length).map(Number);
+      const maximum = Math.max(1, ...values.filter(Number.isFinite));
+      labels.forEach((label, index) => {
+        const y = top + index * rowHeight;
+        const value = Number(values[index]) || 0;
+        svg.appendChild(printSvgElement('text', { x: left - 10, y: y + rowHeight * .68, 'text-anchor': 'end', 'font-size': 11, fill: '#111' }, String(label)));
+        svg.appendChild(printSvgElement('rect', { x: left, y: y + 4, width: Math.max(0, plotWidth * value / maximum), height: rowHeight - 8, fill: '#666' }));
+        svg.appendChild(printSvgElement('text', { x: left + plotWidth * value / maximum + 5, y: y + rowHeight * .68, 'font-size': 10, fill: '#111' }, String(value)));
+      });
+      svg.appendChild(printSvgElement('text', { x: left + plotWidth / 2, y: height - 6, 'text-anchor': 'middle', 'font-size': 12, fill: '#111' }, String(chart.y_title || 'Value')));
+    }
+    canvas.replaceWith(svg);
+  }
+
   window.addEventListener('load', () => {
     Promise.resolve(window.reportChartsReady).catch(() => {}).then(() => {
-      requestAnimationFrame(() => window.print());
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const lineCanvas = document.getElementById('reportLineChart');
+        if (lineCanvas) buildPrintChart(lineCanvas, {{ report.chart_rows | tojson }}, true);
+        {% for chart in report.extra_charts %}
+        const extraCanvas{{ loop.index }} = document.getElementById('extraReportChart{{ loop.index }}');
+        if (extraCanvas{{ loop.index }}) buildPrintChart(extraCanvas{{ loop.index }}, {{ chart | tojson }}, false);
+        {% endfor %}
+        window.print();
+      }));
     });
   });
 </script>
@@ -280,7 +365,8 @@
           ctx.strokeStyle = '#ffffff';
           ctx.fillStyle = '#111827';
           meta.data.forEach((point, index) => {
-            const labelY = point.y + yOffset;
+            const labelY = Math.min(chart.chartArea.bottom - 9,
+              Math.max(chart.chartArea.top + 9, point.y + yOffset));
             ctx.strokeText(dataset.data[index], point.x, labelY);
             ctx.fillText(dataset.data[index], point.x, labelY);
           });
@@ -315,6 +401,7 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {{ 'false' if print_mode else 'true' }},
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: {
@@ -347,7 +434,7 @@
         }
       },
       layout: {
-        padding: { top: 20, bottom: 30 }
+        padding: { top: 26, right: 12, bottom: 38, left: 8 }
       }
     });
   }
@@ -387,7 +474,7 @@
       };
       const chartLabels = (chart.labels || []).map(label => wrapChartLabel(label));
       const chartContainer = ctx.closest('.chart-container');
-      chartContainer.style.height = Math.max(260, Math.min(520, chartLabels.length * 44)) + 'px';
+      chartContainer.style.height = Math.max(220, Math.min(480, chartLabels.length * 36 + 100)) + 'px';
       new Chart(ctx, {
         type: chart.type || 'bar',
         data: {
@@ -404,6 +491,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: {{ 'false' if print_mode else 'true' }},
           indexAxis: 'y',
           plugins: {
             legend: { display: false },

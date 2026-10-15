@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20261014-compact-header-52px') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='20261015-report-chart-spacing-v2') }}">
   <style>
     #topProgressBar {
       position: fixed; top: 0; left: 0; height: 3px;
@@ -504,6 +504,44 @@
         if (!link) return;
         const href = link.getAttribute('href') || '';
         const label = link.textContent.trim().toLowerCase();
+
+        if (link.hasAttribute('data-report-print')) {
+          event.preventDefault();
+          const frame = document.createElement('iframe');
+          frame.title = 'Report print preview';
+          frame.style.cssText = 'position:fixed;left:-1100px;top:0;width:1000px;height:800px;border:0;opacity:0;pointer-events:none;';
+          let removed = false;
+          let cleanupTimer;
+          let printTimer;
+          const cleanup = () => {
+            if (removed) return;
+            removed = true;
+            window.clearTimeout(cleanupTimer);
+            window.clearTimeout(printTimer);
+            window.removeEventListener('focus', cleanup);
+            frame.remove();
+          };
+          frame.addEventListener('load', () => {
+            try {
+              frame.contentWindow.addEventListener('afterprint', cleanup, { once: true });
+            } catch (error) {
+              // Some built-in PDF viewers do not expose afterprint to the parent.
+            }
+            printTimer = window.setTimeout(() => {
+              try {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+              } catch (error) {
+                cleanup();
+              }
+            }, 500);
+          });
+          window.addEventListener('focus', cleanup, { once: true });
+          cleanupTimer = window.setTimeout(cleanup, 300000);
+          document.body.appendChild(frame);
+          frame.src = link.href;
+          return;
+        }
 
         if (href.includes('/pdf') || label.includes('download')) {
           event.preventDefault();

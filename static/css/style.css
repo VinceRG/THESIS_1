@@ -192,7 +192,11 @@ body.admin-app .chart-card.prediction-month-card .muted-copy { font-size:16px; l
 .report-chart-fallback .table-scroll { max-width:100%; }
 .report-chart-fallback .table { margin-bottom:0; }
 .report-chart-container canvas { max-width:100%; }
-.report-chart-container { height:320px; min-height:260px; margin:12px 0 28px; }
+.report-chart-container .report-print-chart-image { display:block; width:100%; height:100%; object-fit:contain; }
+.report-chart-container { width:100%; height:320px; min-height:0; max-width:100%; margin:12px 0 20px; }
+@media (max-width: 700px) {
+  .report-chart-container { height:280px; }
+}
 .report-chart-explanation { margin-top:16px; line-height:1.5; }
 .report-chart-explanation p { margin:0 0 8px; }
 .report-chart-explanation ul { margin:0; padding-left:20px; }

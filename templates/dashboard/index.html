@@ -80,6 +80,7 @@
 
 <div class="section-heading">Comprehensive Consultation Analytics</div>
 <p class="section-subcopy">Reviewing historical volume patterns, forecasts, and current case distribution.</p>
+<p class="admin-section-description"><strong>Data shown:</strong> {% if summary.data_shown_start and summary.data_shown_end %}{{ summary.data_shown_start }}–{{ summary.data_shown_end }}{% else %}No consultation records{% endif %}</p>
 <div class="chart-card">
   <h3>Monthly Consultation Trend</h3>
   <p class="admin-section-description">Shows consultation volume over time.</p>
