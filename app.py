@@ -241,6 +241,7 @@ class Branch(db.Model):
     is_main = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     operating_status = db.Column(db.String(40), default='Open', nullable=False)
+    operating_hours_json = db.Column(db.Text, nullable=True)
     manager_id = db.Column(db.Integer, db.ForeignKey('staff_member.id'), nullable=True)
     head_doctor_id = db.Column(db.Integer, db.ForeignKey('staff_member.id'), nullable=True)
     manager_name = db.Column(db.String(120), nullable=True)
@@ -601,6 +602,10 @@ CLINIC_OPERATING_HOURS = {
     'Friday': '6:00 AM - 5:00 PM',
     'Saturday': '6:00 AM - 5:00 PM',
     'Sunday': '6:00 AM - 12:00 NN',
+}
+DEFAULT_BRANCH_HOURS = {
+    day: (('06:00', '12:00') if day == 'Sunday' else ('06:00', '17:00'))
+    for day in ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 }
 
 class StaffingPlan(db.Model):
@@ -2528,19 +2533,62 @@ def create_app():
                 pass
         return value
 
-    CLINIC_HOURS_WEEKDAY = ('06:00', '17:00')
-    CLINIC_HOURS_SUNDAY = ('06:00', '12:00')
+    OPERATING_DAY_NAMES = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
 
-    def clinic_hours_for_date(date_obj):
-        if date_obj is not None and date_obj.weekday() == 6:
-            return CLINIC_HOURS_SUNDAY
-        return CLINIC_HOURS_WEEKDAY
+    def branch_operating_hours(branch):
+        try:
+            hours = json.loads(branch.operating_hours_json or '') if branch else {}
+        except (TypeError, ValueError):
+            hours = {}
+        if not isinstance(hours, dict):
+            hours = {}
+        return {day: hours.get(day, DEFAULT_BRANCH_HOURS[day]) for day in OPERATING_DAY_NAMES}
 
-    def is_within_clinic_hours(date_obj, time_value):
+    def operating_hours_from_form():
+        hours = {}
+        for day in OPERATING_DAY_NAMES:
+            opening = request.form.get(f'hours_open_{day}', '').strip()
+            closing = request.form.get(f'hours_close_{day}', '').strip()
+            if request.form.get(f'hours_closed_{day}') == '1':
+                hours[day] = [None, None]
+                continue
+            if bool(opening) != bool(closing):
+                return None, f'Enter both opening and closing times for {day}, or mark the day Closed.'
+            if not opening:
+                return None, f'Choose opening and closing times for {day}, or mark the day Closed.'
+            if opening and (not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', opening)
+                            or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', closing)):
+                return None, f'Enter valid opening and closing times for {day}.'
+            if opening and closing and opening >= closing:
+                return None, f'{day}: closing time must be later than opening time.'
+            hours[day] = [opening, closing] if opening else [None, None]
+        return hours, None
+
+    def clinic_hours_for_date(date_obj, branch=None):
+        if date_obj is None:
+            return None
+        value = branch_operating_hours(branch).get(OPERATING_DAY_NAMES[date_obj.weekday()])
+        if not isinstance(value, (list, tuple)) or len(value) != 2 or not value[0] or not value[1]:
+            return None
+        return str(value[0]), str(value[1])
+
+    def is_within_clinic_hours(date_obj, time_value, branch=None):
         if not time_value:
             return False
-        open_time, close_time = clinic_hours_for_date(date_obj)
+        hours = clinic_hours_for_date(date_obj, branch)
+        if hours is None:
+            return False
+        open_time, close_time = hours
         return open_time <= time_value <= close_time
+
+    def clinic_hours_error(date_obj, time_value, branch=None):
+        hours = clinic_hours_for_date(date_obj, branch)
+        if hours is None:
+            return f'The branch is closed on {date_obj.strftime("%A")}.' if date_obj else 'The branch is closed on that day.'
+        if not is_within_clinic_hours(date_obj, time_value, branch):
+            open_time, close_time = hours
+            return f'Please choose a time between {format_appointment_time(open_time)} and {format_appointment_time(close_time)}.'
+        return None
 
     def format_appointment_time(value):
         value = str(value or '').strip()
@@ -4017,7 +4065,18 @@ def create_app():
 
     @app.route('/')
     def landing_page():
-        return render_template('landing.html')
+        branch = ensure_default_branch()
+        hours = branch_operating_hours(branch)
+        return render_template(
+            'landing.html',
+            clinic_branch=branch,
+            clinic_hours=[
+                (day, 'Closed' if not hours[day][0] else
+                 f'{format_appointment_time(hours[day][0])} - {format_appointment_time(hours[day][1])}',
+                 bool(hours[day][0] and hours[day][1]))
+                for day in OPERATING_DAY_NAMES
+            ],
+        )
 
     @app.route('/patient-register', methods=['GET', 'POST'])
     def patient_register():
@@ -4569,9 +4628,8 @@ def create_app():
                 field_errors['appointment_time'] = 'Please choose an appointment time.'
             elif appointment_date == now.date() and appointment_time <= now.strftime('%H:%M'):
                 field_errors['appointment_time'] = 'Please choose a time later than the current time.'
-            elif not is_within_clinic_hours(appointment_date, appointment_time):
-                open_time, close_time = clinic_hours_for_date(appointment_date)
-                field_errors['appointment_time'] = f'Please choose a time between {format_appointment_time(open_time)} and {format_appointment_time(close_time)}.'
+            elif clinic_hours_error(appointment_date, appointment_time, branch):
+                field_errors['appointment_time'] = clinic_hours_error(appointment_date, appointment_time, branch)
             if not field_errors and appointment_slot_conflict(branch.id, values['appointment_date'], appointment_time):
                 field_errors['appointment_time'] = 'That appointment slot is already taken for this branch. Please choose another time.'
 
@@ -4804,9 +4862,8 @@ def create_app():
                 field_errors['appointment_time'] = 'Please choose an appointment time.'
             elif appointment_date == now.date() and appointment_time <= now.strftime('%H:%M'):
                 field_errors['appointment_time'] = 'Please choose a time later than the current time.'
-            elif not is_within_clinic_hours(appointment_date, appointment_time):
-                open_time, close_time = clinic_hours_for_date(appointment_date)
-                field_errors['appointment_time'] = f'Please choose a time between {format_appointment_time(open_time)} and {format_appointment_time(close_time)}.'
+            elif clinic_hours_error(appointment_date, appointment_time, branch):
+                field_errors['appointment_time'] = clinic_hours_error(appointment_date, appointment_time, branch)
             if not selected_services and not selected_packages:
                 field_errors['services'] = 'Please select at least one service or package.'
             if 'appointment_date' not in field_errors and 'appointment_time' not in field_errors:
@@ -5079,6 +5136,7 @@ def create_app():
         for branch in branches_page.items:
             branch_rows.append({
                 'branch': branch,
+                'operating_hours': branch_operating_hours(branch),
                 'patients': Patient.query.filter_by(branch_id=branch.id).count(),
                 'appointments': Appointment.query.filter_by(branch_id=branch.id).count(),
                 'consultations': ConsultationRecord.query.filter_by(branch_id=branch.id).count(),
@@ -5287,6 +5345,7 @@ def create_app():
             email = request.form.get('email', '').strip()
             contact_number = request.form.get('contact_number', '').strip()
             operating_status = request.form.get('operating_status', 'Open').strip()
+            operating_hours, hours_error = operating_hours_from_form()
 
             manager_id_val = request.form.get('manager_id', '').strip()
             head_doctor_id_val = request.form.get('head_doctor_id', '').strip()
@@ -5299,6 +5358,9 @@ def create_app():
             if not name or not code:
                 flash('Branch name and code are required.', 'error')
                 return redirect(url_for('create_branch'))
+            if hours_error:
+                flash(hours_error, 'error')
+                return redirect(url_for('create_branch'))
             if Branch.query.filter_by(code=code).first():
                 flash('Branch code already exists.', 'error')
                 return redirect(url_for('create_branch'))
@@ -5309,6 +5371,7 @@ def create_app():
                 email=email,
                 contact_number=contact_number,
                 operating_status=operating_status,
+                operating_hours_json=json.dumps(operating_hours),
                 manager_id=manager_staff.id if manager_staff else None,
                 manager_name=manager_name,
                 head_doctor_id=head_doctor_staff.id if head_doctor_staff else None,
@@ -5327,6 +5390,8 @@ def create_app():
         return render_template(
             'branches/form.html',
             branch=None,
+            operating_days=OPERATING_DAY_NAMES,
+            operating_hours=branch_operating_hours(None),
             staff_options=all_staff,
             doctor_options=doctor_options,
             current_date=datetime.now().strftime('%Y-%m-%d'),
@@ -5352,6 +5417,7 @@ def create_app():
             email = request.form.get('email', '').strip()
             contact_number = request.form.get('contact_number', '').strip()
             operating_status = request.form.get('operating_status', branch.operating_status or 'Open').strip()
+            operating_hours, hours_error = operating_hours_from_form()
 
             manager_id_val = request.form.get('manager_id', '').strip()
             head_doctor_id_val = request.form.get('head_doctor_id', '').strip()
@@ -5364,6 +5430,9 @@ def create_app():
             if not name or not code:
                 flash('Branch name and code are required.', 'error')
                 return redirect(url_for('edit_branch', branch_id=branch.id))
+            if hours_error:
+                flash(hours_error, 'error')
+                return redirect(url_for('edit_branch', branch_id=branch.id))
             duplicate = Branch.query.filter(Branch.code == code, Branch.id != branch.id).first()
             if duplicate:
                 flash('Branch code already exists.', 'error')
@@ -5374,6 +5443,7 @@ def create_app():
             branch.email = email
             branch.contact_number = contact_number
             branch.operating_status = operating_status
+            branch.operating_hours_json = json.dumps(operating_hours)
             branch.manager_id = manager_staff.id if manager_staff else None
             branch.manager_name = manager_name
             branch.head_doctor_id = head_doctor_staff.id if head_doctor_staff else None
@@ -5388,6 +5458,8 @@ def create_app():
         return render_template(
             'branches/form.html',
             branch=branch,
+            operating_days=OPERATING_DAY_NAMES,
+            operating_hours=branch_operating_hours(branch),
             staff_options=all_staff,
             doctor_options=doctor_options,
             current_date=datetime.now().strftime('%Y-%m-%d'),
@@ -5671,6 +5743,11 @@ def create_app():
                 return redirect(url_for('create_appointment'))
             if parse_iso_date(appointment_date) is None or not appointment_time:
                 flash('Please select a valid appointment date and time.', 'error')
+                return redirect(url_for('create_appointment', patient_id=patient.id))
+            branch = db.session.get(Branch, current_branch_id())
+            hours_error = clinic_hours_error(parse_iso_date(appointment_date), appointment_time, branch)
+            if hours_error:
+                flash(hours_error, 'error')
                 return redirect(url_for('create_appointment', patient_id=patient.id))
             if appointment_slot_conflict(current_branch_id(), appointment_date, appointment_time):
                 flash('That appointment slot is already taken for this branch.', 'error')
@@ -8779,13 +8856,16 @@ def create_app():
             branches = Branch.query.filter_by(is_active=True).order_by(Branch.name.asc()).all()
         return {
             'branches': [
-                {'name': b.name, 'address': b.address, 'contact_number': b.contact_number, 'email': b.email}
+                {
+                    'name': b.name, 'address': b.address, 'contact_number': b.contact_number, 'email': b.email,
+                    'operating_hours': {
+                        day: ('Closed' if not branch_operating_hours(b)[day][0] else
+                              f"{format_appointment_time(branch_operating_hours(b)[day][0])} to {format_appointment_time(branch_operating_hours(b)[day][1])}")
+                        for day in OPERATING_DAY_NAMES
+                    },
+                }
                 for b in branches
             ],
-            'operating_hours': {
-                'monday_to_saturday': f'{format_appointment_time(CLINIC_HOURS_WEEKDAY[0])} to {format_appointment_time(CLINIC_HOURS_WEEKDAY[1])}',
-                'sunday': f'{format_appointment_time(CLINIC_HOURS_SUNDAY[0])} to {format_appointment_time(CLINIC_HOURS_SUNDAY[1])}',
-            },
         }
 
     def tool_services_and_pricing(keyword=None):
@@ -9272,6 +9352,13 @@ def migrate_branch_schema(app):
                 conn.execute(text("ALTER TABLE branch ADD COLUMN email VARCHAR(120)"))
             if 'operating_status' not in branch_columns:
                 conn.execute(text("ALTER TABLE branch ADD COLUMN operating_status VARCHAR(40) NOT NULL DEFAULT 'Open'"))
+            if 'operating_hours_json' not in branch_columns:
+                conn.execute(text("ALTER TABLE branch ADD COLUMN operating_hours_json TEXT"))
+            default_hours_json = json.dumps(DEFAULT_BRANCH_HOURS)
+            conn.execute(text(
+                "UPDATE branch SET operating_hours_json = :hours "
+                "WHERE operating_hours_json IS NULL OR operating_hours_json = ''"
+            ), {'hours': default_hours_json})
             if 'manager_name' not in branch_columns:
                 conn.execute(text("ALTER TABLE branch ADD COLUMN manager_name VARCHAR(120)"))
             if 'head_doctor_name' not in branch_columns:

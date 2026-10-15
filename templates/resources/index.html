@@ -120,9 +120,14 @@
         <span>admin staffing alerts this week</span>
       </div>
     </div>
-    <div class="chart-container staff-forecast-chart">
-      <canvas id="predictedDailyStaffChart"></canvas>
-    </div>
+    {% set predicted_daily_chart = daily_prediction.get('chart', {}) %}
+    {% if predicted_daily_chart.get('labels') and predicted_daily_chart.get('datasets') %}
+      <div class="chart-container staff-forecast-chart">
+        <canvas id="predictedDailyStaffChart"></canvas>
+      </div>
+    {% else %}
+      <p class="resource-empty-state">Daily forecast data will appear here when consultation history is available.</p>
+    {% endif %}
     <p class="muted-copy" style="margin-top:10px;">Method: {{ daily_prediction.get('method', 'No daily prediction available yet') }}</p>
   </div>
 
@@ -193,9 +198,14 @@
     <p class="muted-copy" style="margin-bottom:14px;">
       Planning demand uses the higher value between forecasted diagnosis demand and already scheduled appointments, then maps that demand to required staff roles. This is operational decision support, not a clinical diagnosis decision.
     </p>
-    <div class="chart-container staff-forecast-chart">
-      <canvas id="monthlyStaffForecastChart"></canvas>
-    </div>
+    {% set monthly_chart = staff_forecast.get('monthly_chart', {}) %}
+    {% if monthly_chart.get('labels') %}
+      <div class="chart-container staff-forecast-chart">
+        <canvas id="monthlyStaffForecastChart"></canvas>
+      </div>
+    {% else %}
+      <p class="resource-empty-state">Monthly staff recommendations will appear when forecast demand or staff records are available.</p>
+    {% endif %}
   </div>
 
   <div class="chart-card">
@@ -226,9 +236,14 @@
     <p class="muted-copy" style="margin-bottom:14px;">
       This daily view uses booked pending and confirmed appointments for the next {{ 14 }} days. It is appointment-based scheduling guidance, separate from the monthly Random Forest forecast.
     </p>
-    <div class="chart-container staff-forecast-chart">
-      <canvas id="dailyStaffForecastChart"></canvas>
-    </div>
+    {% set daily_chart = staff_forecast.get('daily_chart', {}) %}
+    {% if daily_chart.get('labels') and daily_chart.get('datasets') %}
+      <div class="chart-container staff-forecast-chart">
+        <canvas id="dailyStaffForecastChart"></canvas>
+      </div>
+    {% else %}
+      <p class="resource-empty-state">Appointment based staffing guidance will appear when appointments are scheduled for the next 14 days.</p>
+    {% endif %}
   </div>
 
   <div class="chart-card">
@@ -321,6 +336,8 @@
         <ul class="resource-list compact-list">
           {% for service in summary.services %}
             <li>{{ service }}</li>
+          {% else %}
+            <li class="resource-empty-item">No medical services are configured.</li>
           {% endfor %}
         </ul>
       </div>
@@ -329,6 +346,8 @@
         <ul class="resource-list compact-list">
           {% for item in summary.equipment %}
             <li>{{ item }}</li>
+          {% else %}
+            <li class="resource-empty-item">No equipment is configured.</li>
           {% endfor %}
         </ul>
       </div>

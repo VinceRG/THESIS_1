@@ -99,6 +99,13 @@
                 {%- if row.branch.email %}{{ ' · ' if row.branch.address }}{{ row.branch.email }}{% endif -%}
                 {%- if row.branch.contact_number %}{{ ' · ' if row.branch.address or row.branch.email }}{{ row.branch.contact_number }}{% endif -%}
               </div>
+              <small class="muted-copy" style="display:block;margin-top:6px;">Operating days</small>
+              <div class="schedule-days-pill-group" style="display:inline-flex;gap:3px;margin-top:4px;" aria-label="Operating days">
+                {% for code, day in [('M', 'Monday'), ('T', 'Tuesday'), ('W', 'Wednesday'), ('Th', 'Thursday'), ('F', 'Friday'), ('Sa', 'Saturday'), ('Su', 'Sunday')] %}
+                  {% set is_open = row.operating_hours[day][0] and row.operating_hours[day][1] %}
+                  <span title="{{ day }}{% if not is_open %} (closed){% endif %}" style="display:inline-block;min-width:22px;height:22px;line-height:20px;text-align:center;font-size:10px;font-weight:700;border-radius:4px;{% if is_open %}background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;{% else %}background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;opacity:.6;{% endif %}">{{ code }}</span>
+                {% endfor %}
+              </div>
             </td>
             <td>{{ row.branch.code }}</td>
             <td>

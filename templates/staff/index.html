@@ -7,13 +7,6 @@
 
 {% block content %}
 <div class="section-stack">
-<div class="page-heading-row">
-  {% if not all_branches_view %}
-    <a href="{{ url_for('create_staff') }}" class="btn" style="visibility:hidden;"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Staff</a>  {% else %}
-    <span class="topbar-pill">All-branch view is read-only. Select one branch to add or edit staff.</span>
-  {% endif %}
-</div>
-
 <div class="grid cards">
   <div class="card">
     <h3>Total Staff</h3>

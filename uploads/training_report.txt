@@ -24,7 +24,7 @@ Only calendar years with all 12 months are used for model training so monthly an
 Original Years Found: 2023, 2024, 2025, 2026
 Years Used for Training: 2023, 2024, 2025
 Years Excluded from Training: 2026
-Records Excluded by Incomplete-Year Rule: 2045
+Records Excluded by Incomplete-Year Rule: 2049
 
 Rare Diagnosis Handling
 

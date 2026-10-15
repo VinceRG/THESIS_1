@@ -38,6 +38,29 @@
         <option value="Temporarily Closed" {% if branch and branch.operating_status == 'Temporarily Closed' %}selected{% endif %}>Temporarily Closed</option>
       </select>
     </label>
+    <fieldset style="grid-column:1/-1;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
+      <legend style="float:none;width:auto;padding:0 8px;color:#475569;font-size:14px;font-weight:600;">Branch Operating Hours</legend>
+      <p class="muted-copy" style="margin:0 0 12px;">Set opening and closing times for each day. Leave both times blank when the branch is closed.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;">
+        {% for day in operating_days %}
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:8px;min-width:0;">
+            <div style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <strong>{{ day }}</strong>
+              <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:12px;font-weight:500;">
+                <input type="checkbox" name="hours_closed_{{ day }}" value="1" data-hours-closed="{{ day }}" {% if not operating_hours[day][0] or not operating_hours[day][1] %}checked{% endif %} style="width:auto;margin:0;">
+                Closed
+              </label>
+            </div>
+            <label style="min-width:0;margin:0;font-size:12px;">Open
+              <input type="time" name="hours_open_{{ day }}" value="{{ operating_hours[day][0] or '' }}" aria-label="{{ day }} opening time" data-hours-time="{{ day }}" style="box-sizing:border-box;width:100%;min-width:0;">
+            </label>
+            <label style="min-width:0;margin:0;font-size:12px;">Close
+              <input type="time" name="hours_close_{{ day }}" value="{{ operating_hours[day][1] or '' }}" aria-label="{{ day }} closing time" data-hours-time="{{ day }}" style="box-sizing:border-box;width:100%;min-width:0;">
+            </label>
+          </div>
+        {% endfor %}
+      </div>
+    </fieldset>
     <label>
       Branch Manager
       <select name="manager_id">
@@ -68,4 +91,18 @@
     </div>
   </form>
 </div>
+<script>
+  document.querySelectorAll('[data-hours-closed]').forEach(toggle => {
+    const day = toggle.dataset.hoursClosed;
+    const fields = document.querySelectorAll(`[data-hours-time="${day}"]`);
+    const syncClosedState = () => {
+      fields.forEach(field => {
+        field.disabled = toggle.checked;
+        if (toggle.checked) field.value = '';
+      });
+    };
+    toggle.addEventListener('change', syncClosedState);
+    syncClosedState();
+  });
+</script>
 {% endblock %}

@@ -115,6 +115,8 @@ body.admin-app .chart-card.prediction-month-card .muted-copy { font-size:16px; l
 .resource-progress-bar.status-moderate { background:#d97706; }
 .resource-progress-bar.status-healthy { background:#2f9e44; }
 .resource-note { margin:0; color:#475569; line-height:1.6; }
+.resource-empty-state { margin:0; padding:12px 14px; border:1px dashed #cbd5e1; border-radius:10px; background:#f8fafc; color:#64748b; font-size:13px; line-height:1.45; }
+.resource-list .resource-empty-item { padding:8px 0; background:transparent; color:#64748b; font-size:13px; }
 .demographic-comparison { grid-template-columns:repeat(2, minmax(0, 1fr)); align-items:start; }
 .demographic-comparison > div { min-width:0; }
 .loading-state { padding: 40px 20px; text-align: center; color: #475569; font-size: 16px; background: #f8fafc; border-radius: 16px; }
@@ -3278,4 +3280,95 @@ body.admin-app .service-table td.package-included-services {
   .report-scope-form .btn {
     width:100%;
   }
+}
+/* Landing page clinic hours card */
+.clinic-visit > *, .clinic-hours-card { min-width: 0; }
+.clinic-hours-card {
+  padding: clamp(24px, 3vw, 38px);
+  border-color: #d8e9e9;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(18, 73, 88, .08);
+  color: #315b6c;
+  font-family: Inter, Arial, sans-serif;
+}
+.clinic-hours-card .clinic-hours-heading,
+.clinic-hours-card .clinic-hours-list,
+.clinic-hours-card .clinic-hours-contact { display: block; min-width: 0; padding: 0; color: inherit; }
+.clinic-hours-card .clinic-hours-heading .clinic-section-label { color: #087d86; }
+.clinic-hours-card .clinic-hours-heading h3 {
+  margin: 8px 0 5px; color: #123f52; font-family: Inter, Arial, sans-serif;
+  font-size: 24px; font-weight: 700; letter-spacing: -.035em; line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.clinic-hours-card .clinic-hours-heading p { margin: 0 0 20px; color: #66808a; font-size: 13px; line-height: 1.5; }
+.clinic-hours-card .clinic-hours-row {
+  display: grid; grid-template-columns: minmax(82px, .8fr) minmax(0, 1.2fr);
+  align-items: center; gap: 10px; width: 100%; min-width: 0;
+  padding: 11px 0; border-bottom: 1px solid #edf3f3; line-height: 1.35;
+}
+.clinic-hours-card .clinic-hours-day { color: #315b6c; font-size: 13px; font-weight: 700; }
+.clinic-hours-card .clinic-hours-info {
+  display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 9px;
+}
+.clinic-hours-card .clinic-hours-value {
+  min-width: 0; color: #174d60; font-size: 13px; font-weight: 700;
+  line-height: 1.35; text-align: right; overflow-wrap: anywhere;
+}
+
+.clinic-hours-card .clinic-hours-row.is-closed .clinic-hours-value { color: #71838a; font-weight: 500; }
+.clinic-hours-card .clinic-hours-contact { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e2eeee; }
+.clinic-hours-card .clinic-hours-contact h4 { margin: 0 0 10px; color: #123f52; font-size: 15px; font-weight: 800; }
+.clinic-hours-card .clinic-hours-contact a { display: block; margin: 7px 0; }
+@media (max-width: 620px) {
+  .clinic-hours-card .clinic-hours-row { grid-template-columns: minmax(72px, .75fr) minmax(0, 1.25fr); gap: 7px; }
+  .clinic-hours-card .clinic-hours-info { flex-wrap: wrap; gap: 6px; }
+  .clinic-hours-card .clinic-hours-day, .clinic-hours-card .clinic-hours-value { font-size: 12px; }
+}
+/* Stack the clinic visit and weekly schedule cards. */
+.clinic-visit {
+  display: block;
+  width: min(1240px, calc(100% - 64px));
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.clinic-visit-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 20px;
+}
+.clinic-visit-stack > * { min-width: 0; }
+.clinic-visit-card { padding: clamp(28px, 4vw, 48px); border-radius: 20px; }
+.clinic-visit-card h2 { max-width: 620px; }
+.clinic-visit-card address { max-width: 620px; overflow-wrap: anywhere; }
+.clinic-visit-contact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(220, 255, 250, .22);
+}
+.clinic-visit-contact h3 {
+  flex-basis: 100%;
+  margin: 0;
+  color: #fff;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+.clinic-visit-contact a {
+  color: #c3ffef;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.clinic-visit-stack .clinic-hours-card { width: 100%; }
+@media (max-width: 820px) {
+  .clinic-visit-stack { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 620px) {
+  .clinic-visit { width: calc(100% - 28px); }
+  .clinic-visit-contact { align-items: flex-start; flex-direction: column; gap: 10px; }
 }

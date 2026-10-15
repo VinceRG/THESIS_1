@@ -24,7 +24,12 @@
         data-confirm="This will save the appointment with the generated staff recommendation. Continue?">
     <div class="grid demographic-comparison">
       <div class="chart-card">
-        <h3>Patient and Schedule</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">
+          <h3 style="margin:0;">Patient and Schedule</h3>
+          {% if not selected_patient %}
+            <a href="{{ url_for('create_patient') }}" class="btn secondary" style="white-space:nowrap;"><i class="bi bi-person-plus" aria-hidden="true"></i> Add Patient</a>
+          {% endif %}
+        </div>
         <div class="form-grid">
           {% if selected_patient %}
             <label>
