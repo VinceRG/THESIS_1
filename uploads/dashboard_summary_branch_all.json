@@ -1,0 +1,2049 @@
+{
+  "branch_id": null,
+  "branch_name": "All Branches",
+  "branch_code": "ALL",
+  "total_consultations": 10171,
+  "data_shown_start": "2023-01-01",
+  "data_shown_end": "2026-10-03",
+  "staff_count": 22,
+  "facility_staff_count": 22,
+  "staff_capacity_per_month": 20,
+  "top_diagnosis": "Hypertension Monitoring",
+  "predicted_cases_next_month": 20,
+  "resource_readiness": 100,
+  "monthly_trend": [
+    {
+      "month": "Jan 2023",
+      "count": 197
+    },
+    {
+      "month": "Feb 2023",
+      "count": 185
+    },
+    {
+      "month": "Mar 2023",
+      "count": 200
+    },
+    {
+      "month": "Apr 2023",
+      "count": 182
+    },
+    {
+      "month": "May 2023",
+      "count": 200
+    },
+    {
+      "month": "Jun 2023",
+      "count": 213
+    },
+    {
+      "month": "Jul 2023",
+      "count": 205
+    },
+    {
+      "month": "Aug 2023",
+      "count": 201
+    },
+    {
+      "month": "Sep 2023",
+      "count": 197
+    },
+    {
+      "month": "Oct 2023",
+      "count": 187
+    },
+    {
+      "month": "Nov 2023",
+      "count": 179
+    },
+    {
+      "month": "Dec 2023",
+      "count": 204
+    },
+    {
+      "month": "Jan 2024",
+      "count": 236
+    },
+    {
+      "month": "Feb 2024",
+      "count": 216
+    },
+    {
+      "month": "Mar 2024",
+      "count": 234
+    },
+    {
+      "month": "Apr 2024",
+      "count": 214
+    },
+    {
+      "month": "May 2024",
+      "count": 232
+    },
+    {
+      "month": "Jun 2024",
+      "count": 228
+    },
+    {
+      "month": "Jul 2024",
+      "count": 236
+    },
+    {
+      "month": "Aug 2024",
+      "count": 235
+    },
+    {
+      "month": "Sep 2024",
+      "count": 232
+    },
+    {
+      "month": "Oct 2024",
+      "count": 225
+    },
+    {
+      "month": "Nov 2024",
+      "count": 210
+    },
+    {
+      "month": "Dec 2024",
+      "count": 229
+    },
+    {
+      "month": "Jan 2025",
+      "count": 254
+    },
+    {
+      "month": "Feb 2025",
+      "count": 248
+    },
+    {
+      "month": "Mar 2025",
+      "count": 263
+    },
+    {
+      "month": "Apr 2025",
+      "count": 234
+    },
+    {
+      "month": "May 2025",
+      "count": 259
+    },
+    {
+      "month": "Jun 2025",
+      "count": 257
+    },
+    {
+      "month": "Jul 2025",
+      "count": 271
+    },
+    {
+      "month": "Aug 2025",
+      "count": 263
+    },
+    {
+      "month": "Sep 2025",
+      "count": 259
+    },
+    {
+      "month": "Oct 2025",
+      "count": 241
+    },
+    {
+      "month": "Nov 2025",
+      "count": 230
+    },
+    {
+      "month": "Dec 2025",
+      "count": 251
+    },
+    {
+      "month": "Jan 2026",
+      "count": 300
+    },
+    {
+      "month": "Feb 2026",
+      "count": 286
+    },
+    {
+      "month": "Mar 2026",
+      "count": 294
+    },
+    {
+      "month": "Apr 2026",
+      "count": 275
+    },
+    {
+      "month": "May 2026",
+      "count": 298
+    },
+    {
+      "month": "Jun 2026",
+      "count": 298
+    },
+    {
+      "month": "Jul 2026",
+      "count": 300
+    },
+    {
+      "month": "Aug 2026",
+      "count": 4
+    },
+    {
+      "month": "Oct 2026",
+      "count": 9
+    }
+  ],
+  "consultation_distribution": [
+    [
+      "Hypertension Monitoring",
+      781
+    ],
+    [
+      "Upper Respiratory Infection",
+      759
+    ],
+    [
+      "Diabetes Mellitus Monitoring",
+      582
+    ],
+    [
+      "Asthma Monitoring",
+      428
+    ],
+    [
+      "Gastritis",
+      408
+    ],
+    [
+      "Dermatitis and Allergy",
+      331
+    ],
+    [
+      "Fever",
+      310
+    ],
+    [
+      "Routine Medical Consultation",
+      288
+    ],
+    [
+      "Headache",
+      233
+    ],
+    [
+      "Preventive Health Check-up",
+      225
+    ]
+  ],
+  "gender_distribution": [
+    [
+      "Female",
+      5183
+    ],
+    [
+      "Male",
+      4988
+    ]
+  ],
+  "age_group_distribution": [
+    [
+      "Adult",
+      6909
+    ],
+    [
+      "Senior",
+      1684
+    ],
+    [
+      "Child",
+      1578
+    ]
+  ],
+  "top_cases": [
+    [
+      "Hypertension Monitoring",
+      781
+    ],
+    [
+      "Upper Respiratory Infection",
+      759
+    ],
+    [
+      "Diabetes Mellitus Monitoring",
+      582
+    ],
+    [
+      "Asthma Monitoring",
+      428
+    ],
+    [
+      "Gastritis",
+      408
+    ]
+  ],
+  "predictions": [
+    {
+      "diagnosis": "Hypertension Monitoring",
+      "current_month": 19,
+      "predicted_next_month": 1757,
+      "predicted_low": null,
+      "predicted_high": null,
+      "predicted_month": "Nov 2026",
+      "trend": "Increasing"
+    },
+    {
+      "diagnosis": "Upper Respiratory Infection",
+      "current_month": 19,
+      "predicted_next_month": 1708,
+      "predicted_low": null,
+      "predicted_high": null,
+      "predicted_month": "Nov 2026",
+      "trend": "Increasing"
+    },
+    {
+      "diagnosis": "Diabetes Mellitus Monitoring",
+      "current_month": 14,
+      "predicted_next_month": 1310,
+      "predicted_low": null,
+      "predicted_high": null,
+      "predicted_month": "Nov 2026",
+      "trend": "Increasing"
+    },
+    {
+      "diagnosis": "Asthma Monitoring",
+      "current_month": 6,
+      "predicted_next_month": 963,
+      "predicted_low": null,
+      "predicted_high": null,
+      "predicted_month": "Nov 2026",
+      "trend": "Increasing"
+    },
+    {
+      "diagnosis": "Gastritis",
+      "current_month": 15,
+      "predicted_next_month": 918,
+      "predicted_low": null,
+      "predicted_high": null,
+      "predicted_month": "Nov 2026",
+      "trend": "Increasing"
+    }
+  ],
+  "demographic_forecast": {
+    "age_group": [
+      {
+        "age_group": "Adult",
+        "forecasted_cases": 6909
+      },
+      {
+        "age_group": "Senior",
+        "forecasted_cases": 1684
+      },
+      {
+        "age_group": "Child",
+        "forecasted_cases": 1578
+      }
+    ],
+    "gender": [
+      {
+        "gender": "Female",
+        "forecasted_cases": 5183
+      },
+      {
+        "gender": "Male",
+        "forecasted_cases": 4988
+      }
+    ],
+    "segments": [],
+    "segments_grouped": []
+  },
+  "resource_recommendation": "Fallback forecast translated into staff-role guidance because Random Forest metrics are unavailable.",
+  "reference_month": "Nov 2025",
+  "predicted_month_label": "Nov 2026",
+  "predicted_month_full_label": "November 2026",
+  "services": [
+    "General Physician Consultation",
+    "Clinical Laboratory Services",
+    "Clinical Microscopy",
+    "Hematology",
+    "Clinical Chemistry",
+    "Immunology and Serology",
+    "Drug Testing",
+    "Electrocardiography (ECG)",
+    "X-ray",
+    "Ultrasound",
+    "Vascular Studies",
+    "Home Service",
+    "Annual Physical Examination (APE)"
+  ],
+  "equipment": [
+    "Automated Hematology Analyzer",
+    "Automated Clinical Chemistry Analyzer",
+    "Automated Immunoassay Analyzer",
+    "Automated Electrolyte Analyzer",
+    "Ultrasound Machine",
+    "X-ray System/Machine",
+    "Electrocardiograph (ECG) Machine"
+  ],
+  "facility_staff_complement": [
+    {
+      "role": "Pathologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Registered Medical Technologists",
+      "count": 6,
+      "notes": "Includes 2 Drug Test Analysts and 1 HIV Counselor"
+    },
+    {
+      "role": "Registered Radiologic Technologists",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "Laboratory Technicians",
+      "count": 3,
+      "notes": ""
+    },
+    {
+      "role": "Internal Medicine Physicians",
+      "count": 2,
+      "notes": ""
+    },
+    {
+      "role": "General Physicians",
+      "count": 4,
+      "notes": ""
+    },
+    {
+      "role": "Radiologists",
+      "count": 3,
+      "notes": ""
+    }
+  ],
+  "actual_staff_by_role": {
+    "Pathologists": 2,
+    "Registered Medical Technologists": 6,
+    "Registered Radiologic Technologists": 2,
+    "Laboratory Technicians": 3,
+    "Internal Medicine Physicians": 2,
+    "General Physicians": 4,
+    "Radiologists": 3
+  },
+  "staff_demand_forecast": {
+    "top_role": "Internal Medicine Physicians",
+    "top_role_demand": 4948,
+    "monthly_rows": [
+      {
+        "staff_role": "Internal Medicine Physicians",
+        "forecast_demand": 4948,
+        "appointment_demand": 0,
+        "planning_demand": 4948,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 248,
+        "required_low": 248,
+        "required_high": 248,
+        "gap": 246,
+        "status": "Needs Staff",
+        "status_class": "high"
+      },
+      {
+        "staff_role": "General Physicians",
+        "forecast_demand": 1708,
+        "appointment_demand": 0,
+        "planning_demand": 1708,
+        "available_staff": 4,
+        "role_capacity": 80,
+        "estimated_required": 86,
+        "required_low": 86,
+        "required_high": 86,
+        "gap": 82,
+        "status": "Needs Staff",
+        "status_class": "high"
+      },
+      {
+        "staff_role": "Registered Medical Technologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 6,
+        "role_capacity": 120,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Laboratory Technicians",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 3,
+        "role_capacity": 60,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Radiologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 3,
+        "role_capacity": 60,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Pathologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "staff_role": "Registered Radiologic Technologists",
+        "forecast_demand": 0,
+        "appointment_demand": 0,
+        "planning_demand": 0,
+        "available_staff": 2,
+        "role_capacity": 40,
+        "estimated_required": 0,
+        "required_low": 0,
+        "required_high": 0,
+        "gap": 0,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      }
+    ],
+    "monthly_chart": {
+      "labels": [
+        "Internal Medicine Physicians",
+        "General Physicians",
+        "Registered Medical Technologists",
+        "Laboratory Technicians",
+        "Radiologists",
+        "Pathologists",
+        "Registered Radiologic Technologists"
+      ],
+      "planning_demand": [
+        4948,
+        1708,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "capacity": [
+        40,
+        80,
+        120,
+        60,
+        60,
+        40,
+        40
+      ]
+    },
+    "daily_rows": [
+      {
+        "date": "2026-10-16",
+        "staff_role": "General Physicians",
+        "scheduled_demand": 1,
+        "available_staff": 4,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      },
+      {
+        "date": "2026-10-16",
+        "staff_role": "Internal Medicine Physicians",
+        "scheduled_demand": 1,
+        "available_staff": 2,
+        "status": "Sufficient",
+        "status_class": "healthy"
+      }
+    ],
+    "daily_chart": {
+      "labels": [
+        "2026-10-16"
+      ],
+      "datasets": [
+        {
+          "label": "General Physicians",
+          "data": [
+            1
+          ]
+        },
+        {
+          "label": "Internal Medicine Physicians",
+          "data": [
+            1
+          ]
+        }
+      ]
+    },
+    "daily_prediction": {
+      "method": "Random Forest daily role-demand forecast",
+      "daily_capacity_per_staff": 1,
+      "current_period": "Oct 16, 2026 - Oct 22, 2026",
+      "next_period": "Oct 23, 2026 - Oct 29, 2026",
+      "rows": [
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 1,
+          "required_staff": 1,
+          "available_staff": 4,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 1,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-17",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-17",
+          "day_name": "Sat",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-17",
+          "day_name": "Sat",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-18",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-18",
+          "day_name": "Sun",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-18",
+          "day_name": "Sun",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-19",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-19",
+          "day_name": "Mon",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-19",
+          "day_name": "Mon",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-20",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-20",
+          "day_name": "Tue",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-20",
+          "day_name": "Tue",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-21",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-21",
+          "day_name": "Wed",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-21",
+          "day_name": "Wed",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-22",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-22",
+          "day_name": "Thu",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-22",
+          "day_name": "Thu",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-23",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-23",
+          "day_name": "Fri",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-23",
+          "day_name": "Fri",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-24",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-24",
+          "day_name": "Sat",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-24",
+          "day_name": "Sat",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-25",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-25",
+          "day_name": "Sun",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-25",
+          "day_name": "Sun",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-26",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-26",
+          "day_name": "Mon",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-26",
+          "day_name": "Mon",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-27",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-27",
+          "day_name": "Tue",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-27",
+          "day_name": "Tue",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-28",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-28",
+          "day_name": "Wed",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-28",
+          "day_name": "Wed",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-29",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-29",
+          "day_name": "Thu",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-29",
+          "day_name": "Thu",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        }
+      ],
+      "current_week_rows": [
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "General Physicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 1,
+          "required_staff": 1,
+          "available_staff": 4,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Internal Medicine Physicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 1,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-17",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-17",
+          "day_name": "Sat",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-17",
+          "day_name": "Sat",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-18",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-18",
+          "day_name": "Sun",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-18",
+          "day_name": "Sun",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-19",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-19",
+          "day_name": "Mon",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-19",
+          "day_name": "Mon",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-20",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-20",
+          "day_name": "Tue",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-20",
+          "day_name": "Tue",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-21",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-21",
+          "day_name": "Wed",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-21",
+          "day_name": "Wed",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-22",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-22",
+          "day_name": "Thu",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-22",
+          "day_name": "Thu",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        }
+      ],
+      "next_week_rows": [
+        {
+          "date": "2026-10-23",
+          "day_name": "Fri",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-23",
+          "day_name": "Fri",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-23",
+          "day_name": "Fri",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-24",
+          "day_name": "Sat",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-24",
+          "day_name": "Sat",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-24",
+          "day_name": "Sat",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-25",
+          "day_name": "Sun",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-25",
+          "day_name": "Sun",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-25",
+          "day_name": "Sun",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-26",
+          "day_name": "Mon",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-26",
+          "day_name": "Mon",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-26",
+          "day_name": "Mon",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-27",
+          "day_name": "Tue",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-27",
+          "day_name": "Tue",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-27",
+          "day_name": "Tue",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-28",
+          "day_name": "Wed",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-28",
+          "day_name": "Wed",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-28",
+          "day_name": "Wed",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-29",
+          "day_name": "Thu",
+          "staff_role": "Laboratory Technicians",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 3,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-29",
+          "day_name": "Thu",
+          "staff_role": "Pathologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        },
+        {
+          "date": "2026-10-29",
+          "day_name": "Thu",
+          "staff_role": "Registered Radiologic Technologists",
+          "predicted_patients": 1,
+          "scheduled_appointments": 0,
+          "required_staff": 1,
+          "available_staff": 2,
+          "status": "Sufficient",
+          "status_class": "healthy"
+        }
+      ],
+      "current_week_summary": [
+        {
+          "date": "2026-10-16",
+          "day_name": "Fri",
+          "predicted_patients": 5,
+          "scheduled_appointments": 2,
+          "required_staff_total": 5,
+          "available_staff_total": 13,
+          "role_summary": [
+            "General Physicians: 1 needed, 4 available",
+            "Internal Medicine Physicians: 1 needed, 2 available",
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "General Physicians: 1 needed, 4 available; Internal Medicine Physicians: 1 needed, 2 available; Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "General Physicians: 1/4, Internal Medicine Physicians: 1/2, Laboratory Technicians: 1/3, +2 more"
+        },
+        {
+          "date": "2026-10-17",
+          "day_name": "Sat",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-18",
+          "day_name": "Sun",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-19",
+          "day_name": "Mon",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-20",
+          "day_name": "Tue",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-21",
+          "day_name": "Wed",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-22",
+          "day_name": "Thu",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        }
+      ],
+      "next_week_summary": [
+        {
+          "date": "2026-10-23",
+          "day_name": "Fri",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-24",
+          "day_name": "Sat",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-25",
+          "day_name": "Sun",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-26",
+          "day_name": "Mon",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-27",
+          "day_name": "Tue",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-28",
+          "day_name": "Wed",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        },
+        {
+          "date": "2026-10-29",
+          "day_name": "Thu",
+          "predicted_patients": 3,
+          "scheduled_appointments": 0,
+          "required_staff_total": 3,
+          "available_staff_total": 7,
+          "role_summary": [
+            "Laboratory Technicians: 1 needed, 3 available",
+            "Pathologists: 1 needed, 2 available",
+            "Registered Radiologic Technologists: 1 needed, 2 available"
+          ],
+          "status": "Sufficient",
+          "status_class": "healthy",
+          "role_summary_text": "Laboratory Technicians: 1 needed, 3 available; Pathologists: 1 needed, 2 available; Registered Radiologic Technologists: 1 needed, 2 available",
+          "short_role_summary": "Laboratory Technicians: 1/3, Pathologists: 1/2, Registered Radiologic Technologists: 1/2"
+        }
+      ],
+      "alert_rows": [],
+      "chart": {
+        "labels": [
+          "Oct 16",
+          "Oct 17",
+          "Oct 18",
+          "Oct 19",
+          "Oct 20",
+          "Oct 21",
+          "Oct 22",
+          "Oct 23",
+          "Oct 24",
+          "Oct 25",
+          "Oct 26",
+          "Oct 27",
+          "Oct 28",
+          "Oct 29"
+        ],
+        "datasets": [
+          {
+            "label": "General Physicians",
+            "data": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "label": "Internal Medicine Physicians",
+            "data": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "label": "Laboratory Technicians",
+            "data": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "label": "Pathologists",
+            "data": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "label": "Registered Radiologic Technologists",
+            "data": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "attribution_rows": [
+      {
+        "diagnosis": "Hypertension Monitoring",
+        "source": "historical",
+        "roles": [
+          "Internal Medicine Physicians"
+        ],
+        "support_count": 781,
+        "share": 0.9987,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 1757,
+        "trend": "Increasing"
+      },
+      {
+        "diagnosis": "Upper Respiratory Infection",
+        "source": "historical",
+        "roles": [
+          "General Physicians"
+        ],
+        "support_count": 759,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 1708,
+        "trend": "Increasing"
+      },
+      {
+        "diagnosis": "Diabetes Mellitus Monitoring",
+        "source": "historical",
+        "roles": [
+          "Internal Medicine Physicians"
+        ],
+        "support_count": 582,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 1310,
+        "trend": "Increasing"
+      },
+      {
+        "diagnosis": "Asthma Monitoring",
+        "source": "historical",
+        "roles": [
+          "Internal Medicine Physicians"
+        ],
+        "support_count": 428,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 963,
+        "trend": "Increasing"
+      },
+      {
+        "diagnosis": "Gastritis",
+        "source": "historical",
+        "roles": [
+          "Internal Medicine Physicians"
+        ],
+        "support_count": 408,
+        "share": 1.0,
+        "confidence": null,
+        "nearest_diagnosis": null,
+        "predicted_next_month": 918,
+        "trend": "Increasing"
+      }
+    ],
+    "mapping_historical_count": 5,
+    "mapping_classifier_count": 0,
+    "mapping_fallback_count": 0,
+    "mapping_min_support": 5,
+    "mapping_min_share_pct": 50,
+    "mapping_min_similarity_pct": 55
+  },
+  "estimated_monthly_capacity": 440,
+  "forecast_pressure": 4,
+  "forecast_pressure_raw": 4,
+  "recommended_staff_count": 1,
+  "staff_gap": 0,
+  "capacity_status": "Healthy",
+  "resource_forecast_recommendation": "Current staffing and equipment capacity appears sufficient for forecasted demand.",
+  "rf_metrics": null,
+  "branch_breakdown": [
+    {
+      "branch_id": 1,
+      "branch_name": "Accudetek Main Branch",
+      "branch_code": "MAIN",
+      "total_consultations": 10171,
+      "staff_count": 22,
+      "predicted_cases_next_month": 234,
+      "resource_readiness": 100,
+      "staffing_gap": 1,
+      "has_forecast": true
+    },
+    {
+      "branch_id": 2,
+      "branch_name": "test",
+      "branch_code": "TEST1",
+      "total_consultations": 0,
+      "staff_count": 0,
+      "predicted_cases_next_month": 0,
+      "resource_readiness": 100,
+      "staffing_gap": 0,
+      "has_forecast": true
+    }
+  ],
+  "cache_version": 10
+}

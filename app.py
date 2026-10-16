@@ -2375,13 +2375,30 @@ def create_app():
         except Exception:
             pass
 
-    def remove_cached_dashboard_summary(branch_id):
+    def purge_cached_dashboard_summary(branch_id):
+        """Physically remove the cache file (used only when consultation records are cleared)."""
         try:
             cache_file_path = branch_cache_file_path(branch_id)
             if os.path.exists(cache_file_path):
                 os.remove(cache_file_path)
         except Exception:
             pass
+
+    def refresh_operational_dashboard_summary(branch_id):
+        """Update live operational figures (appointments, staff, consultation counts)
+        while preserving the trained Random Forest forecast and evaluation metrics."""
+        try:
+            summary = get_dashboard_summary(force_refresh=False, branch_id=branch_id, refresh_operational=True)
+            if branch_id is not None:
+                get_dashboard_summary(force_refresh=False, branch_id=None, refresh_operational=True)
+            return summary
+        except Exception:
+            return None
+
+    def remove_cached_dashboard_summary(branch_id):
+        """Backwards-compatible operational refresh for appointment and staff changes.
+        Refreshes live operational state without destroying trained ML metrics."""
+        return refresh_operational_dashboard_summary(branch_id)
 
     _cached_default_branch_id = None
     _cached_branches = {'data': None, 'expires_at': 0}
@@ -3480,7 +3497,7 @@ def create_app():
             'mapping_min_similarity_pct': round(TIER2_MIN_SIMILARITY * 100),
         }
 
-    def build_dashboard_context(records, staff_members, branch=None, include_forecast=False, compute_model_b=True):
+    def build_dashboard_context(records, staff_members, branch=None, include_forecast=False, compute_model_b=True, previous_summary=None):
         total_consultations = len(records)
 
         monthly_counts = Counter()
@@ -3602,6 +3619,19 @@ def create_app():
                     'trend': 'Stable'
                 }]
             resource_recommendation = 'Random Forest consultation forecast translated into staff-role guidance through configured clinic role mappings.'
+        elif previous_summary and previous_summary.get('rf_metrics') and previous_summary.get('predictions'):
+            # Routine operational actions (booking, status change, completing appointments, staff changes)
+            # preserve the trained Random Forest forecast and evaluation metrics.
+            predicted_cases_next_month = int(previous_summary.get('predicted_cases_next_month') or 0)
+            predictions = list(previous_summary.get('predictions') or [])
+            rf_metrics = dict(previous_summary.get('rf_metrics') or {})
+            if rf_metrics.get('model_b_without_demographics'):
+                rf_metrics['model_b_carried_forward'] = True
+            demographic_forecast = previous_summary.get('demographic_forecast') or {'age_group': [], 'gender': [], 'segments': []}
+            resource_recommendation = previous_summary.get('resource_recommendation') or 'Random Forest consultation forecast translated into staff-role guidance through configured clinic role mappings.'
+            predicted_month_label = previous_summary.get('predicted_month_label', predicted_month_label)
+            predicted_month_full_label = previous_summary.get('predicted_month_full_label', predicted_month_full_label)
+            reference_month_label = previous_summary.get('reference_month', reference_month_label)
         else:
             # Naive fallback
             if len(monthly_trend) >= 2:
@@ -3718,30 +3748,28 @@ def create_app():
             'rf_metrics': rf_metrics,
         }
 
-    def get_dashboard_summary(force_refresh=False, branch_id='selected', compute_model_b=True):
+    def get_dashboard_summary(force_refresh=False, branch_id='selected', compute_model_b=True, refresh_operational=False):
         if branch_id == 'selected':
             branch_id = selected_branch_scope()
 
+        previous_summary = load_cached_dashboard_summary(branch_id)
+
         # When a light write route skips the redundant Model B fit for speed,
         # carry forward the last real comparison instead of letting the
-        # Predictions page's demographic-comparison section go dark after
-        # every routine write -- it doesn't meaningfully change between one
-        # appointment and the next, so the last real computation is more
-        # useful than "not available."
+        # Predictions page's demographic-comparison section go dark.
         carried_model_b = None
-        if force_refresh and not compute_model_b:
-            previous_summary = load_cached_dashboard_summary(branch_id)
-            if previous_summary:
-                candidate = (previous_summary.get('rf_metrics') or {}).get('model_b_without_demographics')
-                if candidate:
-                    carried_model_b = candidate
+        if force_refresh and not compute_model_b and previous_summary:
+            candidate = (previous_summary.get('rf_metrics') or {}).get('model_b_without_demographics')
+            if candidate:
+                carried_model_b = candidate
 
         if force_refresh:
-            remove_cached_dashboard_summary(branch_id)
+            purge_cached_dashboard_summary(branch_id)
             if branch_id is not None:
-                remove_cached_dashboard_summary(None)
-        if not force_refresh:
-            cached = load_cached_dashboard_summary(branch_id)
+                purge_cached_dashboard_summary(None)
+
+        if not force_refresh and not refresh_operational:
+            cached = previous_summary
             live_dates = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id).with_entities(
                 db.func.min(ConsultationRecord.consultation_date),
                 db.func.max(ConsultationRecord.consultation_date),
@@ -3762,12 +3790,16 @@ def create_app():
                     next_calendar_month = None
                 if cached_period is not None and next_calendar_month is not None and cached_period >= next_calendar_month:
                     return cached
-                force_refresh = True
 
         branch = None if branch_id is None else (db.session.get(Branch, branch_id) or ensure_default_branch())
         records = scoped_query(ConsultationRecord.query, ConsultationRecord, branch_id=branch_id).all()
         staff = scoped_query(StaffMember.query.filter_by(is_active=True), StaffMember, branch_id=branch_id).all()
-        summary = build_dashboard_context(records, staff, branch=branch, include_forecast=force_refresh, compute_model_b=compute_model_b)
+        summary = build_dashboard_context(
+            records, staff, branch=branch,
+            include_forecast=force_refresh,
+            compute_model_b=compute_model_b,
+            previous_summary=previous_summary,
+        )
         if carried_model_b is not None and summary.get('rf_metrics') is not None:
             summary['rf_metrics']['model_b_without_demographics'] = carried_model_b
             summary['rf_metrics']['model_b_carried_forward'] = True
@@ -5681,13 +5713,8 @@ def create_app():
             db.session.flush()
             log_audit('create_consultation_record', 'ConsultationRecord', record.id, {'patient_id': patient.id, 'diagnosis': record.diagnosis, 'date': record.consultation_date})
             db.session.commit()
-            # New ConsultationRecord rows are genuinely new training data -- force a
-            # real dashboard/forecast refresh instead of just invalidating the cache,
-            # so the next view reflects this data rather than a stale fallback.
-            # Skip the redundant demographic-comparison model here (compute_model_b=False)
-            # -- it's not needed for this refresh and roughly doubles the cost; the
-            # Predictions page carries forward the last real comparison instead.
-            get_dashboard_summary(force_refresh=True, compute_model_b=False)
+            # Refresh live counts and consultation totals while keeping the trained Random Forest metrics intact
+            refresh_operational_dashboard_summary(current_branch_id())
             flash('Consultation record added for patient.', 'success')
             return redirect(url_for('patient_detail', patient_id=patient.id))
         return render_template('patients/consultation_form.html', patient=patient, current_date=datetime.now().strftime('%Y-%m-%d'), current_time=datetime.now().strftime('%H:%M'), today=datetime.now().strftime('%Y-%m-%d'))
@@ -5897,14 +5924,9 @@ def create_app():
             appointment.updated_at = datetime.now()
             log_audit('complete_appointment', 'Appointment', appointment.id, {'appointment_code': appointment.appointment_code, 'records_created': len(services)})
             db.session.commit()
-            # Completing an appointment creates new ConsultationRecord rows -- this is
-            # the main automatic path into the model's training data, so force a real
-            # refresh rather than leaving the next viewer with a stale/fallback forecast.
-            # Skip the redundant demographic-comparison model here (compute_model_b=False)
-            # -- measured this as the difference between a 13s and a much faster response
-            # for a routine, high-frequency staff action; the Predictions page carries
-            # forward the last real comparison instead of losing it.
-            get_dashboard_summary(force_refresh=True, compute_model_b=False)
+            # Completing an appointment creates new ConsultationRecord rows -- refresh
+            # operational figures and live consultation count without wiping or retraining the Random Forest model.
+            refresh_operational_dashboard_summary(current_branch_id())
             flash(f'Appointment completed and {len(services)} consultation record(s) were created.', 'success')
             return redirect(url_for('appointments'))
         return render_template(
@@ -6296,9 +6318,7 @@ def create_app():
         deleted_count = ConsultationRecord.query.filter_by(branch_id=current_branch_id()).delete()
         log_audit('clear_consultation_records', 'ConsultationRecord', None, {'deleted_count': deleted_count})
         db.session.commit()
-        # All training data for this branch just changed (to none) -- force a real
-        # refresh so the dashboard resets to a correct empty state immediately,
-        # instead of continuing to serve a stale pre-deletion cached forecast.
+        purge_cached_dashboard_summary(current_branch_id())
         get_dashboard_summary(force_refresh=True, compute_model_b=False)
         flash(f'Cleared {deleted_count} consultation records for the current branch.', 'success')
         return redirect(url_for('records'))

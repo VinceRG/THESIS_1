@@ -14,7 +14,7 @@
 {% elif verdict %}{% set verdict_class = 'high' %}
 {% else %}{% set verdict_class = 'moderate' %}{% endif %}
 <div class="section-stack">
-{% if not summary.rf_metrics %}
+{% if not summary.rf_metrics and not all_branches_view %}
   <div class="flash-message flash-warning">
     Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.
     {% if can_manage %}Use <strong>Retrain Model</strong> below for a fresh forecast.{% endif %}

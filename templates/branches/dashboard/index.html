@@ -5,7 +5,7 @@
 {% block page_subtitle %}Trusted overview of patient demand, staffing, and readiness{% endblock %}
 
 {% block content %}
-{% if not summary.rf_metrics %}
+{% if not summary.rf_metrics and not all_branches_view %}
   <div class="flash-message flash-warning" style="margin-bottom:18px;">
     Showing a cached or trend-based estimate, not a freshly evaluated Random Forest forecast.
     Visit <a href="{{ url_for('predict') }}">Predictions</a> and use <strong>Retrain Model</strong> for a fresh forecast.
