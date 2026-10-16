@@ -156,7 +156,7 @@
             </td>
             <td>
               <div class="metric-cell">
-                <span class="metric-value">{{ item.predicted_next_month }}{% if item.predicted_low is not none and item.predicted_high is not none and item.predicted_low != item.predicted_high %} <span class="muted-copy" style="font-size:11px;">({{ item.predicted_low }}&ndash;{{ item.predicted_high }})</span>{% endif %}</span>
+                <span class="metric-value">{{ item.predicted_next_month }}</span>
                 <span class="metric-track"><span class="metric-fill" style="width: {{ (item.predicted_next_month / max_pred * 100) | round }}%;"></span></span>
               </div>
             </td>

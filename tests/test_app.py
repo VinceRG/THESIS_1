@@ -454,17 +454,16 @@ class SmartClinicAppTests(unittest.TestCase):
                     )
         return ('\n'.join(rows) + '\n').encode('utf-8')
 
-    def test_predict_page_shows_forecast_range(self):
-        """RQ2-adjacent: a bare point forecast implies a precision the model
-        doesn't have. After a real retrain, the Predictions page should show
-        a (low-high) range alongside at least one forecasted count."""
+    def test_predict_page_shows_clean_point_forecast(self):
+        """After a real retrain, the Predictions page should display clean
+        point forecasts without an inflated (low-high) tree-spread range."""
         self._login()
         data = {'file': (BytesIO(self._recent_consultation_csv_with_variance()), 'sample.csv'), '_csrf_token': self.csrf_token}
         self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
         response = self.client.get('/predict')
         self.assertEqual(response.status_code, 200)
         body = response.data.decode('utf-8')
-        self.assertIn('muted-copy" style="font-size:11px;">(', body)
+        self.assertNotIn('muted-copy" style="font-size:11px;">(', body)
 
     def test_predict_page_naive_fallback_has_no_crash_and_no_fabricated_range(self):
         """With too little data for real training (fewer than 8 months), the
@@ -491,7 +490,7 @@ class SmartClinicAppTests(unittest.TestCase):
         self.assertIn(b'Showing a cached or trend-based estimate', response.data)
         self.assertNotIn(b'muted-copy" style="font-size:11px;">(', response.data)
 
-    def test_mapped_staff_role_demand_shows_required_range(self):
+    def test_mapped_staff_role_demand_shows_clean_required_count(self):
         self._login()
         data = {'file': (BytesIO(self._recent_consultation_csv_with_variance()), 'sample.csv'), '_csrf_token': self.csrf_token}
         self.client.post('/upload', data=data, content_type='multipart/form-data', follow_redirects=True)
@@ -501,7 +500,7 @@ class SmartClinicAppTests(unittest.TestCase):
         idx = body.find('Mapped Staff Role Demand')
         self.assertGreater(idx, -1)
         section = body[idx:idx + 3000]
-        self.assertIn('muted-copy" style="font-size:11px;">(', section)
+        self.assertNotIn('muted-copy" style="font-size:11px;">(', section)
 
     def test_common_diagnosis_metrics_exclude_rare_bucket(self):
         """Unit-level check that common_diagnoses is computed from real

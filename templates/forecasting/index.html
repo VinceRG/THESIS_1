@@ -94,7 +94,7 @@
             <tr>
               <td>{{ item.diagnosis }}</td>
               <td>{{ item.current_month if item.current_month is not none else 'N/A' }}</td>
-              <td><strong>{{ item.predicted_next_month }}</strong>{% if item.predicted_low is not none and item.predicted_high is not none and item.predicted_low != item.predicted_high %} <span class="muted-copy" style="font-size:11px;">({{ item.predicted_low }}&ndash;{{ item.predicted_high }})</span>{% endif %}</td>
+              <td><strong>{{ item.predicted_next_month }}</strong></td>
               <td>{{ item.trend }}</td>
             </tr>
           {% else %}
@@ -223,7 +223,7 @@
             <td>{{ row.staff_role }}</td>
             <td><strong>{{ row.planning_demand }}</strong></td>
             <td>{{ row.available_staff }}</td>
-            <td>{{ row.estimated_required }}{% if row.required_low is not none and row.required_high is not none and row.required_low != row.required_high %} <span class="muted-copy" style="font-size:11px;">({{ row.required_low }}&ndash;{{ row.required_high }})</span>{% endif %}</td>
+            <td>{{ row.estimated_required }}</td>
             <td class="{{ 'gap-warning' if row.gap and row.gap > 0 else '' }}">{{ row.gap }}</td>
             <td><span class="status-pill status-{{ row.status_class }}">{{ row.status }}</span></td>
           </tr>
